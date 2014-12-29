@@ -8,11 +8,11 @@ import base64
 import tempfile
 import logging
 
-from process.reader import (
+from .process.reader import (
     read_prof, read_ranges, read_sym_file, LibraryData
 )
 
-from process.addrspace import AddressSpace
+from .process.addrspace import AddressSpace
 
 
 ffi = cffi.FFI()
