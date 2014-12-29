@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 setup(
     name='vmprof',
     author='vmprof team',
-    author_email='info@divio.ch',
+    author_email='sebastian.pawlus@gmail.com',
     version="0.0.1",
     packages=find_packages(),
     description="Python's vmprof client",
