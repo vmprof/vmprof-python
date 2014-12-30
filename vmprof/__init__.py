@@ -1,7 +1,7 @@
 import sys
 import cffi
-import functools
 import requests
+import urlparse
 import json
 import zlib
 import base64
@@ -28,23 +28,28 @@ if not hasattr(lib, 'vmprof_enable'):
     sys.exit()
 
 
-class VMprof(object):
+class vmprof(object):
 
     def __init__(self, host, port=80, logger=None):
+        self.host = host
+        self.port = port
+        self.logger = logger or self.get_default_logger()
+
+    def get_default_logger(self):
         default_logger = logging.getLogger(self.__class__.__name__)
         default_logger.setLevel(logging.INFO)
         default_logger.addHandler(logging.StreamHandler())
+        return default_logger
 
-        self.host = host
-        self.port = port
-
-        self.logger = logger or default_logger
+    def validate_args(self, *args, **kwargs):
+        return True
 
     def __call__(self, f):
-        @functools.wraps(f)
         def func(*args, **kwargs):
-            lib = ffi.dlopen(None)
+            if not self.validate_args(*args, **kwargs):
+                return f(*args, **kwargs)
 
+            lib = ffi.dlopen(None)
             prof_file = "%s.prof" % tempfile.mkstemp()[1]
             prof_sym_file = "%s.sym" % prof_file
 
@@ -89,4 +94,21 @@ class VMprof(object):
             return ret
 
         return func
+
+
+class DjangoVMPROF(vmprof):
+
+    def __init__(self, host, port=80, token="", logger=None):
+        self.host = host
+        self.port = port
+        self.token = token
+        self.logger = logger or self.get_default_logger()
+
+    def validate_args(self, environ, start_response):
+        qs = dict(urlparse.parse_qsl(environ.get('QUERY_STRING', '')))
+        token = qs.get('vmprof')
+        if token == self.token:
+            return True
+        return False
+
 
