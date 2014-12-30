@@ -38,6 +38,6 @@ vmprof = DjangoVMPROF("localhost", 8000, "token")
 app = vmprof(get_wsgi_application())
 ```
 
-To profile request, you will have to add a query string value `vmprof` with `token` value. The presented snippet the token is `token` string, as for usecase will be:
+To profile a request, you will have to add a query string key `vmprof` with `token` value. Inside the presented snippet the token is the `token` string, as for usecase will be:
 
 http://localhost:8000?vmprof=token
