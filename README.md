@@ -40,4 +40,6 @@ app = vmprof(get_wsgi_application())
 
 To profile a request, you will have to add a query string key `vmprof` with `token` value. Inside the presented snippet the token is the `token` string, as for usecase will be:
 
+```
 http://localhost:8000?vmprof=token
+```
