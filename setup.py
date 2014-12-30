@@ -5,7 +5,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='sebastian.pawlus@gmail.com',
-    version="0.0.2",
+    version="0.0.3",
     packages=find_packages(),
     description="Python's vmprof client",
     install_requires=[
