@@ -1,34 +1,20 @@
-import sys
-import cffi
-import requests
-import urlparse
+#import requests
+#import urlparse
 import json
-import zlib
-import base64
+#import zlib
+#import base64
 import tempfile
 import logging
 
-from .process.reader import (
+from vmprof.reader import (
     read_prof, read_ranges, read_sym_file, LibraryData
 )
 
-from .process.addrspace import AddressSpace
+from vmprof.addrspace import AddressSpace
+from vmprof.profiler import Profiler
 
 
-ffi = cffi.FFI()
-ffi.cdef("""
-    void vmprof_enable(const char* filename, long period_usec);
-    void vmprof_disable(void);
-""")
-
-
-lib = ffi.dlopen(None)
-if not hasattr(lib, 'vmprof_enable'):
-    print "You need a patched version of CPython linked to libvmprof.so"
-    sys.exit()
-
-
-class vmprof(object):
+class xxx_vmprof(object):
 
     def __init__(self, host, port=80, logger=None):
         self.host = host
@@ -96,7 +82,7 @@ class vmprof(object):
         return func
 
 
-class DjangoVMPROF(vmprof):
+class DjangoVMPROF(xxx_vmprof):
 
     def __init__(self, host, port=80, token="", logger=None):
         self.host = host

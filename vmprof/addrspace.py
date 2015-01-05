@@ -48,7 +48,7 @@ class AddressSpace(object):
             for addr in prof[0]:
                 name, is_virtual = self.lookup(addr)
                 if is_virtual:
-                    new_addr = addr & (~0x8000000000000000L)
+                    new_addr = int(addr & (~0x8000000000000000L))
                     current.append(new_addr)
                     addr_set.add(new_addr)
             if current:
@@ -62,18 +62,25 @@ class AddressSpace(object):
 
 
 class Profiles(object):
-    def __init__(self, profiles):
+    def __init__(self, profiles, adr_dict=None):
         self.profiles = profiles
+        self.adr_dict = adr_dict
         self.functions = {}
         self.generate_top()
 
     def generate_top(self):
         for profile in self.profiles:
             current_iter = {}
-            for name in profile[0]:
-                if name not in current_iter:  # count only topmost
+            for addr in profile[0]:
+                if addr not in current_iter:  # count only topmost
+                    name = self._get_name(addr)
                     self.functions[name] = self.functions.get(name, 0) + 1
-                    current_iter[name] = None
+                    current_iter[addr] = None
+
+    def _get_name(self, addr):
+        if self.adr_dict is not None:
+            return self.adr_dict[addr]
+        return addr
 
     def generate_per_function(self, top_function):
         """ Show functions that we call (directly or indirectly) under
@@ -84,13 +91,15 @@ class Profiles(object):
         for profile in self.profiles:
             current_iter = {}  # don't count twice
             counting = False
-            for name in profile[0]:
+            for addr in profile[0]:
                 if counting:
-                    if name in current_iter:
+                    if addr in current_iter:
                         continue
-                    current_iter[name] = None
+                    current_iter[addr] = None
+                    name = self._get_name(addr)
                     result[name] = result.get(name, 0) + 1
                 else:
+                    name = self._get_name(addr) 
                     if name == top_function:
                         counting = True
                         total += 1

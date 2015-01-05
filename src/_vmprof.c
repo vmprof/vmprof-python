@@ -7,16 +7,27 @@
 
 static PyObject* (*Original_PyEval_EvalFrameEx)(PyFrameObject *f, int throwflag);
 int initialized = 0;
+PyObject* vmprof_mod = NULL;
+
+#define UNUSED_FLAG 0x1000 // this is a flag unused since Python2.5, let's hope
+// noone uses it
 
 static void* PyEval_GetVirtualIp(PyFrameObject* f) {
-    char buf[4096];
-    char* co_name = PyString_AsString(f->f_code->co_name);
+	char buf[4096];
+	char *co_name, *co_filename;
+	int co_firstlineno;
+    unsigned long res = (unsigned long)f->f_code | 0x8000000000000000;
     // set the first bit to 1; on my system, such address space is unused, so
     // we don't risk spurious conflicts with loaded libraries. The proper
     // solution would be to tell the linker to reserve us some address space
     // and use that.
-    unsigned long res = (unsigned long)f->f_code | 0x8000000000000000;
-    snprintf(buf, 4096, "py:%s", co_name);
+	if (f->f_code->co_flags & UNUSED_FLAG)
+		return (void*)res;
+	f->f_code->co_flags |= UNUSED_FLAG;
+    co_name = PyString_AsString(f->f_code->co_name);
+	co_filename = PyString_AsString(f->f_code->co_filename);
+	co_firstlineno = f->f_code->co_firstlineno;
+    snprintf(buf, 4096, "py:%s:%s:%d", co_name, co_filename, co_firstlineno);
     vmprof_register_virtual_function(buf, (void*)res, NULL);
     return (void*)res;
 }
@@ -43,15 +54,18 @@ void init_cpyprof(void) {
 
 PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
-	char *name;
+	int fd, sym_fd;
 
 	if (!initialized) {
 		init_cpyprof();
 		initialized = 1;
 	}
-	if (!PyArg_ParseTuple(args, "s", &name))
+	if (!PyArg_ParseTuple(args, "ii", &fd, &sym_fd))
 		return NULL;
-	vmprof_enable(name, -1);
+	if (vmprof_enable(fd, sym_fd, -1) == -1) {
+		PyErr_SetFromErrno(PyExc_OSError);
+		return NULL;
+	}
 	Py_INCREF(Py_None);
 	return Py_None;
 }
@@ -73,9 +87,7 @@ static PyMethodDef VmprofMethods[] = {
 
 PyMODINIT_FUNC init_vmprof(void)
 {
-	PyObject *m;
-
-    m = Py_InitModule("_vmprof", VmprofMethods);
-    if (m == NULL)
-        return;
+    vmprof_mod = Py_InitModule("_vmprof", VmprofMethods);
+    if (vmprof_mod == NULL)
+        return;	
 }

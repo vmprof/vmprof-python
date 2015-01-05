@@ -212,13 +212,23 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext) {
  * *************************************************************
  */
 
-static void open_profile(const char* filename, long period_usec) {
-    char buf[4096];
-    profile_file = fopen(filename, "wb");
+static int open_profile(int fd, int sym_fd, long period_usec) {
+	if ((fd = dup(fd)) == -1) {
+		return -1;
+	}
+	if ((sym_fd = dup(sym_fd)) == -1) {
+		return -1;
+	}	
+    profile_file = fdopen(fd, "wb");
+	if (!profile_file) {
+		return -1;
+	}
     prof_header(profile_file, period_usec);
-    assert(strlen(filename) < 4096);
-    sprintf(buf, "%s.sym", filename);
-    symbol_file = fopen(buf, "w");
+    symbol_file = fdopen(sym_fd, "w");
+	if (!symbol_file) {
+		return -1;
+	}
+	return 0;
 }
 
 static void close_profile(void) {
@@ -244,8 +254,10 @@ static void install_sigprof_handler(void) {
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = sigprof_handler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
-    sigemptyset(&sa.sa_mask);
-    sigaction(SIGPROF, &sa, NULL);
+    if (sigemptyset(&sa.sa_mask) == -1 ||
+		sigaction(SIGPROF, &sa, NULL) == -1) {
+		printf("can't install sigprof handler\n");
+	}
 }
 
 static void remove_sigprof_handler(void) {
@@ -284,12 +296,15 @@ void vmprof_set_mainloop(void* func, ptrdiff_t sp_offset,
     mainloop_get_virtual_ip = get_virtual_ip;
 }
 
-void vmprof_enable(const char* filename, long period_usec) {
+int vmprof_enable(int fd, int sym_fd, long period_usec) {
     if (period_usec == -1)
         period_usec = 1000000 / 100; /* 100hz */
-    open_profile(filename, period_usec);
+    if (open_profile(fd, sym_fd, period_usec) == -1) {
+		return -1;
+	}
     install_sigprof_handler();
     install_sigprof_timer(period_usec);
+	return 0;
 }
 
 void vmprof_disable(void) {
