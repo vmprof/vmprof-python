@@ -47,6 +47,7 @@ class AddressSpace(object):
             current = []
             for addr in prof[0]:
                 name, is_virtual = self.lookup(addr)
+                print name, is_virtual
                 if is_virtual:
                     new_addr = int(addr & (~0x8000000000000000L))
                     current.append(new_addr)
@@ -82,7 +83,7 @@ class Profiles(object):
             return self.adr_dict[addr]
         return addr
 
-    def generate_per_function(self, top_function):
+    def function_profile(self, top_function):
         """ Show functions that we call (directly or indirectly) under
         a given name
         """

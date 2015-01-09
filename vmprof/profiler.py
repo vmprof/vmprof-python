@@ -4,6 +4,9 @@ import tempfile
 from vmprof.addrspace import AddressSpace, Profiles
 from vmprof.reader import read_prof, read_ranges, LibraryData, read_sym_file
 
+# this has to be global since we store flags on global objects
+symfile = tempfile.NamedTemporaryFile()
+
 class VMProfError(Exception):
     pass
 
@@ -12,10 +15,9 @@ class ProfilerContext(object):
     
     def __init__(self):
         self.tmpfile = tempfile.NamedTemporaryFile()
-        self.symfile = tempfile.NamedTemporaryFile()
 
     def __enter__(self):
-        _vmprof.enable(self.tmpfile.fileno(), self.symfile.fileno())
+        _vmprof.enable(self.tmpfile.fileno(), symfile.fileno())
 
     def __exit__(self, type, value, traceback):
         _vmprof.disable()
@@ -38,7 +40,7 @@ class Profiler(object):
         if not self.ctx.done:
             raise VMProfError("profiling in process")
         res = Profiles(*self.read_profile(self.ctx.tmpfile.name,
-                                       self.ctx.symfile.name))
+                                          symfile.name))
         #self.ctx = None
         return res
 

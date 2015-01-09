@@ -72,7 +72,10 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
 
 PyObject *disable_vmprof(PyObject* self, PyObject *args)
 {
-	vmprof_disable();
+	if (vmprof_disable() == -1) {
+		PyErr_SetFromErrno(PyExc_OSError);
+		return NULL;
+	}
 	Py_INCREF(Py_None);
 	return Py_None;
 }

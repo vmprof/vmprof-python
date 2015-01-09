@@ -31,4 +31,4 @@ class TestAddrSpace(object):
             ]
         p = Profiles(profiles)
         assert p.functions == {"py:one": 2, "py:two": 1}
-        assert p.generate_per_function("py:two") == ({'py:one': 1}, 1)
+        assert p.function_profile("py:two") == ({'py:one': 1}, 1)

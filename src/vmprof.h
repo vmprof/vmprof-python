@@ -13,6 +13,6 @@ void vmprof_register_virtual_function(const char* name, void* start, void* end);
 
 
 int vmprof_enable(int fd, int sym_fd, long period_usec);
-void vmprof_disable(void);
+int vmprof_disable(void);
 
 #endif

@@ -231,7 +231,8 @@ static int open_profile(int fd, int sym_fd, long period_usec) {
 	return 0;
 }
 
-static void close_profile(void) {
+static int close_profile(void) {
+	// XXX all of this can happily fail
     FILE* src;
     char buf[BUFSIZ];
     size_t size;
@@ -246,42 +247,50 @@ static void close_profile(void) {
     fclose(src);
     fclose(profile_file);
     fclose(symbol_file);
+	return 0;
 }
 
 
-static void install_sigprof_handler(void) {
+static int install_sigprof_handler(void) {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = sigprof_handler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
     if (sigemptyset(&sa.sa_mask) == -1 ||
 		sigaction(SIGPROF, &sa, NULL) == -1) {
-		printf("can't install sigprof handler\n");
+		return -1;
 	}
+	return 0;
 }
 
-static void remove_sigprof_handler(void) {
-    signal(SIGPROF, SIG_DFL);
+static int remove_sigprof_handler(void) {
+    //sighandler_t res = signal(SIGPROF, SIG_DFL);
+	//if (res == SIG_ERR) {
+	//	return -1;
+	//}
+	return 0;
 };
 
-static void install_sigprof_timer(long period_usec) {
+static int install_sigprof_timer(long period_usec) {
     static struct itimerval timer;
     timer.it_interval.tv_sec = 0;
     timer.it_interval.tv_usec = period_usec;
     timer.it_value = timer.it_interval;
     if (setitimer(ITIMER_PROF, &timer, NULL) != 0) {
-        printf("Timer could not be initialized \n");
+		return -1;
     }
+	return 0;
 }
 
-static void remove_sigprof_timer(void) {
+static int remove_sigprof_timer(void) {
     static struct itimerval timer;
     timer.it_interval.tv_sec = 0;
     timer.it_interval.tv_usec = 0;
     timer.it_value = timer.it_interval;
     if (setitimer(ITIMER_PROF, &timer, NULL) != 0) {
-        printf("Timer could not be deleted \n");
+		return -1;
     }
+	return 0;
 }
 
 /* *************************************************************
@@ -302,15 +311,26 @@ int vmprof_enable(int fd, int sym_fd, long period_usec) {
     if (open_profile(fd, sym_fd, period_usec) == -1) {
 		return -1;
 	}
-    install_sigprof_handler();
-    install_sigprof_timer(period_usec);
+    if (install_sigprof_handler() == -1) {
+		return -1;
+	}
+    if (install_sigprof_timer(period_usec) == -1) {
+		return -1;
+	}
 	return 0;
 }
 
-void vmprof_disable(void) {
-    remove_sigprof_timer();
-    remove_sigprof_handler();
-    close_profile();
+int vmprof_disable(void) {
+    if (remove_sigprof_timer() == -1) {
+		return -1;
+	}
+    if (remove_sigprof_handler() == -1) {
+		return -1;
+	}
+    if (close_profile() == -1) {
+		return -1;
+	}
+	return 0;
 }
 
 void vmprof_register_virtual_function(const char* name, void* start, void* end) {
