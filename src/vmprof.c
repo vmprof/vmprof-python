@@ -77,22 +77,7 @@ static void prof_binary_trailer(FILE* f) {
  * ******************************************************
  */
 
-static void* jit_start = NULL;
-static void* jit_end = NULL;
-void vmprof_set_jit_range(void* start, void* end) {
-    jit_start = start;
-    jit_end = end;
-}
-
-static ptrdiff_t vmprof_unw_get_custom_offset(void* ip) {
-    /* temporary hack to determine is this particular frame is JITted or not */
-    if (ip >= jit_start && ip <= jit_end) {
-        // it's probably a JIT frame
-        return 19*8; // XXX
-    }
-    return -1; // not JITted code
-}
-
+#include "get_custom_offset.c"
 
 typedef struct {
     void* _unused1;
