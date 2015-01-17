@@ -104,9 +104,9 @@ static int vmprof_unw_step(unw_cursor_t *cp) {
         // setting the IP and SP in the cursor
         vmprof_hacked_unw_cursor_t *cp2 = (vmprof_hacked_unw_cursor_t*)cp;
         void* bp = (void*)sp + sp_offset;
-        cp2->sp = bp+8; // the ret will pop a word, so the SP of the caller is
-                        // 8 bytes away from us
-        cp2->ip = ((void**)bp)[0]; // the ret is on the top of the stack
+        cp2->sp = bp;
+        cp2->ip = ((void**)(bp - sizeof(void*))[0];
+        // the ret is on the top of the stack minus WORD
         return 1;
     }
 }
