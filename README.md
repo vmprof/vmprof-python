@@ -3,6 +3,11 @@
 
 ## install
 
+```
+sudo apt-get install libdwarf-dev
+sudo apt-get install libelfg0-dev
+```
+
 ```bash
 pip install vmprof
 ```
