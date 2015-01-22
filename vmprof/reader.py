@@ -12,14 +12,14 @@ class LibraryData(object):
         self.is_virtual = is_virtual
         self.symbols = symbols
 
-    def read_object_data(self, reader=None):
+    def read_object_data(self, start_addr=0, reader=None):
         if self.is_virtual:
             return
-        self.symbols = read_object(reader, self.name)
+        self.symbols = read_object(reader, self.name, start_addr)
         return self.symbols
 
 
-def read_object(reader, name, repeat=True):
+def read_object(reader, name, lib_start_addr, repeat=True):
     if reader is None:
         out = commands.getoutput('nm -n "%s"' % name)
     else:
@@ -31,11 +31,12 @@ def read_object(reader, name, repeat=True):
         if len(parts) != 3:
             continue
         start_addr, _, name = parts
-        start_addr = int(start_addr, 16)
+        start_addr = int(start_addr, 16) + lib_start_addr
         symbols.append((start_addr, name))
     symbols.sort()
     if repeat and not symbols:
-        return read_object(reader, '/usr/lib/debug' + name, False)
+        return read_object(reader, '/usr/lib/debug' + name, lib_start_addr,
+                           False)
     return symbols
 
 
@@ -47,7 +48,8 @@ def read_ranges(data):
         start, end = parts[0].split('-')
         start = int('0x' + start, 16)
         end = int('0x' + end, 16)
-        ranges.append(LibraryData(name, start, end))
+        if name: # don't map anonymous memory, JIT code will be there
+            ranges.append(LibraryData(name, start, end))
     return ranges
 
 

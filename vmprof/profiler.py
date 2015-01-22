@@ -23,6 +23,32 @@ class ProfilerContext(object):
         _vmprof.disable()
         self.done = True
 
+# lib_cache is global on purpose
+def read_profile(prof_filename, sym_filename, lib_cache={}, extra_libs=None):
+    prof = open(prof_filename, 'rb').read()
+    prof_sym = open(sym_filename, 'rb').read()
+
+    period, profiles, symmap = read_prof(prof)
+    libs = read_ranges(symmap)
+
+    for i, lib in enumerate(libs):
+        if lib.name in lib_cache:
+            libs[i] = lib_cache[lib.name]
+        else:
+            lib.read_object_data(lib.start)
+            lib_cache[lib.name] = lib
+    libs.append(
+        LibraryData(
+            '<virtual>',
+            0x7000000000000000,
+            0x7fffffffffffffff,
+            True,
+            symbols=read_sym_file(prof_sym))
+    )
+    if extra_libs:
+        libs += extra_libs
+    addrspace = AddressSpace(libs)
+    return addrspace, profiles
 
 class Profiler(object):
     ctx = None
@@ -44,31 +70,12 @@ class Profiler(object):
         #self.ctx = None
         return res
 
-    def read_profile(self, prof_filename, sym_filename):
-        prof = open(prof_filename, 'rb').read()
-        prof_sym = open(sym_filename, 'rb').read()
-
-        period, profiles, symmap = read_prof(prof)
-        libs = read_ranges(symmap)
-
-        for i, lib in enumerate(libs):
-            if lib.name in self._lib_cache:
-                libs[i] = self._lib_cache[lib.name]
-            else:
-                lib.read_object_data()
-                self._lib_cache[lib.name] = lib
-        libs.append(
-            LibraryData(
-                '<virtual>',
-                0x8000000000000000L,
-                0x8fffffffffffffffL,
-                True,
-                symbols=read_sym_file(prof_sym))
-        )
-        addrspace = AddressSpace(libs)
+    def read_profile(self, prof_filename, sym_filename, extra_libs=None):
+        addrspace, profiles = read_profile(prof_filename, sym_filename,
+                                           extra_libs=extra_libs)
         filtered_profiles, addr_set = addrspace.filter_addr(profiles)
         d = {}
         for addr in addr_set:
-            name, _ = addrspace.lookup(addr | 0x8000000000000000L)
+            name, _, _ = addrspace.lookup(addr)
             d[addr] = name
         return filtered_profiles, d

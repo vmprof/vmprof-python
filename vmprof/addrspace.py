@@ -16,16 +16,16 @@ class AddressSpace(object):
         addr = arg + 1
         i = bisect.bisect(self.lib_lookup, addr)
         if i > len(self.libs) or i <= 0:
-            return fmtaddr(addr), False
+            return fmtaddr(addr), addr, False
         lib = self.libs[i - 1]
         if addr < lib.start or addr >= lib.end:
-            return fmtaddr(addr), False
+            return fmtaddr(addr), addr, False
         i = bisect.bisect(lib.symbols, (addr + 1,))
         if i > len(lib.symbols) or i <= 0:
-            return fmtaddr(addr), False
+            return fmtaddr(addr), addr, False
         addr, name = lib.symbols[i - 1]
         is_virtual = lib.is_virtual
-        return name, is_virtual
+        return name, addr, is_virtual
 
     def filter(self, profiles):
         filtered_profiles = []
@@ -40,18 +40,16 @@ class AddressSpace(object):
                 filtered_profiles.append((current, prof[1]))
         return filtered_profiles
 
-    def filter_addr(self, profiles):
+    def filter_addr(self, profiles, only_virtual=True):
         filtered_profiles = []
         addr_set = set()
         for prof in profiles:
             current = []
             for addr in prof[0]:
-                name, is_virtual = self.lookup(addr)
-                print name, is_virtual
-                if is_virtual:
-                    new_addr = int(addr & (~0x8000000000000000L))
-                    current.append(new_addr)
-                    addr_set.add(new_addr)
+                name, addr, is_virtual = self.lookup(addr)
+                if is_virtual or not only_virtual:
+                    current.append(addr)
+                    addr_set.add(addr)
             if current:
                 current.reverse()
                 filtered_profiles.append((current, prof[1]))
@@ -74,8 +72,7 @@ class Profiles(object):
             current_iter = {}
             for addr in profile[0]:
                 if addr not in current_iter:  # count only topmost
-                    name = self._get_name(addr)
-                    self.functions[name] = self.functions.get(name, 0) + 1
+                    self.functions[addr] = self.functions.get(addr, 0) + 1
                     current_iter[addr] = None
 
     def _get_name(self, addr):
@@ -85,7 +82,7 @@ class Profiles(object):
 
     def function_profile(self, top_function):
         """ Show functions that we call (directly or indirectly) under
-        a given name
+        a given addr
         """
         result = {}
         total = 0
@@ -97,11 +94,9 @@ class Profiles(object):
                     if addr in current_iter:
                         continue
                     current_iter[addr] = None
-                    name = self._get_name(addr)
-                    result[name] = result.get(name, 0) + 1
+                    result[addr] = result.get(addr, 0) + 1
                 else:
-                    name = self._get_name(addr) 
-                    if name == top_function:
+                    if addr == top_function:
                         counting = True
                         total += 1
         return result, total
