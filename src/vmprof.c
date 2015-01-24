@@ -95,7 +95,8 @@ static int vmprof_unw_step(unw_cursor_t *cp) {
     ptrdiff_t sp_offset;
     unw_get_reg (cp, UNW_REG_IP, (unw_word_t*)&ip);
     unw_get_reg (cp, UNW_REG_SP, (unw_word_t*)&sp);
-    sp_offset = vmprof_unw_get_custom_offset(ip);
+    sp_offset = vmprof_unw_get_custom_offset(ip, cp);
+
     if (sp_offset == -1) {
         // it means that the ip is NOT in JITted code, so we can use the
         // stardard unw_step
@@ -128,7 +129,8 @@ static int vmprof_unw_step(unw_cursor_t *cp) {
 // recursive request, we'd end up with infinite recursion or deadlock.
 // Luckily, it's safe to ignore those subsequent traces.  In such
 // cases, we return 0 to indicate the situation.
-static __thread int recursive;
+//static __thread int recursive;
+static int recursive; // XXX antocuni: removed __thread
 
 int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext) {
     void *ip;
