@@ -32,7 +32,7 @@ class AddressSpace(object):
         for prof in profiles:
             current = []
             for addr in prof[0]:
-                name, is_virtual = self.lookup(addr)
+                name, true_addr, is_virtual = self.lookup(addr)
                 if is_virtual:
                     current.append(name)
             if current:

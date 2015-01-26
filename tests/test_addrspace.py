@@ -9,9 +9,9 @@ class TestAddrSpace(object):
         d2 = LibraryData("lib2", 1400, 1500)
         d2.symbols = []
         addr = AddressSpace([d, d2])
-        fn, is_virtual = addr.lookup(1350)
+        fn, _, is_virtual = addr.lookup(1350)
         assert fn == '0x0000000000000547'  # outside of range
-        fn, is_virtual = addr.lookup(1250)
+        fn, _, is_virtual = addr.lookup(1250)
         assert fn == "a"
 
     def test_filter_profiles(self):
