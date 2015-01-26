@@ -2,7 +2,7 @@
 import _vmprof
 import tempfile
 from vmprof.addrspace import AddressSpace, Profiles
-from vmprof.reader import read_prof, read_ranges, LibraryData, read_sym_file
+from vmprof.reader import read_prof, read_ranges, LibraryData
 
 # this has to be global since we store flags on global objects
 symfile = tempfile.NamedTemporaryFile()

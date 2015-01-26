@@ -7,7 +7,7 @@ import tempfile
 import logging
 
 from vmprof.reader import (
-    read_prof, read_ranges, read_sym_file, LibraryData
+    read_prof, read_ranges, LibraryData
 )
 
 from vmprof.addrspace import AddressSpace

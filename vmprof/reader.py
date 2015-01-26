@@ -18,6 +18,10 @@ class LibraryData(object):
         self.symbols = read_object(reader, self.name, start_addr)
         return self.symbols
 
+    def __repr__(self):
+        return '<Library data for %s, ranges %x-%x>' % (self.name, self.start,
+                                                        self.end)
+
 
 def read_object(reader, name, lib_start_addr, repeat=True):
     if reader is None:
@@ -52,79 +56,47 @@ def read_ranges(data):
             ranges.append(LibraryData(name, start, end))
     return ranges
 
+def read_word(fileobj):
+    return struct.unpack('Q', fileobj.read(8))[0]
 
-def read_sym_file(sym):
-    syms = {}
-    for line in sym.splitlines():
-        if not line.startswith('0x'):
-            continue
-        addr, name = line.split(': ')
-        addr = int(addr, 16)
-        name = name.strip()
-        syms[(addr, name)] = None
+def read_string(fileobj):
+    len = struct.unpack('Q', fileobj.read(8))[0]
+    return fileobj.read(len)
 
-    syms = syms.keys()
-    syms.sort()
-    return syms
+MARKER_STACKTRACE = '\x01'
+MARKER_VIRTUAL_IP = '\x02'
+MARKER_TRAILER = '\x03'
 
-
-def read_slots(content):
-    slots = []
-    bottom = 0
-    top = 8
-    while True:
-        data = content[bottom:top]
-        bottom = top
-        top += 8
-
-        if len(data) < 8:
-            break
-        val = struct.unpack('Q', data)[0]
-        slots.append(val)
-
-    return slots
-
-
-def read_prof(content): #
+def read_prof(fileobj): #
     # f = open(fname, 'rb') # to jest czytane do konca
-    slots = read_slots(content)
-    assert slots[0] == 0 # header count
-    i = 2 + slots[1]     # header words
-    version = slots[2]
-    period = slots[3]
+    assert read_word(fileobj) == 0 # header count
+    assert read_word(fileobj) == 3 # header size
+    assert read_word(fileobj) == 0 # version?
+    period = read_word(fileobj)
+    assert read_word(fileobj) == 0
 
-    # parse profile
-    pcs = set()
+    virtual_ips = {}
     profiles = []
+
     while True:
-        n = slots[i]
-        if n == -1:
-            break
-        i += 1
-        d = slots[i]
-        i += 1
-        #print 'i = %d, n = %d, d = %d' % (i, n, d)
-        assert d <= 2**16, 'stack strace depth too high'
-        if slots[i] == 0:
-            # end of profile data marker
-            i += d
-            break
-        # Make key out of the stack entries
-        stacktrace = []
-        for j in range(d):
-            pc = slots[i+j]
-            #print "read slots[%d+%d] = %d" % (i, j, pc)
-            #assert pc != 0
-            # Subtract one from caller pc so we map back to call instr.
-            if j > 0 and pc > 0:
-                pc -= 1
-            pcs.add(pc)
-            stacktrace.append(pc)
-        stacktrace = tuple(stacktrace)
-        assert n == 1 # support n != 1 a bit everywhere, notably Profiles()
-        profiles.append((stacktrace, n))
-        i += d
-    #
-    # now, read also the symbol map, as a string
-    symmap = content[i*8:]
-    return period, profiles, symmap
+        marker = fileobj.read(1)
+        if marker == MARKER_STACKTRACE:
+            count = read_word(fileobj)
+            # for now
+            assert count == 1
+            depth = read_word(fileobj)
+            assert depth <= 2**16, 'stack strace depth too high'
+            trace = []
+            for j in range(depth):
+                pc = read_word(fileobj)
+                if j > 0 and pc > 0:
+                    pc -= 1
+                trace.append(pc)
+            profiles.append(trace)
+        elif marker == MARKER_VIRTUAL_IP:
+            unique_id = read_word(fileobj)
+            name = read_string(fileobj)
+            virtual_ips[unique_id] = name
+        elif marker == MARKER_TRAILER:
+            symmap = read_ranges(fileobj.read())
+            return period, profiles, virtual_ips, symmap
