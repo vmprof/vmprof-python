@@ -1,11 +1,8 @@
 
 import _vmprof
 import tempfile
-from vmprof.addrspace import AddressSpace, Profiles
+from vmprof.addrspace import AddressSpace, Stats
 from vmprof.reader import read_prof, read_ranges, LibraryData
-
-# this has to be global since we store flags on global objects
-symfile = tempfile.NamedTemporaryFile()
 
 class VMProfError(Exception):
     pass
@@ -17,19 +14,17 @@ class ProfilerContext(object):
         self.tmpfile = tempfile.NamedTemporaryFile()
 
     def __enter__(self):
-        _vmprof.enable(self.tmpfile.fileno(), symfile.fileno())
+        _vmprof.enable(self.tmpfile.fileno(), 1000)
 
     def __exit__(self, type, value, traceback):
         _vmprof.disable()
         self.done = True
 
 # lib_cache is global on purpose
-def read_profile(prof_filename, sym_filename, lib_cache={}, extra_libs=None):
-    prof = open(prof_filename, 'rb').read()
-    prof_sym = open(sym_filename, 'rb').read()
+def read_profile(prof_filename, lib_cache={}, extra_libs=None):
+    prof = open(prof_filename, 'rb')
 
-    period, profiles, symmap = read_prof(prof)
-    libs = read_ranges(symmap)
+    period, profiles, virtual_symbols, libs = read_prof(prof)
 
     for i, lib in enumerate(libs):
         if lib.name in lib_cache:
@@ -43,7 +38,7 @@ def read_profile(prof_filename, sym_filename, lib_cache={}, extra_libs=None):
             0x7000000000000000,
             0x7fffffffffffffff,
             True,
-            symbols=read_sym_file(prof_sym))
+            symbols=virtual_symbols)
     )
     if extra_libs:
         libs += extra_libs
@@ -65,13 +60,12 @@ class Profiler(object):
             raise VMProfError("no profiling done")
         if not self.ctx.done:
             raise VMProfError("profiling in process")
-        res = Profiles(*self.read_profile(self.ctx.tmpfile.name,
-                                          symfile.name))
-        #self.ctx = None
+        res = Stats(*self.read_profile(self.ctx.tmpfile.name))
+        self.ctx = None
         return res
 
-    def read_profile(self, prof_filename, sym_filename, extra_libs=None):
-        addrspace, profiles = read_profile(prof_filename, sym_filename,
+    def read_profile(self, prof_filename, extra_libs=None):
+        addrspace, profiles = read_profile(prof_filename,
                                            extra_libs=extra_libs)
         filtered_profiles, addr_set = addrspace.filter_addr(profiles)
         d = {}

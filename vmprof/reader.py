@@ -75,7 +75,7 @@ def read_prof(fileobj): #
     period = read_word(fileobj)
     assert read_word(fileobj) == 0
 
-    virtual_ips = {}
+    virtual_ips = []
     profiles = []
 
     while True:
@@ -92,11 +92,12 @@ def read_prof(fileobj): #
                 if j > 0 and pc > 0:
                     pc -= 1
                 trace.append(pc)
-            profiles.append(trace)
+            profiles.append((trace, 1))
         elif marker == MARKER_VIRTUAL_IP:
             unique_id = read_word(fileobj)
             name = read_string(fileobj)
-            virtual_ips[unique_id] = name
+            virtual_ips.append((unique_id, name))
         elif marker == MARKER_TRAILER:
             symmap = read_ranges(fileobj.read())
+            virtual_ips.sort() # I think it's sorted, but who knows
             return period, profiles, virtual_ips, symmap

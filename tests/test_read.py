@@ -65,14 +65,11 @@ def test_read_profile(here):
 
     # symbols contains all kinds of crap, reverse it
     sym_dict = {}
-    for k, v in symbols.iteritems():
+    for k, v in symbols:
         sym_dict[v] = k
     assert 'py:f:7:x.py' in sym_dict
     assert 'py:g:4:x.py' in sym_dict
     assert 'py:<module>:2:x.py' in sym_dict
-
-    symbols = symbols.items()
-    symbols.sort()
 
     addrspace = AddressSpace([
         LibraryData(

@@ -1,5 +1,5 @@
 from vmprof.reader import LibraryData
-from vmprof.addrspace import AddressSpace, Profiles
+from vmprof.addrspace import AddressSpace, Stats
 
 
 class TestAddrSpace(object):
@@ -29,6 +29,6 @@ class TestAddrSpace(object):
             (["py:one"], 1),
             (["py:two", "py:one"], 1),
             ]
-        p = Profiles(profiles)
+        p = Stats(profiles)
         assert p.functions == {"py:one": 2, "py:two": 1}
-        assert p.function_profile("py:two") == ({'py:one': 1}, 1)
+        assert p.function_profile("py:two") == ([('py:one', 1)], 1)
