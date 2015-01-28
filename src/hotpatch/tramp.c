@@ -17,7 +17,8 @@
  * trampoline specific stuff
  */
 static struct tramp_st2_entry *tramp_table;
-static size_t tramp_size;
+static size_t tramp_size;   // number of tramps in tramp_table
+static size_t tramp_length; // size, in bytes, of each tramp
 
 /*
  * inline trampoline specific stuff
@@ -36,8 +37,6 @@ void init_memprof_config_base() {
 }
 
 
-
-
 void
 create_tramp_table()
 {
@@ -46,6 +45,7 @@ create_tramp_table()
   size_t tramp_sz = 0, inline_tramp_sz = 0;
 
   ent = arch_get_st2_tramp(&tramp_sz);
+  tramp_length = tramp_sz;
   inline_ent = arch_get_inline_st2_tramp(&inline_tramp_sz);
   assert(ent && inline_ent);
 
@@ -65,18 +65,23 @@ create_tramp_table()
   }
 }
 
-void
-insert_tramp(const char *trampee, void *tramp)
+void*
+insert_tramp(const char *trampee, void *tramp, size_t *out_tramp_size)
 {
   void *trampee_addr = bin_find_symbol(trampee, NULL, 1);
+  void *tramp_addr;
   int inline_ent = inline_tramp_size;
 
   if (trampee_addr == NULL) {
       errx(EX_SOFTWARE, "Failed to locate required symbol %s", trampee);
   } else {
     tramp_table[tramp_size].addr = tramp;
-    if (bin_update_image(trampee, &tramp_table[tramp_size], NULL) != 0)
+    tramp_addr = &tramp_table[tramp_size];
+    if (bin_update_image(trampee, tramp_addr, NULL) != 0)
       errx(EX_SOFTWARE, "Failed to insert tramp for %s", trampee);
     tramp_size++;
+    if (out_tramp_size != NULL)
+        *out_tramp_size = tramp_length;
+    return tramp_addr;
   }
 }

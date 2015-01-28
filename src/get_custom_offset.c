@@ -1,9 +1,20 @@
+// XXX: this should be part of _vmprof (the CPython extension), not vmprof
+// (the library)
+
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
+static void *tramp_start, *tramp_end;
+
+void vmprof_set_tramp_range(void *start, void *end) {
+    tramp_start = start;
+    tramp_end = end;
+}
+
+
 static ptrdiff_t vmprof_unw_get_custom_offset(void* ip, unw_cursor_t *cp) {
     // XXX remove hardcoded addresses
-    if (ip >= 0x0000000040000000 && ip <= 0x0000000040000017) {
+    if (ip >= tramp_start && ip <= tramp_end) {
         void *bp;
         void *sp;
         

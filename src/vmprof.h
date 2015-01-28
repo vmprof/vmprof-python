@@ -15,4 +15,7 @@ void vmprof_register_virtual_function(const char* name, void* start, void* end);
 int vmprof_enable(int fd, int sym_fd, long period_usec);
 int vmprof_disable(void);
 
+// XXX: this should be part of _vmprof (the CPython extension), not vmprof (the library)
+void vmprof_set_tramp_range(void* start, void* end);
+
 #endif
