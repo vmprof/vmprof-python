@@ -1,5 +1,5 @@
 from vmprof.reader import LibraryData
-from vmprof.addrspace import AddressSpace, Profiles
+from vmprof.addrspace import AddressSpace, Stats
 
 
 class TestAddrSpace(object):
@@ -9,9 +9,9 @@ class TestAddrSpace(object):
         d2 = LibraryData("lib2", 1400, 1500)
         d2.symbols = []
         addr = AddressSpace([d, d2])
-        fn, is_virtual = addr.lookup(1350)
+        fn, _, is_virtual = addr.lookup(1350)
         assert fn == '0x0000000000000547'  # outside of range
-        fn, is_virtual = addr.lookup(1250)
+        fn, _, is_virtual = addr.lookup(1250)
         assert fn == "a"
 
     def test_filter_profiles(self):
@@ -29,6 +29,6 @@ class TestAddrSpace(object):
             (["py:one"], 1),
             (["py:two", "py:one"], 1),
             ]
-        p = Profiles(profiles)
+        p = Stats(profiles)
         assert p.functions == {"py:one": 2, "py:two": 1}
-        assert p.function_profile("py:two") == ({'py:one': 1}, 1)
+        assert p.function_profile("py:two") == ([('py:one', 1)], 1)

@@ -32,7 +32,7 @@ class AddressSpace(object):
         for prof in profiles:
             current = []
             for addr in prof[0]:
-                name, is_virtual = self.lookup(addr)
+                name, true_addr, is_virtual = self.lookup(addr)
                 if is_virtual:
                     current.append(name)
             if current:
@@ -60,7 +60,7 @@ class AddressSpace(object):
             print fmtaddr(addr), self.lookup(addr)[0]
 
 
-class Profiles(object):
+class Stats(object):
     def __init__(self, profiles, adr_dict=None):
         self.profiles = profiles
         self.adr_dict = adr_dict
@@ -74,6 +74,9 @@ class Profiles(object):
                 if addr not in current_iter:  # count only topmost
                     self.functions[addr] = self.functions.get(addr, 0) + 1
                     current_iter[addr] = None
+
+    def top_profile(self):
+        return [(self._get_name(k), v) for (k, v) in self.functions.iteritems()]
 
     def _get_name(self, addr):
         if self.adr_dict is not None:
@@ -99,4 +102,6 @@ class Profiles(object):
                     if addr == top_function:
                         counting = True
                         total += 1
+        result = result.items()
+        result.sort(lambda a, b: cmp(a[1], b[1]))
         return result, total
