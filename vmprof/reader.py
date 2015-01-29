@@ -57,7 +57,8 @@ def read_ranges(data):
     return ranges
 
 def read_word(fileobj):
-    return struct.unpack('Q', fileobj.read(8))[0]
+    b = fileobj.read(8)
+    return struct.unpack('Q', b)[0]
 
 def read_string(fileobj):
     lgt = struct.unpack('Q', fileobj.read(8))[0]
@@ -67,8 +68,7 @@ MARKER_STACKTRACE = '\x01'
 MARKER_VIRTUAL_IP = '\x02'
 MARKER_TRAILER = '\x03'
 
-def read_prof(fileobj): #
-    # f = open(fname, 'rb') # to jest czytane do konca
+def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count
     assert read_word(fileobj) == 3 # header size
     assert read_word(fileobj) == 0 # version?
@@ -87,17 +87,23 @@ def read_prof(fileobj): #
             depth = read_word(fileobj)
             assert depth <= 2**16, 'stack strace depth too high'
             trace = []
-            for j in range(depth):
-                pc = read_word(fileobj)
-                if j > 0 and pc > 0:
-                    pc -= 1
-                trace.append(pc)
-            profiles.append((trace, 1))
+            if virtual_ips_only:
+                fileobj.read(8 * depth)
+            else:
+                for j in range(depth):
+                    pc = read_word(fileobj)
+                    if j > 0 and pc > 0:
+                        pc -= 1
+                    trace.append(pc)
+                profiles.append((trace, 1))
         elif marker == MARKER_VIRTUAL_IP:
             unique_id = read_word(fileobj)
             name = read_string(fileobj)
             virtual_ips.append((unique_id, name))
         elif marker == MARKER_TRAILER:
-            symmap = read_ranges(fileobj.read())
+            if not virtual_ips_only:
+                symmap = read_ranges(fileobj.read())
             virtual_ips.sort() # I think it's sorted, but who knows
+            if virtual_ips_only:
+                return virtual_ips
             return period, profiles, virtual_ips, symmap

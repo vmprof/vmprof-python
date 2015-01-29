@@ -203,7 +203,8 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext) {
  * *************************************************************
  */
 
-static int open_profile(int fd, long period_usec, int write_header) {
+static int open_profile(int fd, long period_usec, int write_header, char *s,
+						int slen) {
 	if ((fd = dup(fd)) == -1) {
 		return -1;
 	}
@@ -213,6 +214,8 @@ static int open_profile(int fd, long period_usec, int write_header) {
 	}
 	if (write_header)
 		prof_header(profile_file, period_usec);
+	if (s)
+		fwrite(s, slen, 1, profile_file);
 	return 0;
 }
 
@@ -290,10 +293,12 @@ void vmprof_set_mainloop(void* func, ptrdiff_t sp_offset,
     mainloop_get_virtual_ip = get_virtual_ip;
 }
 
-int vmprof_enable(int fd, long period_usec, int write_header) {
+int vmprof_enable(int fd, long period_usec, int write_header, char *s,
+				  int slen)
+{
     if (period_usec == -1)
         period_usec = 1000000 / 100; /* 100hz */
-    if (open_profile(fd, period_usec, write_header) == -1) {
+    if (open_profile(fd, period_usec, write_header, s, slen) == -1) {
 		return -1;
 	}
     if (install_sigprof_handler() == -1) {
@@ -325,7 +330,7 @@ void vmprof_register_virtual_function(const char* name, void* start, void* end) 
 
 	if (lgt > 1024) {
 		lgt = 1024;
-	}	
+	}
 	buf[0] = MARKER_VIRTUAL_IP;
 	((void **)(((void*)buf) + 1))[0] = start;
 	((long *)(((void*)buf) + 1 + sizeof(long)))[0] = lgt - 2 * sizeof(long) - 1;

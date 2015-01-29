@@ -1,8 +1,8 @@
 
-import _vmprof
+import vmprof
 import tempfile
 from vmprof.addrspace import AddressSpace, Stats
-from vmprof.reader import read_prof, read_ranges, LibraryData
+from vmprof.reader import read_prof, LibraryData
 
 class VMProfError(Exception):
     pass
@@ -14,10 +14,10 @@ class ProfilerContext(object):
         self.tmpfile = tempfile.NamedTemporaryFile()
 
     def __enter__(self):
-        _vmprof.enable(self.tmpfile.fileno(), 1000)
+        vmprof.enable(self.tmpfile.fileno(), 1000)
 
     def __exit__(self, type, value, traceback):
-        _vmprof.disable()
+        vmprof.disable()
         self.done = True
 
 # lib_cache is global on purpose

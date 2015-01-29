@@ -5,6 +5,8 @@ import json
 #import base64
 import tempfile
 import logging
+import _vmprof
+import os
 
 from vmprof.reader import (
     read_prof, read_ranges, LibraryData
@@ -13,6 +15,39 @@ from vmprof.reader import (
 from vmprof.addrspace import AddressSpace
 from vmprof.profiler import Profiler
 
+_virtual_ips_so_far = None
+_prof_fileno = -1
+
+def enable(fileno, period_usec=-1):
+    global _prof_fileno
+    global _virtual_ips_so_far
+
+    def pack_virtual_ips(tup):
+        import struct
+        
+        l = []
+        for k, v in tup:
+            l.append('\x02')
+            l.append(struct.pack('QQ', k, len(v)))
+            l.append(v)
+        return "".join(l)
+    
+    _prof_fileno = fileno
+    if _virtual_ips_so_far is not None:
+        _vmprof.enable(fileno, period_usec,
+                       pack_virtual_ips(_virtual_ips_so_far))
+    else:
+        _vmprof.enable(fileno, period_usec)
+
+def disable():
+    global _virtual_ips_so_far
+    global _prof_fileno
+
+    _vmprof.disable()
+    f = os.fdopen(os.dup(_prof_fileno))
+    f.seek(0)
+    _virtual_ips_so_far = read_prof(f, virtual_ips_only=True)
+    _prof_fileno = -1
 
 class xxx_vmprof(object):
 

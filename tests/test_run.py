@@ -3,12 +3,13 @@
 """
 
 import tempfile
-import _vmprof
 import vmprof
+import time
 
 def function_foo():
-    for i in range(100000000):
-        pass
+    t0 = time.time()
+    while time.time() - t0 < 0.5:
+        pass # busy loop for 0.5s
 
 def function_bar():
     function_foo()
@@ -21,9 +22,9 @@ bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
 
 def test_basic():
     tmpfile = tempfile.NamedTemporaryFile()
-    _vmprof.enable(tmpfile.fileno())
+    vmprof.enable(tmpfile.fileno())
     function_foo()
-    _vmprof.disable()
+    vmprof.disable()
     assert "function_foo" in  open(tmpfile.name).read()
 
 def test_enable_disable():
@@ -31,8 +32,8 @@ def test_enable_disable():
     with prof.measure():
         function_foo()
     stats = prof.get_stats()
-    assert stats.top_profile()[-1][0] == foo_full_name
-    assert stats.top_profile()[-1][1] > 0
+    d = dict(stats.top_profile())
+    assert d[foo_full_name] > 0
 
 def test_nested_call():
     prof = vmprof.Profiler()
@@ -40,8 +41,9 @@ def test_nested_call():
         function_bar()
     stats = prof.get_stats()
     tprof = stats.top_profile()
-    assert tprof[-2][0] == bar_full_name
-    assert tprof[-1][0] == foo_full_name
+    d = dict(tprof)
+    assert d[bar_full_name] > 0
+    assert d[foo_full_name] > 0
     for k, v in stats.adr_dict.iteritems():
         if v == bar_full_name:
             bar_adr = k
