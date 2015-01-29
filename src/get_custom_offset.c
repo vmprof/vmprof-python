@@ -57,3 +57,9 @@ static ptrdiff_t vmprof_unw_get_custom_offset(void* ip, unw_cursor_t *cp) {
     }
 	return -1;
 }
+
+static long vmprof_write_header_for_jit_addr(void **result, long n,
+											 void *ip, int max_depth)
+{
+	return n;
+}
