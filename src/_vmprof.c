@@ -16,7 +16,7 @@ static void* PyEval_GetVirtualIp(PyFrameObject* f) {
 	char buf[4096];
 	char *co_name, *co_filename;
 	int co_firstlineno;
-    unsigned long res = (unsigned long)f->f_code | 0x8000000000000000;
+    unsigned long res = (unsigned long)f->f_code | 0x7000000000000000;
     // set the first bit to 1; on my system, such address space is unused, so
     // we don't risk spurious conflicts with loaded libraries. The proper
     // solution would be to tell the linker to reserve us some address space
@@ -27,7 +27,7 @@ static void* PyEval_GetVirtualIp(PyFrameObject* f) {
     co_name = PyString_AsString(f->f_code->co_name);
 	co_filename = PyString_AsString(f->f_code->co_filename);
 	co_firstlineno = f->f_code->co_firstlineno;
-    snprintf(buf, 4096, "py:%s:%s:%d", co_name, co_filename, co_firstlineno);
+    snprintf(buf, 4096, "py:%s:%d:%s", co_name, co_firstlineno, co_filename);
     vmprof_register_virtual_function(buf, (void*)res, NULL);
     return (void*)res;
 }
@@ -56,15 +56,15 @@ void init_cpyprof(void) {
 
 PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
-	int fd, sym_fd;
+	int fd, period_usec = -1;
 
 	if (!initialized) {
 		init_cpyprof();
 		initialized = 1;
 	}
-	if (!PyArg_ParseTuple(args, "ii", &fd, &sym_fd))
+	if (!PyArg_ParseTuple(args, "i|i", &fd, &period_usec))
 		return NULL;
-	if (vmprof_enable(fd, sym_fd, -1) == -1) {
+	if (vmprof_enable(fd, period_usec, 1) == -1) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}

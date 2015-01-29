@@ -60,8 +60,8 @@ def read_word(fileobj):
     return struct.unpack('Q', fileobj.read(8))[0]
 
 def read_string(fileobj):
-    len = struct.unpack('Q', fileobj.read(8))[0]
-    return fileobj.read(len)
+    lgt = struct.unpack('Q', fileobj.read(8))[0]
+    return fileobj.read(lgt)
 
 MARKER_STACKTRACE = '\x01'
 MARKER_VIRTUAL_IP = '\x02'
