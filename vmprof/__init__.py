@@ -8,12 +8,10 @@ import logging
 import _vmprof
 import os
 
-from vmprof.reader import (
-    read_prof, read_ranges, LibraryData
-)
+from vmprof.reader import read_prof, LibraryData
 
-from vmprof.addrspace import AddressSpace
-from vmprof.profiler import Profiler
+from vmprof.addrspace import AddressSpace, Stats
+from vmprof.profiler import Profiler, read_profile
 
 _virtual_ips_so_far = None
 _prof_fileno = -1

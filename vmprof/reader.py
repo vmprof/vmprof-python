@@ -10,6 +10,8 @@ class LibraryData(object):
         self.start = start
         self.end = end
         self.is_virtual = is_virtual
+        if symbols is None:
+            symbols = []
         self.symbols = symbols
 
     def read_object_data(self, start_addr=0, reader=None):
