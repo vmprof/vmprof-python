@@ -6,46 +6,56 @@ import json
 import tempfile
 import logging
 import _vmprof
-import os
+import os, sys
 
 from vmprof.reader import read_prof, LibraryData
 
 from vmprof.addrspace import AddressSpace, Stats
 from vmprof.profiler import Profiler, read_profile
 
-_virtual_ips_so_far = None
-_prof_fileno = -1
+IS_PYPY = hasattr(sys, 'pypy_translation_info')
 
-def enable(fileno, period_usec=-1):
-    global _prof_fileno
-    global _virtual_ips_so_far
+if not IS_PYPY:
+    _virtual_ips_so_far = None
+    _prof_fileno = -1
 
-    def pack_virtual_ips(tup):
-        import struct
-        
-        l = []
-        for k, v in tup:
-            l.append('\x02')
-            l.append(struct.pack('QQ', k, len(v)))
-            l.append(v)
-        return "".join(l)
-    
-    _prof_fileno = fileno
-    if _virtual_ips_so_far is not None:
-        _vmprof.enable(fileno, period_usec,
-                       pack_virtual_ips(_virtual_ips_so_far))
-    else:
+    def enable(fileno, period_usec=-1):
+        global _prof_fileno
+        global _virtual_ips_so_far
+
+        def pack_virtual_ips(tup):
+            import struct
+
+            l = []
+            for k, v in tup:
+                l.append('\x02')
+                l.append(struct.pack('QQ', k, len(v)))
+                l.append(v)
+            return "".join(l)
+
+        _prof_fileno = fileno
+        if _virtual_ips_so_far is not None:
+            _vmprof.enable(fileno, period_usec,
+                           pack_virtual_ips(_virtual_ips_so_far))
+        else:
+            _vmprof.enable(fileno, period_usec)
+
+    def disable():
+        global _virtual_ips_so_far
+        global _prof_fileno
+
+        _vmprof.disable()
+        f = os.fdopen(os.dup(_prof_fileno))
+        f.seek(0)
+        _virtual_ips_so_far = read_prof(f, virtual_ips_only=True)
+        _prof_fileno = -1
+
+else:
+    def enable(fileno, period_usec=-1):
         _vmprof.enable(fileno, period_usec)
 
-def disable():
-    global _virtual_ips_so_far
-    global _prof_fileno
-
-    _vmprof.disable()
-    f = os.fdopen(os.dup(_prof_fileno))
-    f.seek(0)
-    _virtual_ips_so_far = read_prof(f, virtual_ips_only=True)
-    _prof_fileno = -1
+    def disable():
+        _vmprof.disable()
 
 class xxx_vmprof(object):
 
