@@ -13,7 +13,7 @@ try:
     execfile(prog_name)
 finally:
     vmprof.disable()
-    stats = vmprof.read_profile(tmp.name, virtual_only=False)
+    stats = vmprof.read_profile(tmp.name, virtual_only=True)
     print "VMProf profiler output:"
     print "number of traces: name:"
     p = stats.top_profile()
