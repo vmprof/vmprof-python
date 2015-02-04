@@ -6,6 +6,7 @@
 #include <sys/mman.h>
 #include <err.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "arch.h"
 #include "bin_api.h"
@@ -28,7 +29,7 @@ static struct inline_tramp_st2_entry *inline_tramp_table;
 struct memprof_config memprof_config;
 
 
-void init_memprof_config_base() {
+void init_memprof_config_base(void) {
   memset(&memprof_config, 0, sizeof(memprof_config));
   memprof_config.offset_heaps_slot_limit = SIZE_MAX;
   memprof_config.offset_heaps_slot_slot = SIZE_MAX;
@@ -38,7 +39,7 @@ void init_memprof_config_base() {
 
 
 void
-create_tramp_table()
+create_tramp_table(void)
 {
   size_t i;
   void *region, *ent, *inline_ent;

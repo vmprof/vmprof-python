@@ -19,6 +19,7 @@ else:
                                'src/hotpatch/util.c',
                                'src/vmprof.c',
                                ],
+                            extra_compile_args=['-Wno-unused'],
                             libraries=['elf', 'unwind'],
                             extra_link_args=['%s' % libdwarf])]
 
@@ -27,7 +28,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='sebastian.pawlus@gmail.com',
-    version="0.0.5",
+    version="0.0.5.6",
     packages=find_packages(),
     description="Python's vmprof client",
     install_requires=[

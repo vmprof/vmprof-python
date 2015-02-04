@@ -77,13 +77,13 @@ gnu_debuglink_crc32 (unsigned long crc, unsigned char *buf, size_t len);
 
 /* Copy of timeofday() implementation inside ruby 1.8, used w/ thread state */
 double
-timeofday();
+timeofday(void);
 
 /* Use this function for time tracking. It will (interally) try to use an
  * appropriately granual timing function.
  */
 uint64_t
-timeofday_ms();
+timeofday_ms(void);
 
 #define TVAL_TO_INT64(tv) ((int64_t)tv.tv_sec*1e3 + (int64_t)tv.tv_usec*1e-3)
 #endif
