@@ -6,12 +6,17 @@ vmprof documentation
 Introduction
 ============
 
-vmprof is a lightweight statistical profiler for virtual machines that
-records the stack content. Right now it has built-in support for `CPython 2.7`_
-and `PyPy`_, currently only on ``vmprof`` branch. It fully supports PyPy
-JIT features and while currently only with a simple command line interface,
-we're working towards adding support for a web frontend as well as options
-to agreggate multiple runs.
+vmprof is a lightweight profiler for `CPython`_ 2.7 and `PyPy`_ (currently
+only ``vmprof`` branch) that helps you understand your performance bottlenecks.
+It's a statistical profiler that fully understands PyPy JIT compilation process
+and has potential for working for other virtual machines in the future,
+including other languages. Currently it only supports a simple command line
+interface, we're working towards adding support for a web frontend as well
+as options to agreggate multiple runs.
+
+.. warning::
+   vmprof right now only works on 64bit linux machines. There is work underway
+   to make it supported on OS X.
 
 Example of usage::
 
@@ -40,6 +45,9 @@ Example of usage::
    100.0%          f    x.py:9
    55.0%           h    x.py:6
    14.4%           g    x.py:2
+
+.. _`CPython`: http://python.org
+.. _`PyPy`: http://pypy.org
 
 Installation
 ============
@@ -98,3 +106,25 @@ Stats object gives you an overview of data:
 * ``stats.function_profile(function_addr)`` - generate a (sorted) profile
   data for function given by ``function_addr``, so all the functions called
   by this function
+
+Why a new profiler?
+===================
+
+There is a variety of options on the market. `CProfile`_ is the one bundled
+with CPython, together with `lsprofcalltree.py`_ it provides decent
+visualization, while `plop`_ is an example of statistical profiler.
+
+We want a few things when using a profiler:
+
+* Minimal overhead, small enough to run it in production. 1-5%, ideally,
+  with a possibility to tune it for more accurate measurments
+
+* An ability to display a full stack of calls, so it can show how much time
+  got spent in a function, including all its children
+
+.. _`CProfile`: https://docs.python.org/2/library/profile.html
+.. _`lsprofcalltree.py`: https://pypi.python.org/pypi/lsprofcalltree
+.. _`plop`: https://github.com/bdarnell/plop
+
+How does it work?
+=================
