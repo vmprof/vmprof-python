@@ -122,9 +122,26 @@ We want a few things when using a profiler:
 * An ability to display a full stack of calls, so it can show how much time
   got spent in a function, including all its children
 
+* Work under PyPy and be aware of the underlaying JIT architecture to be
+  able to show jitted/not jitted code
+
+So far none of the existing solutions satisfied our requirements, hence
+we decided to create our own profiler. Notably cProfile is slow on PyPy,
+does not understand the JITted code very well and shows in the JIT traces.
+
 .. _`CProfile`: https://docs.python.org/2/library/profile.html
 .. _`lsprofcalltree.py`: https://pypi.python.org/pypi/lsprofcalltree
 .. _`plop`: https://github.com/bdarnell/plop
 
 How does it work?
 =================
+
+The main work is done by a signal handler that inspects the C stack (very
+much like gperftools). Additionally there is a special trampoline for CPython
+and a special support for PyPy gives the same effect of being able to retrieve
+Python stack from the C stack. This gives us a unique opportunity of being
+able to look where is the JIT code, where is the Python code, what are we
+doing in the C standard library (e.g. filter out the places where we are
+inside the ``select()`` call etc.). The machinery is there, we are working
+on the frontend to make sure we can process this information.
+
