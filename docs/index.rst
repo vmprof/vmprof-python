@@ -1,11 +1,7 @@
 
-Welcome to vmprof's documentation!
-==================================
-
-Contents:
-
-.. toctree::
-   :maxdepth: 2
+====================
+vmprof documentation
+====================
 
 Introduction
 ============
