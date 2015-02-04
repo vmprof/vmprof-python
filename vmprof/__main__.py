@@ -14,15 +14,19 @@ try:
 finally:
     vmprof.disable()
     stats = vmprof.read_profile(tmp.name, virtual_only=True)
-    print "VMProf profiler output:"
-    print "number of traces: name:"
+    print "vmprof output:"
+    print "% of snapshots:  name:"
     p = stats.top_profile()
     p.sort(lambda a, b: cmp(b[1], a[1]))
+    top = p[0][1]
     for k, v in p:
-        if k.startswith(' '):
+        v = "%.1f%%" % (float(v) / top * 100)
+        if v == '0.0%':
+            v = '<0.1%'
+        if k.startswith('py:'):
             _, func_name, lineno, filename = k.split(":", 4)
             lineno = int(lineno)
-            print "", v, " " * (14 - len(str(v))), ("%s    %s:%d" %
+            print "", v, " " * (14 - len(v)), ("%s    %s:%d" %
                                   (func_name, filename, lineno))
         else:
-            print "", v, " " * (14 - len(str(v))), k
+            print "", v, " " * (14 - len(v)), k
