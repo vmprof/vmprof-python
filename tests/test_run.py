@@ -39,6 +39,9 @@ def test_nested_call():
     prof = vmprof.Profiler()
     with prof.measure():
         function_bar()
+    # now jitted
+    with prof.measure():
+        function_bar()
     stats = prof.get_stats()
     tprof = stats.top_profile()
     d = dict(tprof)

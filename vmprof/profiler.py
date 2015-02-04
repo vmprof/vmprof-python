@@ -45,7 +45,7 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
     if extra_libs:
         libs += extra_libs
     addrspace = AddressSpace(libs)
-    filtered_profiles, addr_set = addrspace.filter_addr(profiles)
+    filtered_profiles, addr_set = addrspace.filter_addr(profiles, virtual_only)
     d = {}
     for addr in addr_set:
         name, _, _ = addrspace.lookup(addr)
