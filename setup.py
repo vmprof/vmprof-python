@@ -27,7 +27,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='sebastian.pawlus@gmail.com',
-    version="0.0.3",
+    version="0.0.5",
     packages=find_packages(),
     description="Python's vmprof client",
     install_requires=[
@@ -37,5 +37,6 @@ setup(
         'Programming Language :: Python',
     ],
     zip_safe=False,
+    include_package_data=True,
     ext_modules=ext_modules,
 )
