@@ -52,7 +52,7 @@ void init_cpyprof(void) {
 	size_t tramp_size;
 	void* tramp_addr = insert_tramp("PyEval_EvalFrameEx", &cpyprof_PyEval_EvalFrameEx, &tramp_size);
 	vmprof_set_tramp_range(tramp_addr, tramp_addr+tramp_size);
-} 
+}
 
 PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
