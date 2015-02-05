@@ -1,15 +1,17 @@
-
 import vmprof
 import tempfile
+
 from vmprof.addrspace import AddressSpace, Stats
 from vmprof.reader import read_prof, LibraryData
+
 
 class VMProfError(Exception):
     pass
 
+
 class ProfilerContext(object):
     done = False
-    
+
     def __init__(self):
         self.tmpfile = tempfile.NamedTemporaryFile()
 
@@ -19,6 +21,7 @@ class ProfilerContext(object):
     def __exit__(self, type, value, traceback):
         vmprof.disable()
         self.done = True
+
 
 # lib_cache is global on purpose
 def read_profile(prof_filename, lib_cache={}, extra_libs=None,
@@ -51,6 +54,7 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
         name, _, _ = addrspace.lookup(addr)
         d[addr] = name
     return Stats(filtered_profiles, d)
+
 
 class Profiler(object):
     ctx = None
