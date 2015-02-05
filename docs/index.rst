@@ -6,8 +6,9 @@ vmprof documentation
 Introduction
 ============
 
-vmprof is a lightweight profiler for `CPython`_ 2.7 and `PyPy`_ (currently
-only ``vmprof`` branch) that helps you understand your performance bottlenecks.
+vmprof is a lightweight profiler for `CPython`_ 2.7 and `PyPy`_ (more recent
+than 72433b63468f, 5th of Feb 2015) that helps you understand your
+performance bottlenecks.
 It's a statistical profiler that fully understands PyPy JIT compilation process
 and has potential for working for other virtual machines in the future,
 including other languages. Currently it only supports a simple command line
@@ -61,8 +62,7 @@ and then::
 
     pip install vmprof
 
-should work correctly on both PyPy (built from ``vmprof`` branch) or
-CPython.
+should work correctly on both PyPy or CPython.
 
 Usage
 =====
