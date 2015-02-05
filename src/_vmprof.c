@@ -64,7 +64,7 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
 		init_cpyprof();
 		initialized = 1;
 	}
-	if (!PyArg_ParseTuple(args, "i|is#", &fd, &period_usec, &x, &x_len))
+	if (!PyArg_ParseTuple(args, "ii|is#", &fd, &period_usec, &x, &x_len))
 		return NULL;
 	if (vmprof_enable(fd, period_usec, 1, x, x_len) == -1) {
 		PyErr_SetFromErrno(PyExc_OSError);
