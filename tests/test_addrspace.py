@@ -1,5 +1,7 @@
+import py
 from vmprof.reader import LibraryData
 from vmprof.addrspace import AddressSpace, Stats
+from vmprof import read_profile
 
 
 class TestAddrSpace(object):
@@ -32,3 +34,10 @@ class TestAddrSpace(object):
         p = Stats(profiles)
         assert p.functions == {"py:one": 2, "py:two": 1}
         assert p.function_profile("py:two") == ([('py:one', 1)], 1)
+
+    def test_tree(self):
+        prof = read_profile(str(py.path.local(__file__).join(
+            '..', 'test.prof')))
+        tree = prof.get_tree()
+        assert repr(tree) == '<Node: py:entry_point:726:app_main.py (1) [(92, py:run_command_line:496:app_main.py)]>'
+        assert repr(tree.children.values()[0]) == '<Node: py:run_command_line:496:app_main.py (92) [(92, py:run_toplevel:66:app_main.py)]>'

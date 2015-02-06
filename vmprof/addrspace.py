@@ -105,3 +105,38 @@ class Stats(object):
         result = result.items()
         result.sort(lambda a, b: cmp(a[1], b[1]))
         return result, total
+
+    def get_tree(self):
+        top_addr = self.profiles[0][0][0]
+        top = Node(top_addr, self._get_name(top_addr))
+        for profile in self.profiles:
+            cur = top
+            for i in range(1, len(profile[0])):
+                addr = profile[0][i]
+                cur = cur.add_child(addr, self._get_name(addr))
+        return top
+
+class Node(object):
+    """ children is a dict of addr -> Node
+    """
+    def __init__(self, addr, name):
+        self.children = {}
+        self.name = name
+        self.addr = addr
+        self.count = 1 # starts at 1
+
+    def add_child(self, addr, name):
+        try:
+            next = self.children[addr]
+            next.count += 1
+        except KeyError:
+            next = Node(addr, name)
+            self.children[addr] = next
+        return next
+
+    def __repr__(self):
+        items = self.children.items()
+        items.sort()
+        child_str = ", ".join([("(%d, %s)" % (v.count, v.name))
+                               for k, v in items])
+        return '<Node: %s (%d) [%s]>' % (self.name, self.count, child_str)
