@@ -74,3 +74,4 @@ class Profiler(object):
         res = read_profile(self.ctx.tmpfile.name)
         self.ctx = None
         return res
+
