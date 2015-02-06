@@ -2,28 +2,24 @@ import json
 import urllib2
 
 
-def send(stats, argv):
+def send(stats, name, argv, base_url):
 
     data = {
         "profiles": [(map(str, a), b) for a, b in stats.profiles],
         "addresses": stats.adr_dict,
-        "argv": " ".join(argv)
+        "argv": "%s %s" % (name, " ".join(argv))
     }
 
     data = json.dumps(data)
 
-    url = 'http://vmprof.baroquesoftware.com/api/log/'
-    url = 'http://10.0.0.1:8000/api/log/'
+    # XXX http only for now
+    if base_url.startswith("http"):
+        url = '%s/api/log/' % base_url.rstrip("/")
+    else:
+        url = 'http://%s/api/log/' % base_url.rstrip("/")
 
     request = urllib2.Request(
         url, data, {'content-type': 'application/json'}
     )
 
-    try:
-        urllib2.urlopen(request)
-    except Exception as e:
-
-
-        import pdb; pdb.set_trace()
-        pass
-
+    urllib2.urlopen(request)
