@@ -1,32 +1,32 @@
+import sys
+import argparse
+import tempfile
 
-import vmprof, sys, tempfile
+import vmprof
 
-if len(sys.argv) == 1:
-    print "Usage: python -m vmprof <program> <program args>"
-    sys.exit(1)
+
+parser = argparse.ArgumentParser(description='VMprof', prog="vmprof")
+
+parser.add_argument('program', help='program')
+parser.add_argument('args', nargs=argparse.REMAINDER, help='program arguments')
+parser.add_argument('--web', nargs='?', metavar='url')
+parser.add_argument('--no-cli', action='store_true', required=False)
+
+
+args = parser.parse_args()
 
 tmp = tempfile.NamedTemporaryFile()
 vmprof.enable(tmp.fileno(), 1000)
+
 try:
-    sys.argv = sys.argv[1:]
-    prog_name = sys.argv[0]
-    execfile(prog_name)
+    sys.argv = args.args
+    program = args.program
+    execfile(program)
 finally:
     vmprof.disable()
     stats = vmprof.read_profile(tmp.name, virtual_only=True)
-    print "vmprof output:"
-    print "% of snapshots:  name:"
-    p = stats.top_profile()
-    p.sort(lambda a, b: cmp(b[1], a[1]))
-    top = p[0][1]
-    for k, v in p:
-        v = "%.1f%%" % (float(v) / top * 100)
-        if v == '0.0%':
-            v = '<0.1%'
-        if k.startswith('py:'):
-            _, func_name, lineno, filename = k.split(":", 4)
-            lineno = int(lineno)
-            print "", v, " " * (14 - len(v)), ("%s    %s:%d" %
-                                  (func_name, filename, lineno))
-        else:
-            print "", v, " " * (14 - len(v)), k
+
+    if not args.no_cli:
+        vmprof.cli.show(stats)
+    if args.web:
+        vmprof.com.send(stats, args.program, args.args, args.web)
