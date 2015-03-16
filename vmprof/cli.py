@@ -11,7 +11,7 @@ def show(stats):
         if v == '0.0%':
             v = '<0.1%'
         if k.startswith('py:'):
-            _, func_name, lineno, filename = k.split(":", 4)
+            _, func_name, lineno, filename = k.split(":", 3)
             lineno = int(lineno)
             print "", v, " " * (14 - len(v)), ("%s    %s:%d" % (func_name, filename, lineno))
         else:
