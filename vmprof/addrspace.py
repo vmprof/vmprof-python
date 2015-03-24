@@ -67,6 +67,10 @@ class Stats(object):
         self.functions = {}
         self.generate_top()
 
+    def display(self, no):
+        prof = self.profiles[no][0]
+        return [self._get_name(elem) for elem in prof]
+
     def generate_top(self):
         for profile in self.profiles:
             current_iter = {}
@@ -119,11 +123,44 @@ class Stats(object):
 class Node(object):
     """ children is a dict of addr -> Node
     """
+    _self_count = None
+    
     def __init__(self, addr, name):
         self.children = {}
         self.name = name
         self.addr = addr
         self.count = 1 # starts at 1
+
+    def as_json(self):
+        import json
+        return json.dumps(self._serialize())
+
+    def _serialize(self):
+        chld = [ch._serialize() for ch in self.children.itervalues()]
+        return [self.name, self.addr, self.count, chld]
+    
+    def _rec_count(self):
+        c = 1
+        for x in self.children.itervalues():
+            c += x._rec_count()
+        return c
+
+    def _filter(self, count):
+        for key, c in self.children.items():
+            if c.count < count:
+                del self.children[key]
+            else:
+                c._filter(count)
+
+    def get_self_count(self):
+        if self._self_count is not None:
+            return self._self_count
+        self._self_count = self.count
+        for elem in self.children.itervalues():
+            self._self_count -= elem.count
+        return self._self_count
+
+    self_count = property(get_self_count)
 
     def add_child(self, addr, name):
         try:

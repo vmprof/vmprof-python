@@ -60,10 +60,11 @@ def read_ranges(data):
 
 def read_word(fileobj):
     b = fileobj.read(8)
-    return struct.unpack('Q', b)[0]
+    r = int(struct.unpack('Q', b)[0])
+    return r
 
 def read_string(fileobj):
-    lgt = struct.unpack('Q', fileobj.read(8))[0]
+    lgt = int(struct.unpack('Q', fileobj.read(8))[0])
     return fileobj.read(lgt)
 
 MARKER_STACKTRACE = '\x01'
@@ -105,7 +106,12 @@ def read_prof(fileobj, virtual_ips_only=False): #
         elif marker == MARKER_TRAILER:
             if not virtual_ips_only:
                 symmap = read_ranges(fileobj.read())
-            virtual_ips.sort() # I think it's sorted, but who knows
-            if virtual_ips_only:
-                return virtual_ips
-            return period, profiles, virtual_ips, symmap
+            break
+        else:
+            assert not marker
+            symmap = []
+            break
+    virtual_ips.sort() # I think it's sorted, but who knows
+    if virtual_ips_only:
+        return virtual_ips
+    return period, profiles, virtual_ips, symmap
