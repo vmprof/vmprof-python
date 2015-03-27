@@ -1,35 +1,98 @@
-import sys
 import argparse
+import runpy
+import sys
 import tempfile
 
 import vmprof
 
 
-parser = argparse.ArgumentParser(description='VMprof', prog="vmprof")
-
-parser.add_argument('program', help='program')
-parser.add_argument('args', nargs=argparse.REMAINDER, help='program arguments')
-parser.add_argument('--web', nargs='?', metavar='url')
+OUTPUT_CLI = 'cli'
+OUTPUT_WEB = 'web'
+OUTPUT_FILE = 'file'
 
 
-args = parser.parse_args()
-if args.web:
-    no_cli = True
-else:
-    no_cli = False
+def create_argument_parser():
+    parser = argparse.ArgumentParser(
+        description='VMprof',
+        prog="vmprof"
+    )
 
-tmp = tempfile.NamedTemporaryFile()
-vmprof.enable(tmp.fileno(), 1000)
+    parser.add_argument(
+        'program',
+        help='program'
+    )
+    parser.add_argument(
+        'args',
+        nargs=argparse.REMAINDER,
+        help='program arguments'
+    )
 
-try:
-    sys.argv = args.args
-    program = args.program
-    execfile(program)
-finally:
-    vmprof.disable()
-    stats = vmprof.read_profile(tmp.name, virtual_only=True)
+    parser.add_argument(
+        '--enable-nonvirtual', '-n',
+        action='store_true',
+        help='Report native calls'
+    )
+    parser.add_argument(
+        '--period', '-p',
+        type=int,
+        default=1000,
+        help='Sampling period (in microseconds)'
+    )
 
-    if not no_cli:
+    output_mode_args = parser.add_mutually_exclusive_group()
+    output_mode_args.add_argument(
+        '--web',
+        metavar='url',
+        help='Upload profiling stats to a remote server'
+    )
+    output_mode_args.add_argument(
+        '--output', '-o',
+        metavar='file.prof',
+        type=argparse.FileType('w+b'),
+        help='Save profiling data to file'
+    )
+    return parser
+
+
+def show_stats(filename, output_mode, args):
+    if output_mode == OUTPUT_FILE:
+        return
+
+    stats = vmprof.read_profile(
+        filename,
+        virtual_only=not args.enable_nonvirtual
+    )
+
+    if output_mode == OUTPUT_CLI:
         vmprof.cli.show(stats)
-    if args.web:
+    elif output_mode == OUTPUT_WEB:
         vmprof.com.send(stats, args.program, args.args, args.web)
+
+
+def main():
+    parser = create_argument_parser()
+    args = parser.parse_args()
+
+    if args.web:
+        output_mode = OUTPUT_WEB
+    elif args.output:
+        output_mode = OUTPUT_FILE
+    else:
+        output_mode = OUTPUT_CLI
+
+    if output_mode == OUTPUT_FILE:
+        prof_file = args.output
+    else:
+        prof_file = tempfile.NamedTemporaryFile()
+
+    vmprof.enable(prof_file.fileno(), args.period)
+
+    try:
+        sys.argv = [args.program] + args.args
+        runpy.run_path(args.program, run_name='__main__')
+    finally:
+        vmprof.disable()
+        show_stats(prof_file.name, output_mode, args)
+
+
+main()
