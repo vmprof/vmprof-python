@@ -20,7 +20,7 @@ else:
                                'src/vmprof.c',
                                ],
                             extra_compile_args=['-Wno-unused'],
-                            libraries=['elf', 'unwind'],
+                            libraries=['elf', 'unwind', 'rt'],
                             extra_link_args=['%s' % libdwarf])]
 
 
