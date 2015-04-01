@@ -2,11 +2,10 @@ import json
 import urllib2
 
 
-def send(stats, name, argv, base_url):
+def send(t, name, argv, base_url):
 
     data = {
-        "profiles": [(map(str, a), b) for a, b in stats.profiles],
-        "addresses": stats.adr_dict,
+        "profiles": t,
         "argv": "%s %s" % (name, " ".join(argv))
     }
 

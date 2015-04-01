@@ -70,6 +70,7 @@ def read_string(fileobj):
 MARKER_STACKTRACE = '\x01'
 MARKER_VIRTUAL_IP = '\x02'
 MARKER_TRAILER = '\x03'
+MARKER_INTERP_NAME = '\x04'
 
 def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count
@@ -80,6 +81,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
 
     virtual_ips = []
     profiles = []
+    interp_name = None
 
     while True:
         marker = fileobj.read(1)
@@ -99,6 +101,10 @@ def read_prof(fileobj, virtual_ips_only=False): #
                         pc -= 1
                     trace.append(pc)
                 profiles.append((trace, 1))
+        elif marker == MARKER_INTERP_NAME:
+            assert not interp_name, "Dual interpreter name header"
+            lgt = ord(fileobj.read(1))
+            interp_name = fileobj.read(lgt)
         elif marker == MARKER_VIRTUAL_IP:
             unique_id = read_word(fileobj)
             name = read_string(fileobj)
@@ -114,4 +120,4 @@ def read_prof(fileobj, virtual_ips_only=False): #
     virtual_ips.sort() # I think it's sorted, but who knows
     if virtual_ips_only:
         return virtual_ips
-    return period, profiles, virtual_ips, symmap
+    return period, profiles, virtual_ips, symmap, interp_name

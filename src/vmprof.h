@@ -3,6 +3,12 @@
 
 #include <stddef.h>
 
+
+#define MARKER_STACKTRACE '\x01'
+#define MARKER_VIRTUAL_IP '\x02'
+#define MARKER_TRAILER '\x03'
+#define MARKER_INTERP_NAME '\x04'
+
 typedef void* (*vmprof_get_virtual_ip_t)(void*);
 
 extern void* vmprof_mainloop_func;

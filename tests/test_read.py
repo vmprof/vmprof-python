@@ -57,7 +57,7 @@ def test_read_profile(here):
     prof_path = os.path.join(here, 'test.prof')
     prof_content = open(prof_path, 'rb')
 
-    period, profiles, symbols, ranges = read_prof(prof_content)
+    period, profiles, symbols, ranges, interp_name = read_prof(prof_content)
 
     assert ranges[5].name == '/lib/x86_64-linux-gnu/liblzma.so.5.0.0'
     assert ranges[5].start == 140682901667840
@@ -79,6 +79,6 @@ def test_read_profile(here):
             True,
             symbols=symbols)
     ])
-    name, start_addr, is_virtual = addrspace.lookup(sym_dict['py:<module>:2:x.py'])
+    name, start_addr, is_virtual, _ = addrspace.lookup(sym_dict['py:<module>:2:x.py'])
     assert name == 'py:<module>:2:x.py'
     assert is_virtual

@@ -8,7 +8,8 @@ from . import com
 from . import cli
 
 from vmprof.reader import read_prof, LibraryData
-from vmprof.addrspace import AddressSpace, Stats
+from vmprof.addrspace import AddressSpace
+from vmprof.stats import Stats
 from vmprof.profiler import Profiler, read_profile
 
 IS_PYPY = hasattr(sys, 'pypy_translation_info')
@@ -43,7 +44,7 @@ if not IS_PYPY:
         global _prof_fileno
 
         _vmprof.disable()
-        f = os.fdopen(os.dup(_prof_fileno))
+        f = os.fdopen(os.dup(_prof_fileno), "r")
         f.seek(0)
         _virtual_ips_so_far = read_prof(f, virtual_ips_only=True)
         _prof_fileno = -1

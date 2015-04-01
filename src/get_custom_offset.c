@@ -11,6 +11,10 @@ void vmprof_set_tramp_range(void *start, void *end) {
     tramp_end = end;
 }
 
+int custom_sanity_check()
+{
+    return 1;
+}
 
 static ptrdiff_t vmprof_unw_get_custom_offset(void* ip, unw_cursor_t *cp) {
     // XXX remove hardcoded addresses

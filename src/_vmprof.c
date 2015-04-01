@@ -58,18 +58,26 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
 	int fd, period_usec = -1;
 	char *x = NULL;
+    char *buf;
 	int x_len = 0;
 
 	if (!initialized) {
 		init_cpyprof();
 		initialized = 1;
 	}
-	if (!PyArg_ParseTuple(args, "ii|is#", &fd, &period_usec, &x, &x_len))
+	if (!PyArg_ParseTuple(args, "ii|s#", &fd, &period_usec, &x, &x_len))
 		return NULL;
-	if (vmprof_enable(fd, period_usec, 1, x, x_len) == -1) {
+    buf = (char*)malloc(x_len + sizeof(long) + 1 + 7);
+    // 1 for marker 7 for cpython
+    buf[0] = MARKER_INTERP_NAME;
+    buf[1] = '\x07';
+    strncpy(buf + 1 + 1, "cpython", 7);
+    strncpy(buf + 1 + 8, x, x_len);
+	if (vmprof_enable(fd, period_usec, 1, buf, x_len + 8 + 1) == -1) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}
+    free(buf);
 	Py_INCREF(Py_None);
 	return Py_None;
 }

@@ -1,36 +1,37 @@
 import vmprof
 import tempfile
 
-from vmprof.addrspace import AddressSpace, Stats
+from vmprof.addrspace import AddressSpace
+from vmprof.stats import Stats
 from vmprof.reader import read_prof, LibraryData
 
 
 class VMProfError(Exception):
     pass
 
-
 class ProfilerContext(object):
     done = False
 
     def __init__(self):
-        self.tmpfile = tempfile.NamedTemporaryFile()
+        self.tmpfile = open("foo", "rw")
 
     def __enter__(self):
         vmprof.enable(self.tmpfile.fileno(), 1000)
 
     def __exit__(self, type, value, traceback):
         vmprof.disable()
+        self.tmpfile.close()
         self.done = True
 
 
 # lib_cache is global on purpose
 def read_profile(prof_filename, lib_cache={}, extra_libs=None,
-                 virtual_only=True):
+                 virtual_only=True, include_extra_info=True):
     prof = open(prof_filename, 'rb')
 
-    period, profiles, virtual_symbols, libs = read_prof(prof)
+    period, profiles, virtual_symbols, libs, interp_name = read_prof(prof)
 
-    if not virtual_only:
+    if not virtual_only or include_extra_info:
         for i, lib in enumerate(libs):
             if lib.name in lib_cache:
                 libs[i] = lib_cache[lib.name]
@@ -48,12 +49,17 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
     if extra_libs:
         libs += extra_libs
     addrspace = AddressSpace(libs)
-    filtered_profiles, addr_set = addrspace.filter_addr(profiles, virtual_only)
+    filtered_profiles, addr_set, jit_frames = addrspace.filter_addr(profiles,
+        virtual_only, include_extra_info, interp_name)
     d = {}
     for addr in addr_set:
-        name, _, _ = addrspace.lookup(addr)
+        name, _, _, _ = addrspace.lookup(addr)
         d[addr] = name
-    return Stats(filtered_profiles, d)
+    if include_extra_info:
+        d.update(addrspace.meta_data)
+    s = Stats(filtered_profiles, d, jit_frames, interp_name)
+    s.addrspace = addrspace
+    return s
 
 
 class Profiler(object):

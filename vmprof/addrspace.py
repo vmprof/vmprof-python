@@ -1,6 +1,5 @@
 import bisect
 
-
 def fmtaddr(x):
     return '0x%016x' % x
 
@@ -11,28 +10,51 @@ class AddressSpace(object):
         all.sort()
         self.libs = [lib for _, lib in all]
         self.lib_lookup = [lib.start for lib in self.libs]
+        # pypy metadata
+        meta_data = {
+            'pypy_g_resume_in_blackhole': 'meta:blackhole',
+            'pypy_g_MetaInterp__compile_and_run_once': 'meta:tracing',
+            'pypy_g_ResumeGuardDescr__trace_and_compile_from_bridge': 'meta:tracing',
+            'pypy_g_IncrementalMiniMarkGC_major_collection_step': 'meta:gc:major',
+            'pypy_asm_stackwalk': 'meta:external',
+            'pypy_g_IncrementalMiniMarkGC_minor_collection': 'meta:gc:minor',
+            
+        }
+        self.meta_data = {}
+        for k, v in meta_data.iteritems():
+            keys = self.reverse_lookup(k)
+            for key in keys:
+                self.meta_data[key] = v
 
     def lookup(self, arg):
         addr = arg + 1
         i = bisect.bisect(self.lib_lookup, addr)
         if i > len(self.libs) or i <= 0:
-            return fmtaddr(addr), addr, False
+            return fmtaddr(addr), addr, False, None
         lib = self.libs[i - 1]
         if addr < lib.start or addr >= lib.end:
-            return fmtaddr(addr), addr, False
+            return fmtaddr(addr), addr, False, None
         i = bisect.bisect(lib.symbols, (addr + 1,))
         if i > len(lib.symbols) or i <= 0:
-            return fmtaddr(addr), addr, False
+            return fmtaddr(addr), addr, False, None
         addr, name = lib.symbols[i - 1]
         is_virtual = lib.is_virtual
-        return name, addr, is_virtual
+        return name, addr, is_virtual, lib
+
+    def reverse_lookup(self, name):
+        l = []
+        for lib in self.libs:
+            for no, sym in lib.symbols:
+                if name in sym: # remember about .part.x
+                    l.append(no)
+        return l
 
     def filter(self, profiles):
         filtered_profiles = []
         for prof in profiles:
             current = []
             for addr in prof[0]:
-                name, true_addr, is_virtual = self.lookup(addr)
+                name, true_addr, is_virtual, _ = self.lookup(addr)
                 if is_virtual:
                     current.append(name)
             if current:
@@ -40,140 +62,50 @@ class AddressSpace(object):
                 filtered_profiles.append((current, prof[1]))
         return filtered_profiles
 
-    def filter_addr(self, profiles, only_virtual=True):
+    def filter_addr(self, profiles, only_virtual=True, extra_info=False,
+                    interp_name=None):
+        def qq(count=10):
+            import pprint
+            pprint.pprint([self.lookup(a)[0] for a in prof[0]][:count])
         filtered_profiles = []
+        jit_frames = set()
         addr_set = set()
-        for prof in profiles:
+        pypy = interp_name == 'pypy'
+        for i, prof in enumerate(profiles):
             current = []
-            for addr in prof[0]:
-                name, addr, is_virtual = self.lookup(addr)
-                if is_virtual or not only_virtual:
+            first_virtual = False
+            jitted = False
+            for j, addr in enumerate(prof[0]):
+                orig_addr = addr
+                name, addr, is_virtual, lib = self.lookup(addr)
+                if extra_info and addr in self.meta_data and not first_virtual:
+                    for item in current:
+                        # sanity check if we're not double-counting,
+                        # we need to change meta data setting if we are
+                        if self.meta_data[item] == self.meta_data[addr]:
+                            break # we can have blackhole in blackhole
+                            # or whatever
+                    else:
+                        current.append(addr)
+                elif is_virtual or not only_virtual:
+                    first_virtual = True
+                    if (orig_addr + 1) & 1 == 0 and pypy and not jitted: # jitted
+                        prev_name, jit_addr, _, _ = self.lookup(prof[0][j - 1])
+                        assert prev_name != 'pypy_pyframe_execute_frame'
+                        jitted = True
+                        current.append(jit_addr)
+                        jit_frames.add(jit_addr)
                     current.append(addr)
                     addr_set.add(addr)
+                if not is_virtual:
+                    jitted = False
             if current:
                 current.reverse()
                 filtered_profiles.append((current, prof[1]))
-        return filtered_profiles, addr_set
+        return filtered_profiles, addr_set, jit_frames
 
     def dump_stack(self, stacktrace):
         for addr in stacktrace:
             print fmtaddr(addr), self.lookup(addr)[0]
 
 
-class Stats(object):
-    def __init__(self, profiles, adr_dict=None):
-        self.profiles = profiles
-        self.adr_dict = adr_dict
-        self.functions = {}
-        self.generate_top()
-
-    def display(self, no):
-        prof = self.profiles[no][0]
-        return [self._get_name(elem) for elem in prof]
-
-    def generate_top(self):
-        for profile in self.profiles:
-            current_iter = {}
-            for addr in profile[0]:
-                if addr not in current_iter:  # count only topmost
-                    self.functions[addr] = self.functions.get(addr, 0) + 1
-                    current_iter[addr] = None
-
-    def top_profile(self):
-        return [(self._get_name(k), v) for (k, v) in self.functions.iteritems()]
-
-    def _get_name(self, addr):
-        if self.adr_dict is not None:
-            return self.adr_dict[addr]
-        return addr
-
-    def function_profile(self, top_function):
-        """ Show functions that we call (directly or indirectly) under
-        a given addr
-        """
-        result = {}
-        total = 0
-        for profile in self.profiles:
-            current_iter = {}  # don't count twice
-            counting = False
-            for addr in profile[0]:
-                if counting:
-                    if addr in current_iter:
-                        continue
-                    current_iter[addr] = None
-                    result[addr] = result.get(addr, 0) + 1
-                else:
-                    if addr == top_function:
-                        counting = True
-                        total += 1
-        result = result.items()
-        result.sort(lambda a, b: cmp(a[1], b[1]))
-        return result, total
-
-    def get_tree(self):
-        top_addr = self.profiles[0][0][0]
-        top = Node(top_addr, self._get_name(top_addr))
-        for profile in self.profiles:
-            cur = top
-            for i in range(1, len(profile[0])):
-                addr = profile[0][i]
-                cur = cur.add_child(addr, self._get_name(addr))
-        return top
-
-class Node(object):
-    """ children is a dict of addr -> Node
-    """
-    _self_count = None
-    
-    def __init__(self, addr, name):
-        self.children = {}
-        self.name = name
-        self.addr = addr
-        self.count = 1 # starts at 1
-
-    def as_json(self):
-        import json
-        return json.dumps(self._serialize())
-
-    def _serialize(self):
-        chld = [ch._serialize() for ch in self.children.itervalues()]
-        return [self.name, self.addr, self.count, chld]
-    
-    def _rec_count(self):
-        c = 1
-        for x in self.children.itervalues():
-            c += x._rec_count()
-        return c
-
-    def _filter(self, count):
-        for key, c in self.children.items():
-            if c.count < count:
-                del self.children[key]
-            else:
-                c._filter(count)
-
-    def get_self_count(self):
-        if self._self_count is not None:
-            return self._self_count
-        self._self_count = self.count
-        for elem in self.children.itervalues():
-            self._self_count -= elem.count
-        return self._self_count
-
-    self_count = property(get_self_count)
-
-    def add_child(self, addr, name):
-        try:
-            next = self.children[addr]
-            next.count += 1
-        except KeyError:
-            next = Node(addr, name)
-            self.children[addr] = next
-        return next
-
-    def __repr__(self):
-        items = self.children.items()
-        items.sort()
-        child_str = ", ".join([("(%d, %s)" % (v.count, v.name))
-                               for k, v in items])
-        return '<Node: %s (%d) [%s]>' % (self.name, self.count, child_str)

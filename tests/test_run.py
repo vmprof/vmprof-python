@@ -39,7 +39,7 @@ def test_nested_call():
     prof = vmprof.Profiler()
     with prof.measure():
         function_bar()
-    # now jitted
+    # now jitted, on pypy
     with prof.measure():
         function_bar()
     stats = prof.get_stats()

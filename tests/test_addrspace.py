@@ -1,7 +1,7 @@
 import py
 from vmprof.reader import LibraryData
-from vmprof.addrspace import AddressSpace, Stats
-from vmprof import read_profile
+from vmprof.addrspace import AddressSpace
+from vmprof import read_profile, Stats
 
 
 class TestAddrSpace(object):
@@ -11,9 +11,9 @@ class TestAddrSpace(object):
         d2 = LibraryData("lib2", 1400, 1500)
         d2.symbols = []
         addr = AddressSpace([d, d2])
-        fn, _, is_virtual = addr.lookup(1350)
+        fn, _, is_virtual, _ = addr.lookup(1350)
         assert fn == '0x0000000000000547'  # outside of range
-        fn, _, is_virtual = addr.lookup(1250)
+        fn, _, is_virtual, _ = addr.lookup(1250)
         assert fn == "a"
 
     def test_filter_profiles(self):
@@ -39,5 +39,5 @@ class TestAddrSpace(object):
         prof = read_profile(str(py.path.local(__file__).join(
             '..', 'test.prof')))
         tree = prof.get_tree()
-        assert repr(tree) == '<Node: py:entry_point:726:app_main.py (1) [(92, py:run_command_line:496:app_main.py)]>'
+        assert repr(tree) == '<Node: py:entry_point:726:app_main.py (92) [(92, py:run_command_line:496:app_main.py)]>'
         assert repr(tree.children.values()[0]) == '<Node: py:run_command_line:496:app_main.py (92) [(92, py:run_toplevel:66:app_main.py)]>'
