@@ -71,8 +71,8 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
     // 1 for marker 7 for cpython
     buf[0] = MARKER_INTERP_NAME;
     buf[1] = '\x07';
-    strncpy(buf + 1 + 1, "cpython", 7);
-    strncpy(buf + 1 + 8, x, x_len);
+    memcpy(buf + 1 + 1, "cpython", 7);
+    memcpy(buf + 1 + 8, x, x_len);
 	if (vmprof_enable(fd, period_usec, 1, buf, x_len + 8 + 1) == -1) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;

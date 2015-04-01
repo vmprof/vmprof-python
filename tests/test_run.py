@@ -51,5 +51,5 @@ def test_nested_call():
         if v == bar_full_name:
             bar_adr = k
             break
-    assert stats._get_name(stats.function_profile(bar_adr)[0][0][0]) == foo_full_name
+    assert stats._get_name(stats.function_profile(bar_adr)[0][-1][0]) == foo_full_name
 
