@@ -13,14 +13,13 @@ class ProfilerContext(object):
     done = False
 
     def __init__(self):
-        self.tmpfile = open("foo", "rw")
+        self.tmpfile = tempfile.NamedTemporaryFile()
 
     def __enter__(self):
         vmprof.enable(self.tmpfile.fileno(), 1000)
 
     def __exit__(self, type, value, traceback):
         vmprof.disable()
-        self.tmpfile.close()
         self.done = True
 
 
