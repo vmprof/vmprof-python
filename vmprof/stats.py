@@ -93,6 +93,7 @@ class Node(object):
     """ children is a dict of addr -> Node
     """
     _self_count = None
+    flat = False
     
     def __init__(self, addr, name):
         self.children = {}
@@ -108,29 +109,44 @@ class Node(object):
                 return v
         raise KeyError
 
+    def update_meta_from(self, c):
+        for elem, value in c.meta.iteritems():
+            self.meta[elem] = self.meta.get(elem, 0) + value
+
     def flatten(self):
-        self.meta = {}
-        self.jit_codes = {}
+        if self.flat:
+            return self
+        new = Node(self.addr, self.name)
+        new.meta = {}
+        new.jit_codes = {}
         new_children = {}
+        new.count = self.count
         for addr, c in self.children.iteritems():
-            print c.name
+            c = c.flatten()
             if c.name.startswith('meta'):
-                xxx
+                name = c.name[5:]
+                new.meta[name] = new.meta.get(name, 0) + c.count
+                new.update_meta_from(c)
+                assert not c.children
             elif c.name.startswith('jit'):
-                xxx
-            new_children[addr] = c # normal
-        self.children = new_children
+                new.update_meta_from(c)
+                new.meta['jit'] = new.meta.get('jit', 0) + c.count
+            else:
+                new_children[addr] = c # normal
+        new.children = new_children
+        new.flat = True
+        return new
 
     def as_json(self):
         import json
-        return json.dumps(self._serialize())
+        return json.dumps(self.flatten()._serialize())
 
     def _serialize(self):
         chld = [ch._serialize() for ch in self.children.itervalues()]
         # if we don't make str() of addr here, JS does its
         # int -> float -> int losy convertion without
         # any warning
-        return [self.name, str(self.addr), self.count, chld]
+        return [self.name, str(self.addr), self.count, self.meta, chld]
     
     def _rec_count(self):
         c = 1
@@ -144,6 +160,7 @@ class Node(object):
             c.walk(callback)
 
     def _filter(self, count):
+        # XXX make a copy
         for key, c in self.children.items():
             if c.count < count:
                 del self.children[key]

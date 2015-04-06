@@ -64,17 +64,8 @@ class AddressSpace(object):
 
     def filter_addr(self, profiles, only_virtual=True, extra_info=False,
                     interp_name=None):
-        # XXX this function is too advanced and does too much,
-        #     any idea how it can be done instead?
-        def qq(count=10):
-            import pprint
-            pprint.pprint([self.lookup(a)[0] for a in prof[0]][:count])
-
-        def hh(count=10):
-            import pprint
-            pprint.pprint([self.lookup(a)[0] for a in current[:count]]) 
-           
-        
+        # XXX this function is too complicated and too pypy specific
+        #     refactor somehow
         filtered_profiles = []
         jit_frames = set()
         addr_set = set()
@@ -87,6 +78,10 @@ class AddressSpace(object):
                 orig_addr = addr
                 name, addr, is_virtual, lib = self.lookup(addr)
                 if extra_info and addr in self.meta_data and not first_virtual:
+                    # XXX hack for pypy - gc:minor calling asm_stackwalk
+                    #     is just gc minor
+                    if self.meta_data[addr].startswith('meta:gc') and current:
+                        current = []
                     for item in current:
                         # sanity check if we're not double-counting,
                         # we need to change meta data setting if we are

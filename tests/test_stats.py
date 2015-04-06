@@ -1,6 +1,6 @@
 
 import py
-import vmprof, json, time, zlib
+import vmprof, json, time, zlib, json
 from vmprof.reader import LibraryData
 
 def get_or_write_libcache(filename):
@@ -26,14 +26,27 @@ def get_or_write_libcache(filename):
     return lib_cache
 
 def test_read_simple():
-    py.test.skip("not yet")
     lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
     path = py.path.local(__file__).join('..', 'simple_nested.pypy.prof')
     stats = vmprof.read_profile(path, virtual_only=True,
                                 include_extra_info=True, lib_cache=lib_cache)
     tree = stats.get_tree()
+    main_name = 'py:<module>:2:foo.py'
     foo_name = 'py:foo:6:foo.py'
     bar_name = 'py:bar:2:foo.py'
-    import pdb
-    pdb.set_trace()
-    tree.flatten()
+    assert tree['foo'].name == foo_name
+    assert tree['foo']['bar'].name == bar_name
+    assert tree['foo']['bar']['jit'].name.startswith('jit')
+    flat = tree.flatten()
+    assert tree['foo']['bar']['jit'].name.startswith('jit')
+    assert not flat['foo']['bar'].children
+    assert flat['foo']['bar'].meta['jit'] == 125
+    assert flat['foo']['bar'].meta['gc:minor'] == 9
+    data = json.loads(tree.as_json())
+    main_addr = str(tree.addr)
+    foo_addr = str(tree['foo'].addr)
+    bar_addr = str(tree['foo']['bar'].addr)
+    expected = [main_name, main_addr, 135, {}, [
+        [foo_name, foo_addr, 135, {}, [
+            [bar_name, bar_addr, 125, {'gc:minor': 9, 'jit': 125}, []]]]]]
+    assert data == expected
