@@ -51,5 +51,11 @@ def test_nested_call():
         if v == bar_full_name:
             bar_adr = k
             break
-    assert stats._get_name(stats.function_profile(bar_adr)[0][-1][0]) == foo_full_name
+    names = [stats._get_name(i[0]) for i in stats.function_profile(bar_adr)[0]]
+    if len(names) == 1: # cpython
+        assert names == [foo_full_name]
+    else:
+        names.sort()
+        assert names[1] == foo_full_name
+        assert names[0].startswith('jit:')
 

@@ -35,7 +35,7 @@ def create_argument_parser():
     parser.add_argument(
         '--period', '-p',
         type=int,
-        default=1000,
+        default=0.001,
         help='Sampling period (in microseconds)'
     )
 
