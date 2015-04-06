@@ -20,6 +20,12 @@ class LibraryData(object):
         self.symbols = read_object(reader, self.name, start_addr)
         return self.symbols
 
+    def get_symbols_from(self, cached_lib):
+        symbols = []
+        for (addr, name) in cached_lib.symbols:
+            symbols.append((addr - cached_lib.start + self.start, name))
+        self.symbols = symbols
+
     def __repr__(self):
         return '<Library data for %s, ranges %x-%x>' % (self.name, self.start,
                                                         self.end)
@@ -36,9 +42,10 @@ def read_object(reader, name, lib_start_addr, repeat=True):
         parts = line.split()
         if len(parts) != 3:
             continue
-        start_addr, _, name = parts
-        start_addr = int(start_addr, 16) + lib_start_addr
-        symbols.append((start_addr, name))
+        start_addr, tp, name = parts
+        if tp in ('t', 'T') and not name.startswith('__gcmap'):
+            start_addr = int(start_addr, 16) + lib_start_addr
+            symbols.append((start_addr, name))
     symbols.sort()
     if repeat and not symbols:
         return read_object(reader, '/usr/lib/debug' + name, lib_start_addr,

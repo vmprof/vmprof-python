@@ -39,5 +39,5 @@ class TestAddrSpace(object):
         prof = read_profile(str(py.path.local(__file__).join(
             '..', 'test.prof')))
         tree = prof.get_tree()
-        assert repr(tree) == '<Node: py:entry_point:726:app_main.py (92) [(92, py:run_command_line:496:app_main.py)]>'
-        assert repr(tree.children.values()[0]) == '<Node: py:run_command_line:496:app_main.py (92) [(92, py:run_toplevel:66:app_main.py)]>'
+        assert repr(tree) == '<Node: py:<module>:2:x.py (92) [(92, py:f:7:x.py)]>'
+        assert repr(tree.children.values()[0]) == '<Node: py:f:7:x.py (92) []>'

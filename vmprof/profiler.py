@@ -26,14 +26,14 @@ class ProfilerContext(object):
 # lib_cache is global on purpose
 def read_profile(prof_filename, lib_cache={}, extra_libs=None,
                  virtual_only=True, include_extra_info=True):
-    prof = open(prof_filename, 'rb')
+    prof = open(str(prof_filename), 'rb')
 
     period, profiles, virtual_symbols, libs, interp_name = read_prof(prof)
 
     if not virtual_only or include_extra_info:
         for i, lib in enumerate(libs):
             if lib.name in lib_cache:
-                libs[i] = lib_cache[lib.name]
+                libs[i].get_symbols_from(lib_cache[lib.name])
             else:
                 lib.read_object_data(lib.start)
                 lib_cache[lib.name] = lib

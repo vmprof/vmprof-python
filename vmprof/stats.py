@@ -72,7 +72,22 @@ class Stats(object):
             for i in range(1, len(profile[0])):
                 addr = profile[0][i]
                 cur = cur.add_child(addr, self._get_name(addr))
-        return top
+        # get the first "interesting" node, that is after vmprof and pypy
+        # mess
+        while True:
+            if top.name.startswith('py:<module>') and 'vmprof/__main__.py' not in top.name:
+                return top
+            if len(top.children) > 1:
+                # pick the biggest one in case of branches in vmprof
+                next = None
+                count = -1
+                for c in top.children.itervalues():
+                    if c.count > count:
+                        count = c.count
+                        next = c
+                top = next
+            else:
+                top = top['']
 
 class Node(object):
     """ children is a dict of addr -> Node
@@ -84,6 +99,27 @@ class Node(object):
         self.name = name
         self.addr = addr
         self.count = 1 # starts at 1
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self.children[item]
+        for v in self.children.values():
+            if item in v.name:
+                return v
+        raise KeyError
+
+    def flatten(self):
+        self.meta = {}
+        self.jit_codes = {}
+        new_children = {}
+        for addr, c in self.children.iteritems():
+            print c.name
+            if c.name.startswith('meta'):
+                xxx
+            elif c.name.startswith('jit'):
+                xxx
+            new_children[addr] = c # normal
+        self.children = new_children
 
     def as_json(self):
         import json

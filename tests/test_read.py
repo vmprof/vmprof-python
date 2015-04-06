@@ -21,11 +21,11 @@ ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsysca
 
 FAKE_NM = """0000000000004ff0 t _ufc_dofinalperm_r
 00000000000057f0 t _ufc_doit_r
-0000000000218180 b _ufc_foobar
-0000000000004de0 t _ufc_mk_keytab_r
+0000000000218180 t _ufc_foobar
+0000000000004de0 T _ufc_mk_keytab_r
 0000000000005230 t _ufc_output_conversion_r
 0000000000004790 t _ufc_setup_salt_r
-000000000020a140 b _ufc_tables_lock
+000000000020a140 T _ufc_tables_lock
 """
 
 

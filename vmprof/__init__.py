@@ -18,7 +18,7 @@ if not IS_PYPY:
     _virtual_ips_so_far = None
     _prof_fileno = -1
 
-    def enable(fileno, period_usec=-1):
+    def enable(fileno, period=0.01):
         global _prof_fileno
         global _virtual_ips_so_far
 
@@ -34,10 +34,10 @@ if not IS_PYPY:
 
         _prof_fileno = fileno
         if _virtual_ips_so_far is not None:
-            _vmprof.enable(fileno, period_usec,
+            _vmprof.enable(fileno, period,
                            pack_virtual_ips(_virtual_ips_so_far))
         else:
-            _vmprof.enable(fileno, period_usec)
+            _vmprof.enable(fileno, period)
 
     def disable():
         global _virtual_ips_so_far
@@ -50,8 +50,8 @@ if not IS_PYPY:
         _prof_fileno = -1
 
 else:
-    def enable(fileno, period_usec=-1):
-        _vmprof.enable(fileno, period_usec)
+    def enable(fileno, period=0.01):
+        _vmprof.enable(fileno, period)
 
     def disable():
         _vmprof.disable()

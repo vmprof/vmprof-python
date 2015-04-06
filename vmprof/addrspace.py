@@ -67,10 +67,17 @@ class AddressSpace(object):
         def qq(count=10):
             import pprint
             pprint.pprint([self.lookup(a)[0] for a in prof[0]][:count])
+
+        def hh(count=10):
+            import pprint
+            pprint.pprint([self.lookup(a)[0] for a in current[:count]]) 
+           
+        
         filtered_profiles = []
         jit_frames = set()
         addr_set = set()
         pypy = interp_name == 'pypy'
+        last_was_jitted = False
         for i, prof in enumerate(profiles):
             current = []
             first_virtual = False
@@ -92,9 +99,18 @@ class AddressSpace(object):
                     if (orig_addr + 1) & 1 == 0 and pypy and not jitted: # jitted
                         prev_name, jit_addr, _, _ = self.lookup(prof[0][j - 1])
                         assert prev_name != 'pypy_pyframe_execute_frame'
+                        assert not prev_name.startswith('py:')
                         jitted = True
                         current.append(jit_addr)
                         jit_frames.add(jit_addr)
+                    if (orig_addr + 1) & 1 == 1 and current and current[-1] == addr and last_was_jitted:
+                        # there is double foo(), one jitted one not, strip one
+                        last_was_jitted = False
+                        continue
+                    if (orig_addr + 1) & 1 == 0:
+                        last_was_jitted = True
+                    else:
+                        last_was_jitted = False
                     current.append(addr)
                     addr_set.add(addr)
                 if not is_virtual:
