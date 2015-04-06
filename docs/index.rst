@@ -74,10 +74,10 @@ but consider it unstable. The current API usage is as follows::
 Module level functions
 ----------------------
 
-* ``vmprof.enable(fileno, timeout=-1)`` - enable writing ``vmprof`` data to
-  file described by a fileno file descriptor. Timeout is in microseconds, but
+* ``vmprof.enable(fileno, period=0.01)`` - enable writing ``vmprof`` data to
+  file described by a fileno file descriptor. Timeout is in float seconds, but
   the only available resolution is 4ms, we're working on improving that
-  (default being 4ms)
+  (default being 10ms)
 
 * ``vmprof.disable()`` - finish writing vmprof data, disable the signal handler
 
