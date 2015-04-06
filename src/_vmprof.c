@@ -56,7 +56,8 @@ void init_cpyprof(void) {
 
 PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
-	int fd, period_usec = -1;
+	int fd, period_usec;
+    double period_float = 0.01;
 	char *x = NULL;
     char *buf;
 	int x_len = 0;
@@ -65,7 +66,7 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
 		init_cpyprof();
 		initialized = 1;
 	}
-	if (!PyArg_ParseTuple(args, "ii|s#", &fd, &period_usec, &x, &x_len))
+	if (!PyArg_ParseTuple(args, "id|s#", &fd, &period_float, &x, &x_len))
 		return NULL;
     buf = (char*)malloc(x_len + sizeof(long) + 1 + 7);
     // 1 for marker 7 for cpython
@@ -73,6 +74,11 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
     buf[1] = '\x07';
     memcpy(buf + 1 + 1, "cpython", 7);
     memcpy(buf + 1 + 8, x, x_len);
+    if (period_float < 0 || period_float >= 1) {
+        PyErr_Format(PyExc_ValueError, "Period too large or negative");
+        return NULL;
+    }
+    period_usec = (int)(period_float * 1e6 + 0.5);
 	if (vmprof_enable(fd, period_usec, 1, buf, x_len + 8 + 1) == -1) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;

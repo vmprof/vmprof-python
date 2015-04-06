@@ -26,12 +26,13 @@ def get_or_write_libcache(filename):
     return lib_cache
 
 def test_read_simple():
+    py.test.skip("not yet")
     lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
     path = py.path.local(__file__).join('..', 'simple_nested.pypy.prof')
     stats = vmprof.read_profile(path, virtual_only=True,
                                 include_extra_info=True, lib_cache=lib_cache)
     tree = stats.get_tree()
-    foo_name == 'py:foo:6:foo.py'
+    foo_name = 'py:foo:6:foo.py'
     bar_name = 'py:bar:2:foo.py'
     import pdb
     pdb.set_trace()
