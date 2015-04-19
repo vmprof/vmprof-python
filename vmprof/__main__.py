@@ -66,6 +66,7 @@ def show_stats(filename, output_mode, args):
     if output_mode == OUTPUT_CLI:
         vmprof.cli.show(stats)
     elif output_mode == OUTPUT_WEB:
+        sys.stderr.write("Compiling and uploading to %s...\n" % (args.web,))
         vmprof.com.send(stats, args.program, args.args, args.web)
 
 
