@@ -64,11 +64,6 @@ class AddressSpace(object):
 
     def filter_addr(self, profiles, only_virtual=True, extra_info=False,
                     interp_name=None):
-
-        def qq(count=20):
-            import pprint
-            pprint.pprint([self.lookup(a)[0] for a in prof[0][:count]])
-
         # XXX this function is too complicated and too pypy specific
         #     refactor somehow
         filtered_profiles = []
@@ -81,10 +76,6 @@ class AddressSpace(object):
             for j, addr in enumerate(prof[0]):
                 orig_addr = addr
                 name, addr, is_virtual, lib = self.lookup(addr)
-                # if 'py:schedule:349' in name: # and not current:
-                #     qq(30)
-                #     import pdb
-                #     pdb.set_trace()
                 if orig_addr + 1 == 0x2:
                     jitting = True
                     added_anything = False
