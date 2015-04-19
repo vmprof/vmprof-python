@@ -64,19 +64,40 @@ class AddressSpace(object):
 
     def filter_addr(self, profiles, only_virtual=True, extra_info=False,
                     interp_name=None):
+
+        def qq(count=20):
+            import pprint
+            pprint.pprint([self.lookup(a)[0] for a in prof[0][:count]])
+
         # XXX this function is too complicated and too pypy specific
         #     refactor somehow
         filtered_profiles = []
         jit_frames = set()
         addr_set = set()
-        pypy = interp_name == 'pypy'
         for i, prof in enumerate(profiles):
             current = []
             first_virtual = False
-            jitted = False
+            jitting = False
             for j, addr in enumerate(prof[0]):
                 orig_addr = addr
                 name, addr, is_virtual, lib = self.lookup(addr)
+                # if 'py:schedule:349' in name: # and not current:
+                #     qq(30)
+                #     import pdb
+                #     pdb.set_trace()
+                if orig_addr + 1 == 0x2:
+                    jitting = True
+                    added_anything = False
+                    prev_name, jit_addr, _, _ = self.lookup(prof[0][j - 1])
+                    current.append(jit_addr)
+                    jit_frames.add(jit_addr)
+                    continue
+                elif orig_addr + 1 == 0x3:
+                    assert jitting
+                    if added_anything:
+                        current.pop() # the frame is duplicated
+                    jitting = False
+                    continue
                 if extra_info and addr in self.meta_data and not first_virtual:
                     # XXX hack for pypy - gc:minor calling asm_stackwalk
                     #     is just gc minor
@@ -92,17 +113,9 @@ class AddressSpace(object):
                         current.append(addr)
                 elif is_virtual or not only_virtual:
                     first_virtual = True
-                    if (orig_addr + 1) & 1 == 0 and pypy and not jitted:
-                        prev_name, jit_addr, _, _ = self.lookup(prof[0][j - 1])
-                        assert prev_name != 'pypy_pyframe_execute_frame'
-                        assert not prev_name.startswith('py:')
-                        jitted = True
-                        current.append(jit_addr)
-                        jit_frames.add(jit_addr)
+                    added_anything = True
                     current.append(addr)
                     addr_set.add(addr)
-                if not is_virtual:
-                    jitted = False
             if current:
                 current.reverse()
                 filtered_profiles.append((current, prof[1]))

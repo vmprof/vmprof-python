@@ -5,8 +5,9 @@ import urllib2
 def send(t, name, argv, base_url):
 
     data = {
-        "profiles": t,
-        "argv": "%s %s" % (name, " ".join(argv))
+        "profiles": t.get_tree().flatten()._serialize(),
+        "argv": "%s %s" % (name, " ".join(argv)),
+        "version": 1,
     }
 
     data = json.dumps(data)

@@ -55,9 +55,6 @@ static int atfork_hook_installed = 0;
  * *************************************************************
  */
 
-#define MARKER_STACKTRACE '\x01'
-#define MARKER_VIRTUAL_IP '\x02'
-#define MARKER_TRAILER '\x03'
 
 static void prof_word(long x) {
 	((long*)(profile_write_buffer + profile_buffer_position))[0] = x;

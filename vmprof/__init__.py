@@ -18,7 +18,7 @@ if not IS_PYPY:
     _virtual_ips_so_far = None
     _prof_fileno = -1
 
-    def enable(fileno, period=0.01):
+    def enable(fileno, period=0.001):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         global _prof_fileno
@@ -52,7 +52,7 @@ if not IS_PYPY:
         _prof_fileno = -1
 
 else:
-    def enable(fileno, period=0.01):
+    def enable(fileno, period=0.001):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         _vmprof.enable(fileno, period)

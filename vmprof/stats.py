@@ -159,6 +159,15 @@ class Node(object):
         for c in self.children.itervalues():
             c.walk(callback)
 
+    def cumulative_meta(self, d=None):
+        if d is None:
+            d = {}
+        for c in self.children.itervalues():
+            c.cumulative_meta(d)
+        for k, v in self.meta.iteritems():
+            d[k] = d.get(k, 0) + v
+        return d
+
     def _filter(self, count):
         # XXX make a copy
         for key, c in self.children.items():
