@@ -109,9 +109,10 @@ class Node(object):
                 return v
         raise KeyError
 
-    def update_meta_from(self, c):
+    def update_meta_from(self, c, no_jit=False):
         for elem, value in c.meta.iteritems():
-            self.meta[elem] = self.meta.get(elem, 0) + value
+            if elem != 'jit':
+                self.meta[elem] = self.meta.get(elem, 0) + value
 
     def flatten(self):
         if self.flat:
@@ -129,7 +130,7 @@ class Node(object):
                 new.update_meta_from(c)
                 assert not c.children
             elif c.name.startswith('jit'):
-                new.update_meta_from(c)
+                new.update_meta_from(c, no_jit=True)
                 new.meta['jit'] = new.meta.get('jit', 0) + c.count
             else:
                 new_children[addr] = c # normal

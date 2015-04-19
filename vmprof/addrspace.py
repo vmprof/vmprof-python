@@ -97,7 +97,7 @@ class AddressSpace(object):
                     for item in current:
                         # sanity check if we're not double-counting,
                         # we need to change meta data setting if we are
-                        if self.meta_data[item] == self.meta_data[addr]:
+                        if self.meta_data.get(item, None) == self.meta_data[addr]:
                             break # we can have blackhole in blackhole
                             # or whatever
                     else:
