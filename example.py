@@ -1,5 +1,3 @@
-from vmprof import VMprof
-
 
 def test_1():
     return [a for a in range(1000000)]
@@ -9,7 +7,6 @@ def test_2():
     return [b for b in range(10000000)]
 
 
-@VMprof("localhost", "8000")
 def main():
     test_1()
     test_2()
