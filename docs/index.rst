@@ -30,11 +30,11 @@ OS X, Windows and 32bit support is planned.
 Installation
 ------------
 
-Installation of ``vmprof`` is performed with a simple command.
+Installation of ``vmprof`` is performed with a simple command::
 
     pip install vmprof
 
-You need a few packages. On ubuntu those are
+You need a few packages. On ubuntu those are::
 
     sudo apt-get install python-dev libdwarf-dev libelfg0-dev libunwind8-dev
 
@@ -42,19 +42,6 @@ Usage
 -----
 
 Main usage of vmprof is via command line. Basic usage would look like that:
-
-xxx
-
-
-It's a statistical profiler that fully understands PyPy JIT compilation process
-and has potential for working for other virtual machines in the future,
-including other languages. Currently it only supports a simple command line
-interface, we're working towards adding support for a web frontend as well
-as options to agreggate multiple runs.
-
-.. warning::
-   vmprof right now only works on 64bit linux machines. There is work underway
-   to make it supported on OS X.
 
 Example of usage::
 
@@ -87,25 +74,20 @@ Example of usage::
 .. _`CPython`: http://python.org
 .. _`PyPy`: http://pypy.org
 
-Installation
-============
-
-vmprof is a little tricky to install, you need some headers for various
-libraries, the line on a recent Ubuntu is::
-
-    apt-get install python-dev libdwarf-dev libelfg0-dev libunwind8-dev
-
-and then::
-
-    pip install vmprof
-
-should work correctly on both PyPy or CPython.
-
-Usage
-=====
-
 The basic usage is ``python -m vmprof <your program> <your program params>``
-for now. There is also an API that can bring you more details to the table,
+for now.
+
+Options that follow ``-m vmprof`` are:
+
+* ``--web URL`` - to be used together with `vmprof-server`_ or use
+  ``vmprof.baroquesoftware.com`` as URL, uploads the output to the server as
+  JSON
+
+* ``-o file`` - save logs for later
+
+* ``--help`` - display help
+
+There is also an API that can bring you more details to the table,
 but consider it unstable. The current API usage is as follows::
 
 Module level functions
