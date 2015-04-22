@@ -12,11 +12,14 @@ bottlenecks in your code.
 
 vmprof works as a statistical profiler - it gathers information about your
 code by repeatedly getting the traceback in small intervals. This is similar
-to tools like `vtune`_ or `gprof`_, except it works for high-level virtual
+to tools like `vtune`_ or `gperftools`_, except it works for high-level virtual
 machines except o nthe C level.
 
 The primary mode of running vmprof is through the module invocation with the
 API for more advanced use cases.
+
+.. _`gperftools`:  https://code.google.com/p/gperftools/
+.. _`vtune`: https://software.intel.com/en-us/intel-vtune-amplifier-xe
 
 Requirements
 ------------
@@ -81,11 +84,14 @@ Options that follow ``-m vmprof`` are:
 
 * ``--web URL`` - to be used together with `vmprof-server`_ or use
   ``vmprof.baroquesoftware.com`` as URL, uploads the output to the server as
-  JSON
+  JSON. Can be viewed on the `demo server`_.
 
 * ``-o file`` - save logs for later
 
 * ``--help`` - display help
+
+.. _`vmprof-server`: https://github.com/vmprof/vmprof-server
+.. _`demo server`: http://vmprof.baroquesoftware.com
 
 There is also an API that can bring you more details to the table,
 but consider it unstable. The current API usage is as follows::
