@@ -1,9 +1,12 @@
 
 
 def show(stats):
+    p = stats.top_profile()
+    if not p:
+        print "no stats"
+        return
     print "vmprof output:"
     print "% of snapshots:  name:"
-    p = stats.top_profile()
     p.sort(lambda a, b: cmp(b[1], a[1]))
     top = p[0][1]
     for k, v in p:

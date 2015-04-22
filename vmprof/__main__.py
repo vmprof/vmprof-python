@@ -91,9 +91,11 @@ def main():
     try:
         sys.argv = [args.program] + args.args
         runpy.run_path(args.program, run_name='__main__')
-    finally:
-        vmprof.disable()
-        show_stats(prof_file.name, output_mode, args)
+    except BaseException, e:
+        if not isinstance(e, (KeyboardInterrupt, SystemExit)):
+            raise
+    vmprof.disable()
+    show_stats(prof_file.name, output_mode, args)
 
 
 main()
