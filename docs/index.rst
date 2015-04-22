@@ -6,9 +6,46 @@ vmprof documentation
 Introduction
 ============
 
-vmprof is a lightweight profiler for `CPython`_ 2.7 and `PyPy`_ (more recent
-than 72433b63468f, 5th of Feb 2015) that helps you understand your
-performance bottlenecks.
+vmprof is a lightweight profiler for `CPython`_ 2.7, `PyPy`_ and other
+virtual machines in the future that helps you understand the performance
+bottlenecks in your code.
+
+vmprof works as a statistical profiler - it gathers information about your
+code by repeatedly getting the traceback in small intervals. This is similar
+to tools like `vtune`_ or `gprof`_, except it works for high-level virtual
+machines except o nthe C level.
+
+The primary mode of running vmprof is through the module invocation with the
+API for more advanced use cases.
+
+Requirements
+------------
+
+vmprof as of 0.1 works on 64bit x86 linux for CPython 2.7 and a recent PyPy. We
+hope to get PyPy 2.6 out of the door so it can be used with an official
+release relatively soon.
+
+OS X, Windows and 32bit support is planned.
+
+Installation
+------------
+
+Installation of ``vmprof`` is performed with a simple command.
+
+    pip install vmprof
+
+You need a few packages. On ubuntu those are
+
+    sudo apt-get install python-dev libdwarf-dev libelfg0-dev libunwind8-dev
+
+Usage
+-----
+
+Main usage of vmprof is via command line. Basic usage would look like that:
+
+xxx
+
+
 It's a statistical profiler that fully understands PyPy JIT compilation process
 and has potential for working for other virtual machines in the future,
 including other languages. Currently it only supports a simple command line
