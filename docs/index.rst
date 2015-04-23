@@ -6,27 +6,33 @@ vmprof documentation
 Introduction
 ============
 
-vmprof is a lightweight profiler for `CPython`_ 2.7, `PyPy`_ and other
-virtual machines in the future that helps you understand the performance
+`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, `PyPy`_ and other
+futue virtual machines. It helps you understand the performance
 bottlenecks in your code.
 
-vmprof works as a statistical profiler - it gathers information about your
+vmprof is a statistical profiler - it gathers information about your
 code by repeatedly getting the traceback in small intervals. This is similar
 to tools like `vtune`_ or `gperftools`_, except it works for high-level virtual
-machines except o nthe C level.
+machines rather than on the C level.
 
-The primary mode of running vmprof is through the module invocation with the
+The primary mode of running vmprof is through module invocation::
+
+    python -m vmprof ...
+
+vmprof can be invoked and controlled with the
 API for more advanced use cases.
 
+.. _`vmprof`: https://github.com/vmprof/vmprof-python
 .. _`gperftools`:  https://code.google.com/p/gperftools/
 .. _`vtune`: https://software.intel.com/en-us/intel-vtune-amplifier-xe
 
 Requirements
 ------------
 
-vmprof as of 0.1 works on 64bit x86 linux for CPython 2.7 and a recent PyPy. We
-hope to get PyPy 2.6 out of the door so it can be used with an official
-release relatively soon.
+vmprof (as of 0.1) works on 64bit x86 linux only. It is supported on 
+`CPython`_ 2.7 and a recent `PyPy`_. We
+hope to get PyPy 2.6 out of the door so vmprof can be used with an official
+PyPy release relatively soon.
 
 OS X, Windows and 32bit support is planned.
 
@@ -66,6 +72,7 @@ Example of usage::
 
   if __name__ == '__main__':
       f()
+
   fijal@hermann:~/src/vmprof-python$ python -m vmprof x.py
   vmprof output:
   % of snapshots:  name:
@@ -93,16 +100,16 @@ Options that follow ``-m vmprof`` are:
 .. _`vmprof-server`: https://github.com/vmprof/vmprof-server
 .. _`demo server`: http://vmprof.baroquesoftware.com
 
-There is also an API that can bring you more details to the table,
+There is also an API that can bring more details to the table,
 but consider it unstable. The current API usage is as follows::
 
 Module level functions
 ----------------------
 
-* ``vmprof.enable(fileno, period=0.01)`` - enable writing ``vmprof`` data to
-  file described by a fileno file descriptor. Timeout is in float seconds, but
-  the only available resolution is 4ms, we're working on improving that
-  (default being 10ms)
+* ``vmprof.enable(fileno, period=0.01)`` - enable writing ``vmprof`` data to a
+  file described by a fileno file descriptor. Timeout is in float seconds. The
+  minimal available resolution is 4ms, we're working on improving that
+  (note the default is 10ms)
 
 * ``vmprof.disable()`` - finish writing vmprof data, disable the signal handler
 
@@ -135,7 +142,7 @@ Stats object gives you an overview of data:
 Why a new profiler?
 ===================
 
-There is a variety of options on the market. `CProfile`_ is the one bundled
+There are a variety of python profilers on the market. `CProfile`_ is the one bundled
 with CPython, together with `lsprofcalltree.py`_ it provides decent
 visualization, while `plop`_ is an example of statistical profiler.
 
@@ -145,7 +152,7 @@ We want a few things when using a profiler:
   with a possibility to tune it for more accurate measurments
 
 * An ability to display a full stack of calls, so it can show how much time
-  got spent in a function, including all its children
+  was spent in a function, including all its children
 
 * Work under PyPy and be aware of the underlaying JIT architecture to be
   able to show jitted/not jitted code
@@ -163,10 +170,11 @@ How does it work?
 
 The main work is done by a signal handler that inspects the C stack (very
 much like gperftools). Additionally there is a special trampoline for CPython
-and a special support for PyPy gives the same effect of being able to retrieve
+and special support for PyPy gives the same effect of being able to retrieve
 Python stack from the C stack. This gives us a unique opportunity of being
-able to look where is the JIT code, where is the Python code, what are we
+able to see where is the JIT code, where is the Python code, what are we
 doing in the C standard library (e.g. filter out the places where we are
-inside the ``select()`` call etc.). The machinery is there, we are working
-on the frontend to make sure we can process this information.
+inside ``select()`` calls, etc.). The machinery is there to report this 
+information, we are working
+on the frontend to make sure we can process and display the information.
 
