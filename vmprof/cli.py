@@ -12,7 +12,7 @@ def show(stats):
     max_len = max([len(e[0].split(":")[1]) for e in p])
 
     print " vmprof output:"
-    print " %:      name:" + " " * (max_len - 1) + "location:"
+    print " %:      name:" + " " * (max_len - 3) + "location:"
 
     for k, v in p:
         v = "%.1f%%" % (float(v) / top * 100)
