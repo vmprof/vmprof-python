@@ -6,7 +6,7 @@
 #include "util.h"
 
 #include <assert.h>
-#include <dwarf.h>
+#include "dwarf.h"
 #include <err.h>
 #include <error.h>
 #include <errno.h>
