@@ -11,7 +11,7 @@
 #include <error.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <libdwarf.h>
+#include "libdwarf.h"
 #include <libelf/gelf.h>
 #include <libgen.h>
 #include <limits.h>
