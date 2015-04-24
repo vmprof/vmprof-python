@@ -7,7 +7,7 @@ Introduction
 ============
 
 `vmprof`_ is a lightweight profiler for `CPython`_ 2.7, `PyPy`_ and other
-futue virtual machines. It helps you understand the performance
+virtual machines in the future. It helps you understand the performance
 bottlenecks in your code.
 
 vmprof is a statistical profiler - it gathers information about your
