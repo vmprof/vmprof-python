@@ -2,8 +2,30 @@ language: python
 
 python: 2.7
 
+cache: apt
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y python-dev
+  - sudo apt-get install -y libdwarf-dev
+  - sudo apt-get install -y libelfg0-dev
+  - sudo apt-get install -y libunwind8-dev
+
 install:
   - pip install .
 
 script:
   - py.test tests/
+
+notifications:
+  irc:
+    channels: "irc.freenode.org#baroque-dev"
+    template:
+      - "%{repository}@%{branch}: %{message} (%{build_url})"
+    use_notice: true
+    on_success: always
+    on_failure: always
+
+  email:
+    on_success: change
+    on_failure: change
