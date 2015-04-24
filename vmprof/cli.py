@@ -23,4 +23,4 @@ def show(stats):
             lineno = int(lineno)
             print " %s %s %s:%d" % (v.ljust(7), func_name.ljust(max_len + 1), filename, lineno)
         else:
-            print " %s %" % (v.ljust(7), k.ljust(max_len + 1))
+            print " %s %s" % (v.ljust(7), k.ljust(max_len + 1))

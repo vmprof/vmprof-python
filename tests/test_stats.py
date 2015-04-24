@@ -40,13 +40,13 @@ def test_read_simple():
     flat = tree.flatten()
     assert tree['foo']['bar']['jit'].name.startswith('jit')
     assert not flat['foo']['bar'].children
-    assert flat['foo']['bar'].meta['jit'] == 125
-    assert flat['foo']['bar'].meta['gc:minor'] == 9
+    assert flat['foo']['bar'].meta['jit'] == 101
+    assert flat['foo']['bar'].meta['gc:minor'] == 2
     data = json.loads(tree.as_json())
     main_addr = str(tree.addr)
     foo_addr = str(tree['foo'].addr)
     bar_addr = str(tree['foo']['bar'].addr)
-    expected = [main_name, main_addr, 135, {}, [
-        [foo_name, foo_addr, 135, {}, [
-            [bar_name, bar_addr, 125, {'gc:minor': 9, 'jit': 125}, []]]]]]
+    expected = [main_name, main_addr, 120, {}, [
+        [foo_name, foo_addr, 120, {'jit': 19, 'gc:minor': 2}, [
+            [bar_name, bar_addr, 101, {'gc:minor': 2, 'jit': 101}, []]]]]]
     assert data == expected
