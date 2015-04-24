@@ -6,13 +6,13 @@
 #include "util.h"
 
 #include <assert.h>
-#include "dwarf.h"
+#include <dwarf.h>
 #include <err.h>
 #include <error.h>
 #include <errno.h>
 #include <fcntl.h>
-#include "libdwarf.h"
-#include <libelf/gelf.h>
+#include <libdwarf.h>
+#include <gelf.h>
 #include <libgen.h>
 #include <limits.h>
 #include <link.h>
