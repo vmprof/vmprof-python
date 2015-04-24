@@ -6,6 +6,7 @@ import tempfile
 import vmprof
 import time
 
+
 def function_foo():
     t0 = time.time()
     while time.time() - t0 < 0.5:
