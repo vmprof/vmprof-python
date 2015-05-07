@@ -76,19 +76,20 @@ class AddressSpace(object):
             for j, addr in enumerate(prof[0]):
                 orig_addr = addr
                 name, addr, is_virtual, lib = self.lookup(addr)
-                if orig_addr + 1 == 0x2:
-                    jitting = True
-                    added_anything = False
-                    prev_name, jit_addr, _, _ = self.lookup(prof[0][j - 1])
-                    current.append(jit_addr)
-                    jit_frames.add(jit_addr)
-                    continue
-                elif orig_addr + 1 == 0x3:
-                    assert jitting
-                    if added_anything:
-                        current.pop() # the frame is duplicated
-                    jitting = False
-                    continue
+                if interp_name == 'pypy':
+                    if orig_addr + 1 == 0x2:
+                        jitting = True
+                        added_anything = False
+                        prev_name, jit_addr, _, _ = self.lookup(prof[0][j - 1])
+                        current.append(jit_addr)
+                        jit_frames.add(jit_addr)
+                        continue
+                    elif orig_addr + 1 == 0x3:
+                        assert jitting
+                        if added_anything:
+                            current.pop() # the frame is duplicated
+                        jitting = False
+                        continue
                 if extra_info and addr in self.meta_data and not first_virtual:
                     # XXX hack for pypy - gc:minor calling asm_stackwalk
                     #     is just gc minor
