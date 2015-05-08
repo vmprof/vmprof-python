@@ -38,6 +38,10 @@ def create_argument_parser():
         default=0.001,
         help='Sampling period (in microseconds)'
     )
+    parser.add_argument(
+        '--web-auth',
+        help='Authtoken for your acount on the server, works only when --web is used'
+    )
 
     output_mode_args = parser.add_mutually_exclusive_group()
     output_mode_args.add_argument(
@@ -67,7 +71,7 @@ def show_stats(filename, output_mode, args):
         vmprof.cli.show(stats)
     elif output_mode == OUTPUT_WEB:
         sys.stderr.write("Compiling and uploading to %s...\n" % (args.web,))
-        vmprof.com.send(stats, args.program, args.args, args.web)
+        vmprof.com.send(stats, args)
 
 
 def main():
