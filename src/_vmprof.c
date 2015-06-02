@@ -13,20 +13,25 @@ PyObject* vmprof_mod = NULL;
 // noone uses it
 
 static void* PyEval_GetVirtualIp(PyFrameObject* f) {
-	char buf[4096];
-	char *co_name, *co_filename;
-	int co_firstlineno;
+    char buf[4096];
+    char *co_name, *co_filename;
+    int co_firstlineno;
     unsigned long res = (unsigned long)f->f_code | 0x7000000000000000;
     // set the first bit to 1; on my system, such address space is unused, so
     // we don't risk spurious conflicts with loaded libraries. The proper
     // solution would be to tell the linker to reserve us some address space
     // and use that.
-	if (f->f_code->co_flags & UNUSED_FLAG)
-		return (void*)res;
-	f->f_code->co_flags |= UNUSED_FLAG;
+    if (f->f_code->co_flags & UNUSED_FLAG)
+        return (void*)res;
+    f->f_code->co_flags |= UNUSED_FLAG;
+#if PY_MAJOR_VERSION >= 3
+    co_name = PyUnicode_AsUTF8(f->f_code->co_name);
+    co_filename = PyUnicode_AsUTF8(f->f_code->co_filename);
+#else
     co_name = PyString_AsString(f->f_code->co_name);
-	co_filename = PyString_AsString(f->f_code->co_filename);
-	co_firstlineno = f->f_code->co_firstlineno;
+    co_filename = PyString_AsString(f->f_code->co_filename);
+#endif
+    co_firstlineno = f->f_code->co_firstlineno;
     snprintf(buf, 4096, "py:%s:%d:%s", co_name, co_firstlineno, co_filename);
     vmprof_register_virtual_function(buf, (void*)res, NULL);
     return (void*)res;
@@ -106,9 +111,24 @@ static PyMethodDef VmprofMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef VmprofModule = {
+    PyModuleDef_HEAD_INIT,
+    "_vmprof",
+    "",  // doc
+    -1,  // size
+    VmprofMethods
+};
+
+PyMODINIT_FUNC PyInit__vmprof(void)
+{
+    return PyModule_Create(&VmprofModule);
+}
+#else
 PyMODINIT_FUNC init_vmprof(void)
 {
     vmprof_mod = Py_InitModule("_vmprof", VmprofMethods);
     if (vmprof_mod == NULL)
         return;	
 }
+#endif
