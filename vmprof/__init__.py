@@ -29,10 +29,12 @@ if not IS_PYPY:
 
             l = []
             for k, v in tup:
-                l.append('\x02')
+                l.append(b'\x02')
                 l.append(struct.pack('QQ', k, len(v)))
+                if not isinstance(v, bytes):
+                    v = v.encode('utf-8')
                 l.append(v)
-            return "".join(l)
+            return b"".join(l)
 
         _prof_fileno = fileno
         if _virtual_ips_so_far is not None:

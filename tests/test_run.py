@@ -48,7 +48,7 @@ def test_nested_call():
     d = dict(tprof)
     assert d[bar_full_name] > 0
     assert d[foo_full_name] > 0
-    for k, v in stats.adr_dict.iteritems():
+    for k, v in stats.adr_dict.items():
         if v == bar_full_name:
             bar_adr = k
             break

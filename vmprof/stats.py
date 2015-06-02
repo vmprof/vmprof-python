@@ -60,8 +60,7 @@ class Stats(object):
                     if addr == top_function:
                         counting = True
                         total += 1
-        result = result.items()
-        result.sort(lambda a, b: cmp(a[1], b[1]))
+        result = sorted(result.items(), key=lambda a: a[1])
         return result, total
 
     def get_tree(self):
@@ -123,7 +122,7 @@ class Node(object):
         new.jit_codes = {}
         new_children = {}
         new.count = self.count
-        for addr, c in six.items(self.children):
+        for addr, c in six.iteritems(self.children):
             c = c.flatten()
             if c.name.startswith('meta'):
                 name = c.name[5:]
@@ -198,8 +197,7 @@ class Node(object):
         return next
 
     def __repr__(self):
-        items = self.children.items()
-        items.sort()
+        items = sorted(self.children.items())
         child_str = ", ".join([("(%d, %s)" % (v.count, v.name))
                                for k, v in items])
         return '<Node: %s (%d) [%s]>' % (self.name, self.count, child_str)

@@ -6,10 +6,13 @@ from vmprof.reader import LibraryData
 def get_or_write_libcache(filename):
     libache_filename = str(py.path.local(__file__).join('..', filename + '.libcache'))
     try:
-        with open(libache_filename) as f:
-            d = json.loads(zlib.decompress(f.read()))
+        with open(libache_filename, 'rb') as f:
+            s = zlib.decompress(f.read())
+            if not isinstance(s, str):
+                s = s.decode('utf-8')
+            d = json.loads(s)
         lib_cache = {}
-        for k, v in d.iteritems():
+        for k, v in d.items():
             lib_cache[k] = LibraryData(v[0], v[1], v[2], v[3], v[4])
         return lib_cache
     except (IOError, OSError):
@@ -21,7 +24,7 @@ def get_or_write_libcache(filename):
     d = {}
     for k, lib in lib_cache.iteritems():
         d[k] = (lib.name, lib.start, lib.end, lib.is_virtual, lib.symbols)
-    with open(libache_filename, "w") as f:
+    with open(libache_filename, "wb") as f:
         f.write(zlib.compress(json.dumps(d)))
     return lib_cache
 
