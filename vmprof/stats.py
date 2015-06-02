@@ -1,3 +1,4 @@
+import six
 
 class Stats(object):
     def __init__(self, profiles, adr_dict=None, jit_frames=None, interp=None):
@@ -25,7 +26,7 @@ class Stats(object):
                     current_iter[addr] = None
 
     def top_profile(self):
-        return [(self._get_name(k), v) for (k, v) in self.functions.iteritems()]
+        return [(self._get_name(k), v) for (k, v) in six.iteritems(self.functions)]
 
     def _get_name(self, addr):
         if self.adr_dict is not None:
@@ -81,7 +82,7 @@ class Stats(object):
                 # pick the biggest one in case of branches in vmprof
                 next = None
                 count = -1
-                for c in top.children.itervalues():
+                for c in top.children.values():
                     if c.count > count:
                         count = c.count
                         next = c
@@ -110,7 +111,7 @@ class Node(object):
         raise KeyError
 
     def update_meta_from(self, c, no_jit=False):
-        for elem, value in c.meta.iteritems():
+        for elem, value in six.iteritems(c.meta):
             if elem != 'jit':
                 self.meta[elem] = self.meta.get(elem, 0) + value
 
@@ -122,7 +123,7 @@ class Node(object):
         new.jit_codes = {}
         new_children = {}
         new.count = self.count
-        for addr, c in self.children.iteritems():
+        for addr, c in six.items(self.children):
             c = c.flatten()
             if c.name.startswith('meta'):
                 name = c.name[5:]
@@ -143,7 +144,7 @@ class Node(object):
         return json.dumps(self.flatten()._serialize())
 
     def _serialize(self):
-        chld = [ch._serialize() for ch in self.children.itervalues()]
+        chld = [ch._serialize() for ch in six.itervalues(self.children)]
         # if we don't make str() of addr here, JS does its
         # int -> float -> int losy convertion without
         # any warning
@@ -151,21 +152,21 @@ class Node(object):
     
     def _rec_count(self):
         c = 1
-        for x in self.children.itervalues():
+        for x in six.itervalues(self.children):
             c += x._rec_count()
         return c
 
     def walk(self, callback):
         callback(self)
-        for c in self.children.itervalues():
+        for c in six.itervalues(self.children):
             c.walk(callback)
 
     def cumulative_meta(self, d=None):
         if d is None:
             d = {}
-        for c in self.children.itervalues():
+        for c in six.itervalues(self.children):
             c.cumulative_meta(d)
-        for k, v in self.meta.iteritems():
+        for k, v in six.iteritems(self.meta):
             d[k] = d.get(k, 0) + v
         return d
 
@@ -181,7 +182,7 @@ class Node(object):
         if self._self_count is not None:
             return self._self_count
         self._self_count = self.count
-        for elem in self.children.itervalues():
+        for elem in six.itervalues(self.children):
             self._self_count -= elem.count
         return self._self_count
 

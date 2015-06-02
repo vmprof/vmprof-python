@@ -46,7 +46,7 @@ if not IS_PYPY:
         global _prof_fileno
 
         _vmprof.disable()
-        f = os.fdopen(os.dup(_prof_fileno), "r")
+        f = os.fdopen(os.dup(_prof_fileno), "rb")
         f.seek(0)
         _virtual_ips_so_far = read_prof(f, virtual_ips_only=True)
         _prof_fileno = -1
