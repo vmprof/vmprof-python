@@ -1,4 +1,7 @@
+from __future__ import print_function
 import bisect
+import six
+
 
 def fmtaddr(x):
     return '0x%016x' % x
@@ -21,7 +24,7 @@ class AddressSpace(object):
             
         }
         self.meta_data = {}
-        for k, v in meta_data.iteritems():
+        for k, v in six.iteritems(meta_data):
             keys = self.reverse_lookup(k)
             for key in keys:
                 self.meta_data[key] = v
@@ -115,6 +118,6 @@ class AddressSpace(object):
 
     def dump_stack(self, stacktrace):
         for addr in stacktrace:
-            print fmtaddr(addr), self.lookup(addr)[0]
+            print(fmtaddr(addr), self.lookup(addr)[0])
 
 

@@ -95,7 +95,7 @@ def main():
     try:
         sys.argv = [args.program] + args.args
         runpy.run_path(args.program, run_name='__main__')
-    except BaseException, e:
+    except BaseException as e:
         if not isinstance(e, (KeyboardInterrupt, SystemExit)):
             raise
     vmprof.disable()
