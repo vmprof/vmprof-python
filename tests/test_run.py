@@ -26,7 +26,7 @@ def test_basic():
     vmprof.enable(tmpfile.fileno())
     function_foo()
     vmprof.disable()
-    assert "function_foo" in  open(tmpfile.name).read()
+    assert b"function_foo" in  open(tmpfile.name, 'rb').read()
 
 def test_enable_disable():
     prof = vmprof.Profiler()

@@ -31,11 +31,13 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
     period, profiles, virtual_symbols, libs, interp_name = read_prof(prof)
 
     if not virtual_only or include_extra_info:
-        for i, lib in enumerate(libs):
+        exe_name = libs[0].name
+        for lib in libs:
+            executable = lib.name == exe_name
             if lib.name in lib_cache:
-                libs[i].get_symbols_from(lib_cache[lib.name])
+                lib.get_symbols_from(lib_cache[lib.name], executable)
             else:
-                lib.read_object_data(lib.start)
+                lib.read_object_data(executable)
                 lib_cache[lib.name] = lib
     libs.append(
         LibraryData(
