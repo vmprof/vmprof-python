@@ -29,7 +29,8 @@ def get_or_write_libcache(filename):
     return lib_cache
 
 def test_read_simple():
-    lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
+    #lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
+    lib_cache = {}
     path = py.path.local(__file__).join('..', 'simple_nested.pypy.prof')
     stats = vmprof.read_profile(path, virtual_only=True,
                                 include_extra_info=True, lib_cache=lib_cache)
