@@ -18,7 +18,7 @@ def get_or_write_libcache(filename):
             d = json.loads(s)
         lib_cache = {}
         for k, v in d.items():
-            lib_cache[k] = LibraryData(*v)
+            lib_cache[k] = LibraryData(v[0], v[1], v[2], v[3], [tuple(x) for x in v[4]])
         return lib_cache
     except (IOError, OSError):
         pass
