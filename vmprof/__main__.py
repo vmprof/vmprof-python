@@ -19,6 +19,7 @@ def create_argument_parser():
 
     parser.add_argument(
         'program',
+        nargs='?',
         help='program'
     )
     parser.add_argument(
@@ -41,6 +42,11 @@ def create_argument_parser():
     parser.add_argument(
         '--web-auth',
         help='Authtoken for your acount on the server, works only when --web is used'
+    )
+    parser.add_argument(
+        '--input',
+        metavar='infile.prof',
+        help='Read existing profile data file',
     )
 
     output_mode_args = parser.add_mutually_exclusive_group()
@@ -78,6 +84,9 @@ def main():
     parser = create_argument_parser()
     args = parser.parse_args()
 
+    if args.program is args.input is None:
+        parser.error("program or --input is required")
+
     if args.web:
         output_mode = OUTPUT_WEB
     elif args.output:
@@ -92,14 +101,19 @@ def main():
 
     vmprof.enable(prof_file.fileno(), args.period)
 
-    try:
-        sys.argv = [args.program] + args.args
-        runpy.run_path(args.program, run_name='__main__')
-    except BaseException as e:
-        if not isinstance(e, (KeyboardInterrupt, SystemExit)):
-            raise
-    vmprof.disable()
-    show_stats(prof_file.name, output_mode, args)
+    if args.input:
+        infile = args.input
+    else:
+        try:
+            sys.argv = [args.program] + args.args
+            runpy.run_path(args.program, run_name='__main__')
+        except BaseException as e:
+            if not isinstance(e, (KeyboardInterrupt, SystemExit)):
+                raise
+        vmprof.disable()
+        infile = prof_file.name
+
+    show_stats(infile, output_mode, args)
 
 
 main()
