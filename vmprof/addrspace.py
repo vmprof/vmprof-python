@@ -3,8 +3,11 @@ import bisect
 import six
 
 
-def fmtaddr(x):
-    return '0x%016x' % x
+def fmtaddr(x, name=None):
+    if name:
+        return '0x%016x:%s' % (x, name)
+    else:
+        return '0x%016x' % x
 
 
 class AddressSpace(object):
@@ -39,7 +42,7 @@ class AddressSpace(object):
             return fmtaddr(addr), addr, False, None
         i = bisect.bisect(lib.symbols, (addr + 1,))
         if i > len(lib.symbols) or i <= 0:
-            return fmtaddr(addr), addr, False, None
+            return fmtaddr(addr, lib.name), addr, False, None
         addr, name = lib.symbols[i - 1]
         is_virtual = lib.is_virtual
         return name, addr, is_virtual, lib

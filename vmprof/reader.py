@@ -18,17 +18,22 @@ class LibraryData(object):
             symbols = []
         self.symbols = symbols
 
-    def read_object_data(self, start_addr=0, reader=None):
+    def read_object_data(self, executable=False, reader=None):
         if self.is_virtual:
             return
-        self.symbols = read_object(reader, self.name, start_addr)
+        offset = 0 if executable else self.start
+        self.symbols = read_object(reader, self.name, offset)
         return self.symbols
 
-    def get_symbols_from(self, cached_lib):
-        symbols = []
+    def get_symbols_from(self, cached_lib, executable=False):
+        if executable:
+            self.symbols = cached_lib.symbols[:]
+            return self.symbols
+
+        self.symbols = symbols = []
         for (addr, name) in cached_lib.symbols:
             symbols.append((addr - cached_lib.start + self.start, name))
-        self.symbols = symbols
+        return symbols
 
     def __repr__(self):
         return '<Library data for %s, ranges %x-%x>' % (self.name, self.start,
@@ -72,8 +77,8 @@ def read_ranges(data):
         parts = re.split("\s+", line)
         name = parts[-1]
         start, end = parts[0].split('-')
-        start = int('0x' + start, 16)
-        end = int('0x' + end, 16)
+        start = int(start, 16)
+        end = int(end, 16)
         if name: # don't map anonymous memory, JIT code will be there
             ranges.append(LibraryData(name, start, end))
     return ranges
