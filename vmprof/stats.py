@@ -87,14 +87,18 @@ class Stats(object):
                         next = c
                 top = next
             else:
-                top = top['']
+                try:
+                    top = top['']
+                except KeyError:
+                    return top
+
 
 class Node(object):
     """ children is a dict of addr -> Node
     """
     _self_count = None
     flat = False
-    
+
     def __init__(self, addr, name):
         self.children = {}
         self.name = name
@@ -148,7 +152,7 @@ class Node(object):
         # int -> float -> int losy convertion without
         # any warning
         return [self.name, str(self.addr), self.count, self.meta, chld]
-    
+
     def _rec_count(self):
         c = 1
         for x in six.itervalues(self.children):
