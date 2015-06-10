@@ -15,7 +15,7 @@ def send(t, args):
         "version": 1,
     }
 
-    data = json.dumps(data)
+    data = json.dumps(data).encode('utf-8')
 
     # XXX http only for now
     if base_url.startswith("http"):
