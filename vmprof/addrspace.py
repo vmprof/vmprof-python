@@ -92,8 +92,8 @@ class AddressSpace(object):
                         continue
                     elif orig_addr + 1 == 0x3:
                         assert jitting
-                        if added_anything:
-                            current.pop() # the frame is duplicated
+                        #if added_anything:
+                        #    current.pop() # the frame is duplicated
                         jitting = False
                         continue
                 if extra_info and addr in self.meta_data and not first_virtual:
