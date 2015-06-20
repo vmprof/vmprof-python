@@ -35,7 +35,12 @@ setup(
     description="Python's vmprof client",
     install_requires=[
         'six',
+        'click'
     ],
+    entry_points = {
+        'console_scripts': [
+            'vmprofshow = vmprof.show:main'
+    ]},
     classifiers=[
         'License :: OSI Approved :: BSD License',
         'Programming Language :: Python',
