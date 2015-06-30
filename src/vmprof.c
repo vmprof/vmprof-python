@@ -298,7 +298,6 @@ static int install_sigprof_timer(long period_usec) {
 
 static int remove_sigprof_timer(void) {
     static struct itimerval timer;
-    last_period_usec = 0;
     timer.it_interval.tv_sec = 0;
     timer.it_interval.tv_usec = 0;
     timer.it_value.tv_sec = 0;
