@@ -43,13 +43,14 @@ def test_read_ranges():
     assert ranges[-5].name == '/lib/x86_64-linux-gnu/libcrypto.so.1.0.0'
     assert ranges[-4].name == '0'
     symbols = ranges[-5].read_object_data(reader=fake_reader)
-    assert symbols == [(18320, '_ufc_setup_salt_r'),
-                       (19936, '_ufc_mk_keytab_r'),
-                       (20464, '_ufc_dofinalperm_r'),
-                       (21040, '_ufc_output_conversion_r'),
-                       (22512, '_ufc_doit_r'),
-                       (2138432, '_ufc_tables_lock'),
-                       (2195840, '_ufc_foobar')]
+    s = ranges[-5].start
+    assert symbols == [(s + 18320, '_ufc_setup_salt_r'),
+                       (s + 19936, '_ufc_mk_keytab_r'),
+                       (s + 20464, '_ufc_dofinalperm_r'),
+                       (s + 21040, '_ufc_output_conversion_r'),
+                       (s + 22512, '_ufc_doit_r'),
+                       (s + 2138432, '_ufc_tables_lock'),
+                       (s + 2195840, '_ufc_foobar')]
 
 
 def test_read_profile(here):

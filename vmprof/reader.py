@@ -1,7 +1,11 @@
 
 import re
-import commands
 import struct
+import subprocess
+import sys
+
+
+PY3 = sys.version_info[0] >= 3
 
 
 class LibraryData(object):
@@ -14,17 +18,22 @@ class LibraryData(object):
             symbols = []
         self.symbols = symbols
 
-    def read_object_data(self, start_addr=0, reader=None):
+    def read_object_data(self, executable=False, reader=None):
         if self.is_virtual:
             return
-        self.symbols = read_object(reader, self.name, start_addr)
+        offset = 0 if executable else self.start
+        self.symbols = read_object(reader, self.name, offset)
         return self.symbols
 
-    def get_symbols_from(self, cached_lib):
-        symbols = []
+    def get_symbols_from(self, cached_lib, executable=False):
+        if executable:
+            self.symbols = cached_lib.symbols[:]
+            return self.symbols
+
+        self.symbols = symbols = []
         for (addr, name) in cached_lib.symbols:
             symbols.append((addr - cached_lib.start + self.start, name))
-        self.symbols = symbols
+        return symbols
 
     def __repr__(self):
         return '<Library data for %s, ranges %x-%x>' % (self.name, self.start,
@@ -32,8 +41,15 @@ class LibraryData(object):
 
 
 def read_object(reader, name, lib_start_addr, repeat=True):
+    if PY3 and isinstance(name, bytes):
+        name = name.decode('utf-8')
     if reader is None:
-        out = commands.getoutput('nm -n "%s"' % name)
+        try:
+            out = subprocess.check_output('nm -n "%s" 2>/dev/null' % name, shell=True)
+            if PY3:
+                out = out.decode('latin1')
+        except subprocess.CalledProcessError:
+            out = ''
     else:
         out = reader(name)
     lines = out.splitlines()
@@ -54,13 +70,15 @@ def read_object(reader, name, lib_start_addr, repeat=True):
 
 
 def read_ranges(data):
+    if PY3 and isinstance(data, bytes):
+        data = data.decode('latin1')
     ranges = []
     for line in data.splitlines():
         parts = re.split("\s+", line)
         name = parts[-1]
         start, end = parts[0].split('-')
-        start = int('0x' + start, 16)
-        end = int('0x' + end, 16)
+        start = int(start, 16)
+        end = int(end, 16)
         if name: # don't map anonymous memory, JIT code will be there
             ranges.append(LibraryData(name, start, end))
     return ranges
@@ -74,10 +92,10 @@ def read_string(fileobj):
     lgt = int(struct.unpack('Q', fileobj.read(8))[0])
     return fileobj.read(lgt)
 
-MARKER_STACKTRACE = '\x01'
-MARKER_VIRTUAL_IP = '\x02'
-MARKER_TRAILER = '\x03'
-MARKER_INTERP_NAME = '\x04'
+MARKER_STACKTRACE = b'\x01'
+MARKER_VIRTUAL_IP = b'\x02'
+MARKER_TRAILER = b'\x03'
+MARKER_INTERP_NAME = b'\x04'
 
 def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count
@@ -112,9 +130,13 @@ def read_prof(fileobj, virtual_ips_only=False): #
             assert not interp_name, "Dual interpreter name header"
             lgt = ord(fileobj.read(1))
             interp_name = fileobj.read(lgt)
+            if PY3:
+                interp_name = interp_name.decode()
         elif marker == MARKER_VIRTUAL_IP:
             unique_id = read_word(fileobj)
             name = read_string(fileobj)
+            if PY3:
+                name = name.decode()
             virtual_ips.append((unique_id, name))
         elif marker == MARKER_TRAILER:
             if not virtual_ips_only:

@@ -1,7 +1,13 @@
+from __future__ import print_function
 import bisect
+import six
 
-def fmtaddr(x):
-    return '0x%016x' % x
+
+def fmtaddr(x, name=None):
+    if name:
+        return '0x%016x:%s' % (x, name)
+    else:
+        return '0x%016x' % x
 
 
 class AddressSpace(object):
@@ -21,7 +27,7 @@ class AddressSpace(object):
             
         }
         self.meta_data = {}
-        for k, v in meta_data.iteritems():
+        for k, v in six.iteritems(meta_data):
             keys = self.reverse_lookup(k)
             for key in keys:
                 self.meta_data[key] = v
@@ -36,7 +42,7 @@ class AddressSpace(object):
             return fmtaddr(addr), addr, False, None
         i = bisect.bisect(lib.symbols, (addr + 1,))
         if i > len(lib.symbols) or i <= 0:
-            return fmtaddr(addr), addr, False, None
+            return fmtaddr(addr, lib.name), addr, False, None
         addr, name = lib.symbols[i - 1]
         is_virtual = lib.is_virtual
         return name, addr, is_virtual, lib
@@ -86,8 +92,8 @@ class AddressSpace(object):
                         continue
                     elif orig_addr + 1 == 0x3:
                         assert jitting
-                        if added_anything:
-                            current.pop() # the frame is duplicated
+                        #if added_anything:
+                        #    current.pop() # the frame is duplicated
                         jitting = False
                         continue
                 if extra_info and addr in self.meta_data and not first_virtual:
@@ -115,6 +121,6 @@ class AddressSpace(object):
 
     def dump_stack(self, stacktrace):
         for addr in stacktrace:
-            print fmtaddr(addr), self.lookup(addr)[0]
+            print(fmtaddr(addr), self.lookup(addr)[0])
 
 

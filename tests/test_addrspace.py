@@ -40,4 +40,5 @@ class TestAddrSpace(object):
             '..', 'test.prof')))
         tree = prof.get_tree()
         assert repr(tree) == '<Node: py:<module>:2:x.py (92) [(92, py:f:7:x.py)]>'
-        assert repr(tree.children.values()[0]) == '<Node: py:f:7:x.py (92) []>'
+        values = list(tree.children.values())
+        assert repr(values[0]) == '<Node: py:f:7:x.py (92) []>'

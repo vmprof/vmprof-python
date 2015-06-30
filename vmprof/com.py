@@ -1,5 +1,5 @@
 import json
-import urllib2
+import six.moves.urllib.request as request
 
 
 def send(t, args):
@@ -15,7 +15,7 @@ def send(t, args):
         "version": 1,
     }
 
-    data = json.dumps(data)
+    data = json.dumps(data).encode('utf-8')
 
     # XXX http only for now
     if base_url.startswith("http"):
@@ -28,6 +28,6 @@ def send(t, args):
     if auth:
         headers['AUTHORIZATION'] = "Token %s" % auth
 
-    request = urllib2.Request(url, data, headers)
+    req = request.Request(url, data, headers)
 
-    urllib2.urlopen(request)
+    request.urlopen(req)

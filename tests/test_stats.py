@@ -1,16 +1,24 @@
+import json
+import zlib
 
 import py
-import vmprof, json, time, zlib, json
+import six
+
+import vmprof
 from vmprof.reader import LibraryData
+
 
 def get_or_write_libcache(filename):
     libache_filename = str(py.path.local(__file__).join('..', filename + '.libcache'))
     try:
-        with open(libache_filename) as f:
-            d = json.loads(zlib.decompress(f.read()))
+        with open(libache_filename, 'rb') as f:
+            s = zlib.decompress(f.read())
+            if not isinstance(s, str):
+                s = s.decode('utf-8')
+            d = json.loads(s)
         lib_cache = {}
-        for k, v in d.iteritems():
-            lib_cache[k] = LibraryData(v[0], v[1], v[2], v[3], v[4])
+        for k, v in d.items():
+            lib_cache[k] = LibraryData(v[0], v[1], v[2], v[3], [tuple(x) for x in v[4]])
         return lib_cache
     except (IOError, OSError):
         pass
@@ -19,11 +27,12 @@ def get_or_write_libcache(filename):
     vmprof.read_profile(path, virtual_only=True,
                         include_extra_info=True, lib_cache=lib_cache)
     d = {}
-    for k, lib in lib_cache.iteritems():
+    for k, lib in six.iteritems(lib_cache):
         d[k] = (lib.name, lib.start, lib.end, lib.is_virtual, lib.symbols)
-    with open(libache_filename, "w") as f:
-        f.write(zlib.compress(json.dumps(d)))
+    with open(libache_filename, "wb") as f:
+        f.write(zlib.compress(json.dumps(d).encode('utf-8')))
     return lib_cache
+
 
 def test_read_simple():
     lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
