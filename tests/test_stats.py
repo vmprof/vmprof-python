@@ -44,18 +44,23 @@ def test_read_simple():
     foo_name = 'py:foo:6:foo.py'
     bar_name = 'py:bar:2:foo.py'
     assert tree['foo'].name == foo_name
-    assert tree['foo']['bar'].name == bar_name
-    assert tree['foo']['bar']['jit'].name.startswith('jit')
+    assert tree['foo']['foo']['bar'].name == bar_name
+    assert tree['foo']['foo']['bar']['jit'].name.startswith('jit')
     flat = tree.flatten()
-    assert tree['foo']['bar']['jit'].name.startswith('jit')
-    assert not flat['foo']['bar'].children
-    assert flat['foo']['bar'].meta['jit'] == 101
-    assert flat['foo']['bar'].meta['gc:minor'] == 2
+    assert tree['foo']['foo']['bar']['jit'].name.startswith('jit')
+
+    assert not flat['foo']['foo']['bar'].children
+    assert flat['foo']['foo']['bar'].meta['jit'] == 101
+    assert flat['foo']['foo']['bar'].meta['gc:minor'] == 2
+
     data = json.loads(tree.as_json())
     main_addr = str(tree.addr)
-    foo_addr = str(tree['foo'].addr)
-    bar_addr = str(tree['foo']['bar'].addr)
-    expected = [main_name, main_addr, 120, {}, [
-        [foo_name, foo_addr, 120, {'jit': 19, 'gc:minor': 2}, [
-            [bar_name, bar_addr, 101, {'gc:minor': 2, 'jit': 101}, []]]]]]
+    foo_addr = str(tree['foo']['foo'].addr)
+    bar_addr = str(tree['foo']['foo']['bar'].addr)
+    expected = [
+        main_name, main_addr, 120, {}, [
+            [foo_name, foo_addr, 120, {}, [
+                [foo_name, foo_addr, 120, {'jit': 19, 'gc:minor': 2}, [
+                    [bar_name, bar_addr, 101, {'gc:minor': 2, 'jit': 101}, []]]]]]]]
+
     assert data == expected
