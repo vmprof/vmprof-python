@@ -73,10 +73,19 @@ def read_ranges(data):
     if PY3 and isinstance(data, bytes):
         data = data.decode('latin1')
     ranges = []
-    for line in data.splitlines():
+    lines = data.splitlines()
+    if lines[0].endswith('PATH'):
+        lines = lines[1:]
+        procstat = True
+    else:
+        procstat = False                                               
+    for line in lines:
         parts = re.split("\s+", line)
         name = parts[-1]
-        start, end = parts[0].split('-')
+        if procstat:
+            start, end = parts[1], parts[2]
+        else:
+            start, end = parts[0].split('-')
         start = int(start, 16)
         end = int(end, 16)
         if name: # don't map anonymous memory, JIT code will be there
@@ -106,6 +115,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
 
     virtual_ips = []
     profiles = []
+    all = 0
     interp_name = None
 
     while True:
@@ -135,6 +145,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
         elif marker == MARKER_VIRTUAL_IP:
             unique_id = read_word(fileobj)
             name = read_string(fileobj)
+            all += len(name)
             if PY3:
                 name = name.decode()
             virtual_ips.append((unique_id, name))
