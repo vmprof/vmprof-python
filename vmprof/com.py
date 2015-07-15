@@ -5,7 +5,7 @@ import six.moves.urllib.request as request
 def send(t, args):
 
     name = args.program
-    base_url = args.web
+    base_url = args.web_url
     auth = args.web_auth
 
 
@@ -30,4 +30,6 @@ def send(t, args):
 
     req = request.Request(url, data, headers)
 
-    request.urlopen(req)
+    res = request.urlopen(req)
+    val = res.read()
+    return "http://" + base_url + "/#/" + val[1:-1]

@@ -42,12 +42,18 @@ def create_argument_parser():
         '--web-auth',
         help='Authtoken for your acount on the server, works only when --web is used'
     )
+    parser.add_argument(
+        '--web-url',
+        metavar='url',
+        default='vmprof.baroquesoftware.com',
+        help='Provide URL instead of the default vmprof.baroquesoftware.com)'
+    )
 
     output_mode_args = parser.add_mutually_exclusive_group()
     output_mode_args.add_argument(
         '--web',
-        metavar='url',
-        help='Upload profiling stats to a remote server'
+        action='store_true',
+        help='Upload profiling stats to a remote server (defaults to vmprof.baroquesoftware.com)'
     )
     output_mode_args.add_argument(
         '--output', '-o',
@@ -70,8 +76,9 @@ def show_stats(filename, output_mode, args):
     if output_mode == OUTPUT_CLI:
         vmprof.cli.show(stats)
     elif output_mode == OUTPUT_WEB:
-        sys.stderr.write("Compiling and uploading to %s...\n" % (args.web,))
-        vmprof.com.send(stats, args)
+        sys.stderr.write("Compiling and uploading to %s...\n" % (args.web_url,))
+        res = vmprof.com.send(stats, args)
+        sys.stderr.write("Available at:\n%s\n" % res)
 
 
 def main():
