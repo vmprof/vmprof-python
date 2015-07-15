@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+
 def show(stats):
     p = stats.top_profile()
     if not p:
@@ -25,9 +26,9 @@ def show(stats):
         else:
             print(" %s %s" % (v.ljust(7), k.ljust(max_len + 1)))
 
+
 def _namelen(e):
     if e.startswith('py:'):
         return len(e.split(':')[1])
     else:
         return len(e)
-
