@@ -109,7 +109,7 @@ Options that follow ``-m vmprof`` are:
 
 * ``--web-auth`` - auth token for user name support in the server
 
-* ``-p perios`` - float that gives you how often the profiling happens
+* ``-p period`` - float that gives you how often the profiling happens
   (the max is about 300 Hz, rather don't touch it)
 
 * ``-n`` - enable all C frames, only useful if you have a debug build of
@@ -178,7 +178,7 @@ We want a few things when using a profiler:
 * An ability to display a full stack of calls, so it can show how much time
   was spent in a function, including all its children
 
-* Work under PyPy and be aware of the underlaying JIT architecture to be
+* Work under PyPy and be aware of the underlying JIT architecture to be
   able to show jitted/not jitted code
 
 So far none of the existing solutions satisfied our requirements, hence
