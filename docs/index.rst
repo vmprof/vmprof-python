@@ -6,33 +6,34 @@ vmprof documentation
 Introduction
 ============
 
-`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, 3, `PyPy`_ and other
-virtual machines in the future. It helps you understand the performance
-bottlenecks in your code.
+`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, `CPython`_ 3, `PyPy`_,
+and possibly even other non-Python virtual machines in the future. It helps
+you to find and understand the performance bottlenecks in your code.
 
-vmprof is a `statistical profiler`_ - it gathers information about your
-code by repeatedly getting the traceback in small intervals. This is similar
-to tools like `vtune`_ or `gperftools`_, except it works for high-level virtual
-machines rather than on the C level.
+vmprof is a `statistical profiler`_: it gathers information about your code by
+continuously taking samples of the C call stack of the running program, at a
+given frequency. This is similar to tools like `vtune`_ or `gperftools`_: the
+main difference is that those tools target C and C-like languages and are not
+very helpful to profile higher-level languages which run on top of a virtual
+machine, while vmprof is designed specifically for them.
 
-There are three primary modes. The most obvious one is to use our server
-infrastructure for visualizations, then you do::
-
+There are three primary modes. The recommended one is to use our server
+infrastructure for a web-based visualization of the result::
 
     python -m vmprof --web <program.py> <program parameters>
 
-The more barebone one is::
+If you prefer a barebone terminal-based visualization, which will display only
+some basic statistics::
 
     python -m vmprof <program.py> <program parameters>
 
-which will display you only the statistical basics, or::
+To display a terminal-based tree of calls::
 
     python -m vmprof -o output.log <program.py> <program parameters>
     vmprofshow output.log
 
-Which will display you a tree.
-
-vmprof can be invoked and controlled with the API for more advanced use cases.
+For more advanced use cases, vmprof can be invoked and controlled from within
+the program using the given API.
 
 .. _`vmprof`: https://github.com/vmprof/vmprof-python
 .. _`gperftools`:  https://code.google.com/p/gperftools/
