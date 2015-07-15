@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import argparse
-import ConfigParser
+from six.moves.configparser import ConfigParser
 
 
 def build_argparser():
