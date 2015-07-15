@@ -6,35 +6,47 @@ vmprof documentation
 Introduction
 ============
 
-`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, `PyPy`_ and other
+`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, 3, `PyPy`_ and other
 virtual machines in the future. It helps you understand the performance
 bottlenecks in your code.
 
-vmprof is a statistical profiler - it gathers information about your
+vmprof is a `statistical profiler`_ - it gathers information about your
 code by repeatedly getting the traceback in small intervals. This is similar
 to tools like `vtune`_ or `gperftools`_, except it works for high-level virtual
 machines rather than on the C level.
 
-The primary mode of running vmprof is through module invocation::
+There are three primary modes. The most obvious one is to use our server
+infrastructure for visualizations, then you do::
 
-    python -m vmprof ...
 
-vmprof can be invoked and controlled with the
-API for more advanced use cases.
+    python -m vmprof --web <program.py> <program parameters>
+
+The more barebone one is::
+
+    python -m vmprof <program.py> <program parameters>
+
+which will display you only the statistical basics, or::
+
+    python -m vmprof -o output.log <program.py> <program parameters>
+    vmprofshow output.log
+
+Which will display you a tree.
+
+vmprof can be invoked and controlled with the API for more advanced use cases.
 
 .. _`vmprof`: https://github.com/vmprof/vmprof-python
 .. _`gperftools`:  https://code.google.com/p/gperftools/
 .. _`vtune`: https://software.intel.com/en-us/intel-vtune-amplifier-xe
+.. _`statistical profiler`: https://en.wikipedia.org/wiki/Profiling_(computer_programming)#Statistical_profilers
 
 Requirements
 ------------
 
-vmprof (as of 0.1) works on 64bit x86 linux only. It is supported on 
-`CPython`_ 2.7 and a recent `PyPy`_. We
-hope to get PyPy 2.6 out of the door so vmprof can be used with an official
-PyPy release relatively soon.
+vmprof (as of 0.1) works on 64bit x86 linux only with beta support
+of Mac OS X and Free BSD. It is supported on 
+`CPython`_ 2.7, 3 and a recent `PyPy`_, at least 2.6.
 
-OS X, Windows and 32bit support is planned.
+Windows and 32bit support is planned.
 
 Installation
 ------------
@@ -84,21 +96,31 @@ Example of usage::
 .. _`CPython`: http://python.org
 .. _`PyPy`: http://pypy.org
 
-The basic usage is ``python -m vmprof <your program> <your program params>``
-for now.
+But we stronly suggest using the ``--web`` option that will display you
+a much nicer web interface hosted on ``vmprof.baroquesoftware.com``.
 
 Options that follow ``-m vmprof`` are:
 
-* ``--web URL`` - to be used together with `vmprof-server`_ or use
+* ``--web`` - to be used together with `vmprof-server`_, defaults to
   ``vmprof.baroquesoftware.com`` as URL, uploads the output to the server as
-  JSON. Can be viewed on the `demo server`_.
+  JSON. Can be viewed on the `server`_.
+
+* ``--web-url`` - customize the URL for personal server
+
+* ``--web-auth`` - auth token for user name support in the server
+
+* ``-p perios`` - float that gives you how often the profiling happens
+  (the max is about 300 Hz, rather don't touch it)
+
+* ``-n`` - enable all C frames, only useful if you have a debug build of
+  pypy or cpython
 
 * ``-o file`` - save logs for later
 
 * ``--help`` - display help
 
 .. _`vmprof-server`: https://github.com/vmprof/vmprof-server
-.. _`demo server`: http://vmprof.baroquesoftware.com
+.. _`server`: http://vmprof.baroquesoftware.com
 
 There is also an API that can bring more details to the table,
 but consider it unstable. The current API usage is as follows::
@@ -124,20 +146,22 @@ Module level functions
 
 Stats object gives you an overview of data:
 
-* ``stats.top_profile()`` - list of (unsorted) tuples ``name`` of a format
-  ``py:func_name:startlineno:filename`` and number of profiler samples recorded
+* ``stats.get_tree()`` - Gives you a tree of objects
 
-* ``stats.adr_dict`` - a dictionary of ``address`` -> ``name`` for Python
-  functions.
+``Tree`` object
+---------------
 
-* ``stats._get_name(addr)`` - gives you a ``name`` for ``address``
+Tree is made of Nodes, each node supports at least the following interface:
 
-* ``stats.functions`` - similar to ``stats.top_profile()`` but does not
-  do name lookup and instead returns you python function addresses
+* ``node[key]`` - a fuzzy search of keys (first match)
 
-* ``stats.function_profile(function_addr)`` - generate a (sorted) profile
-  data for function given by ``function_addr``, so all the functions called
-  by this function
+* ``repr(node)`` - basic details
+
+* ``node.flatten()`` - returns a new tree that flattens all the metadata
+  (gc, blackhole etc.)
+
+* ``node.walk(callback)`` - call a callable of form ``callback(root)`` that will
+  be invoked on each node
 
 Why a new profiler?
 ===================
