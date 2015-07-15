@@ -24,7 +24,7 @@ class AddressSpace(object):
             'pypy_g_IncrementalMiniMarkGC_major_collection_step': 'meta:gc:major',
             'pypy_asm_stackwalk': 'meta:external',
             'pypy_g_IncrementalMiniMarkGC_minor_collection': 'meta:gc:minor',
-            
+
         }
         self.meta_data = {}
         for k, v in six.iteritems(meta_data):
