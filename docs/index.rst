@@ -105,22 +105,35 @@ Options that follow ``-m vmprof`` are:
   ``vmprof.baroquesoftware.com`` as URL, uploads the output to the server as
   JSON. Can be viewed on the `server`_.
 
-* ``--web-url`` - customize the URL for personal server
+* ``--web-url`` - customize the URL for personal server.
 
-* ``--web-auth`` - auth token for user name support in the server
+* ``--web-auth`` - auth token for user name support in the server.
 
-* ``-p perios`` - float that gives you how often the profiling happens
-  (the max is about 300 Hz, rather don't touch it)
+* ``-p period`` - float that gives you how often the profiling happens
+  (the max is about 300 Hz, rather don't touch it).
 
 * ``-n`` - enable all C frames, only useful if you have a debug build of
-  pypy or cpython
+  PyPy or CPython.
 
 * ``-o file`` - save logs for later
 
 * ``--help`` - display help
+  
+* ``--config`` - a ini format config file with all options presented above. When passing a config file along with command line arguments, the command line arguments will take precedence and override the config file values.
+
+Example `config.ini` file::
+
+  web-url = vmprof.baroquesoftware.com
+  web-auth = ffb7d4bee2d6436bbe97e4d191bf7d23f85dfeb2
+  period = 0.1
 
 .. _`vmprof-server`: https://github.com/vmprof/vmprof-server
 .. _`server`: http://vmprof.baroquesoftware.com
+
+
+API
+===
+
 
 There is also an API that can bring more details to the table,
 but consider it unstable. The current API usage is as follows::
