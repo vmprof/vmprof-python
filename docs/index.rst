@@ -6,33 +6,35 @@ vmprof documentation
 Introduction
 ============
 
-`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, 3, `PyPy`_ and other
-virtual machines in the future. It helps you understand the performance
-bottlenecks in your code.
+`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, `CPython`_ 3, `PyPy`_,
+and possibly even other non-Python virtual machines in the future. It helps
+you to find and understand the performance bottlenecks in your code.
 
-vmprof is a `statistical profiler`_ - it gathers information about your
-code by repeatedly getting the traceback in small intervals. This is similar
-to tools like `vtune`_ or `gperftools`_, except it works for high-level virtual
-machines rather than on the C level.
+vmprof is a `statistical profiler`_: it gathers information about your code by
+continuously taking samples of the C call stack of the running program, at a
+given frequency. This is similar to tools like `vtune`_ or `gperftools`_: the
+main difference is that those tools target C and C-like languages and are not
+very helpful to profile higher-level languages which run on top of a virtual
+machine, while vmprof is designed specifically for them.
 
-There are three primary modes. The most obvious one is to use our server
-infrastructure for visualizations, then you do::
-
+There are three primary modes. The recommended one is to use our server
+infrastructure for a web-based visualization of the result::
 
     python -m vmprof --web <program.py> <program parameters>
 
-The more barebone one is::
+If you prefer a barebone terminal-based visualization, which will display only
+some basic statistics::
 
     python -m vmprof <program.py> <program parameters>
 
-which will display you only the statistical basics, or::
+To display a terminal-based tree of calls::
 
     python -m vmprof -o output.log <program.py> <program parameters>
+
     vmprofshow output.log
 
-Which will display you a tree.
-
-vmprof can be invoked and controlled with the API for more advanced use cases.
+For more advanced use cases, vmprof can be invoked and controlled from within
+the program using the given API.
 
 .. _`vmprof`: https://github.com/vmprof/vmprof-python
 .. _`gperftools`:  https://code.google.com/p/gperftools/
@@ -42,11 +44,11 @@ vmprof can be invoked and controlled with the API for more advanced use cases.
 Requirements
 ------------
 
-vmprof (as of 0.1) works on 64bit x86 linux only with beta support
-of Mac OS X and Free BSD. It is supported on 
-`CPython`_ 2.7, 3 and a recent `PyPy`_, at least 2.6.
+vmprof 0.1 works only on x86_64 linux, with beta support of Mac OS X and Free
+BSD. It supports  `CPython`_ 2.7, `CPython`_ 3 and `PyPy`_ >= 2.6.
 
-Windows and 32bit support is planned.
+Currently it does not work on Windows and 32bit machines, although support for
+those is planned in the future.
 
 Installation
 ------------
@@ -55,16 +57,16 @@ Installation of ``vmprof`` is performed with a simple command::
 
     pip install vmprof
 
-You need a few packages. On ubuntu those are::
+Since it depends on some C code and external libraries, you need a compiler
+and some packages. On ubuntu those are::
 
     sudo apt-get install python-dev libdwarf-dev libelfg0-dev libunwind8-dev
 
 Usage
 -----
 
-Main usage of vmprof is via command line. Basic usage would look like that:
-
-Example of usage::
+Main usage of vmprof is via command line. The following shows the basic usage
+to profile an example ``x.py`` program::
 
   fijal@hermann:~/src/vmprof-python$ cat x.py
   
@@ -96,14 +98,16 @@ Example of usage::
 .. _`CPython`: http://python.org
 .. _`PyPy`: http://pypy.org
 
-But we stronly suggest using the ``--web`` option that will display you
-a much nicer web interface hosted on ``vmprof.baroquesoftware.com``.
+We stronly suggest using the ``--web`` option that will display you a much
+nicer web interface hosted on ``vmprof.baroquesoftware.com``.
+
+If you prefer to host your own vmprof visualization server, you need the
+`vmprof-server` package
 
 Options that follow ``-m vmprof`` are:
 
-* ``--web`` - to be used together with `vmprof-server`_, defaults to
-  ``vmprof.baroquesoftware.com`` as URL, uploads the output to the server as
-  JSON. Can be viewed on the `server`_.
+* ``--web`` - defaults to ``vmprof.baroquesoftware.com`` as URL, uploads the
+  output to the server as JSON. Can be viewed on the `server`_.
 
 * ``--web-url`` - customize the URL for personal server.
 
@@ -191,7 +195,7 @@ We want a few things when using a profiler:
 * An ability to display a full stack of calls, so it can show how much time
   was spent in a function, including all its children
 
-* Work under PyPy and be aware of the underlaying JIT architecture to be
+* Work under PyPy and be aware of the underlying JIT architecture to be
   able to show jitted/not jitted code
 
 So far none of the existing solutions satisfied our requirements, hence
