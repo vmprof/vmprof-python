@@ -13,6 +13,7 @@ def ini_config(content):
 
 def test_parser_config():
     test_file = ini_config("""
+[global]
 period = 10.0
     """)
 
@@ -26,7 +27,8 @@ period = 10.0
 
 def test_parser_arg_precedence():
     test_file = ini_config("""
-# period = 10.0
+[global]
+period = 10.0
 web-url = example.com
     """)
 
@@ -44,6 +46,7 @@ web-url = example.com
 def test_parser_without_section():
 
     test_file = ini_config("""
+[global]
 period = 0.1
 web-url=example.com
 enable-nonvirtual = False

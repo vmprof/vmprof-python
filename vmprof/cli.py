@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import argparse
-from six.moves.configparser import ConfigParser
+from six.moves import configparser
 
 
 def build_argparser():
@@ -76,7 +76,7 @@ def parse_args(argv):
             ('web', str),
             ('web-auth', str),
             ('web-url', str),
-            ('output', file)
+            ('output', str)
         ]
 
         ini_parser = IniParser(args.config)
@@ -92,42 +92,27 @@ def parse_args(argv):
     return args
 
 
-class fake_ini_headers(object):
-    def __init__(self, fp):
-        self.fp = fp
-        self.sechead = '[global]\n'
-
-    def readline(self):
-        if self.sechead:
-            try:
-                return self.sechead
-            finally:
-                self.sechead = None
-        else:
-            return self.fp.readline()
-
-
 class IniParser(object):
 
     def __init__(self, f):
-        self.ini_parser = ConfigParser.ConfigParser()
-        self.ini_parser.readfp(fake_ini_headers(f))
+        self.ini_parser = configparser.ConfigParser()
+        self.ini_parser.readfp(f)
 
     def get_option(self, name, type, default=None):
         if type == float:
             try:
                 return self.ini_parser.getfloat('global', name)
-            except ConfigParser.NoOptionError:
+            except configparser.NoOptionError:
                 return default
         elif type == bool:
             try:
                 return self.ini_parser.getboolean('global', name)
-            except ConfigParser.NoOptionError:
+            except configparser.NoOptionError:
                 return default
 
         try:
             return self.ini_parser.get('global', name)
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             return default
 
 
