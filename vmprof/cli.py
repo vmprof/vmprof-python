@@ -1,5 +1,120 @@
 from __future__ import print_function
 
+import argparse
+from six.moves import configparser
+
+
+def build_argparser():
+    parser = argparse.ArgumentParser(
+        description='VMprof',
+        prog="vmprof"
+    )
+    parser.add_argument(
+        'program',
+        help='program'
+    )
+
+    parser.add_argument(
+        'args',
+        nargs=argparse.REMAINDER,
+        help='program arguments'
+    )
+
+    parser.add_argument(
+        '--config',
+        type=argparse.FileType('r'),
+    )
+
+    parser.add_argument(
+        '--period', '-p',
+        type=float,
+        default=0.001,
+        help='Sampling period (in microseconds)'
+    )
+
+    parser.add_argument(
+        '--web-auth',
+        help='Authtoken for your acount on the server, works only when --web is used'
+    )
+
+    parser.add_argument(
+        '--web-url',
+        metavar='url',
+        default='vmprof.baroquesoftware.com',
+        help='Provide URL instead of the default vmprof.baroquesoftware.com)'
+    )
+
+    parser.add_argument(
+        '--enable-nonvirtual', '-n',
+        action='store_true',
+        help='Report native calls'
+    )
+
+    output_mode_args = parser.add_mutually_exclusive_group()
+    output_mode_args.add_argument(
+        '--web',
+        action='store_true',
+        help='Upload profiling stats to a remote server (defaults to vmprof.baroquesoftware.com)'
+    )
+    output_mode_args.add_argument(
+        '--output', '-o',
+        metavar='file.prof',
+        type=argparse.FileType('w+b'),
+        help='Save profiling data to file'
+    )
+
+    return parser
+
+
+def parse_args(argv):
+    parser = build_argparser()
+    args = parser.parse_args(argv)
+
+    if args.config:
+        ini_options = [
+            ('period', float),
+            ('web', str),
+            ('web-auth', str),
+            ('web-url', str),
+            ('output', str)
+        ]
+
+        ini_parser = IniParser(args.config)
+
+        for name, type in ini_options:
+            argname = name.replace("-", "_")
+            default = parser.get_default(argname)
+            current = getattr(args, argname, default)
+            if current == default:
+                value = ini_parser.get_option(name, type, default)
+                setattr(args, argname, value)
+
+    return args
+
+
+class IniParser(object):
+
+    def __init__(self, f):
+        self.ini_parser = configparser.ConfigParser()
+        self.ini_parser.readfp(f)
+
+    def get_option(self, name, type, default=None):
+        if type == float:
+            try:
+                return self.ini_parser.getfloat('global', name)
+            except configparser.NoOptionError:
+                return default
+        elif type == bool:
+            try:
+                return self.ini_parser.getboolean('global', name)
+            except configparser.NoOptionError:
+                return default
+
+        try:
+            return self.ini_parser.get('global', name)
+        except configparser.NoOptionError:
+            return default
+
 
 def show(stats):
     p = stats.top_profile()
