@@ -6,33 +6,35 @@ vmprof documentation
 Introduction
 ============
 
-`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, 3, `PyPy`_ and other
-virtual machines in the future. It helps you understand the performance
-bottlenecks in your code.
+`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, `CPython`_ 3, `PyPy`_,
+and possibly even other non-Python virtual machines in the future. It helps
+you to find and understand the performance bottlenecks in your code.
 
-vmprof is a `statistical profiler`_ - it gathers information about your
-code by repeatedly getting the traceback in small intervals. This is similar
-to tools like `vtune`_ or `gperftools`_, except it works for high-level virtual
-machines rather than on the C level.
+vmprof is a `statistical profiler`_: it gathers information about your code by
+continuously taking samples of the C call stack of the running program, at a
+given frequency. This is similar to tools like `vtune`_ or `gperftools`_: the
+main difference is that those tools target C and C-like languages and are not
+very helpful to profile higher-level languages which run on top of a virtual
+machine, while vmprof is designed specifically for them.
 
-There are three primary modes. The most obvious one is to use our server
-infrastructure for visualizations, then you do::
-
+There are three primary modes. The recommended one is to use our server
+infrastructure for a web-based visualization of the result::
 
     python -m vmprof --web <program.py> <program parameters>
 
-The more barebone one is::
+If you prefer a barebone terminal-based visualization, which will display only
+some basic statistics::
 
     python -m vmprof <program.py> <program parameters>
 
-which will display you only the statistical basics, or::
+To display a terminal-based tree of calls::
 
     python -m vmprof -o output.log <program.py> <program parameters>
+
     vmprofshow output.log
 
-Which will display you a tree.
-
-vmprof can be invoked and controlled with the API for more advanced use cases.
+For more advanced use cases, vmprof can be invoked and controlled from within
+the program using the given API.
 
 .. _`vmprof`: https://github.com/vmprof/vmprof-python
 .. _`gperftools`:  https://code.google.com/p/gperftools/
@@ -42,11 +44,11 @@ vmprof can be invoked and controlled with the API for more advanced use cases.
 Requirements
 ------------
 
-vmprof (as of 0.1) works on 64bit x86 linux only with beta support
-of Mac OS X and Free BSD. It is supported on 
-`CPython`_ 2.7, 3 and a recent `PyPy`_, at least 2.6.
+vmprof 0.1 works only on x86_64 linux, with beta support of Mac OS X and Free
+BSD. It supports  `CPython`_ 2.7, `CPython`_ 3 and `PyPy`_ >= 2.6.
 
-Windows and 32bit support is planned.
+Currently it does not work on Windows and 32bit machines, although support for
+those is planned in the future.
 
 Installation
 ------------
@@ -55,16 +57,16 @@ Installation of ``vmprof`` is performed with a simple command::
 
     pip install vmprof
 
-You need a few packages. On ubuntu those are::
+Since it depends on some C code and external libraries, you need a compiler
+and some packages. On ubuntu those are::
 
     sudo apt-get install python-dev libdwarf-dev libelfg0-dev libunwind8-dev
 
 Usage
 -----
 
-Main usage of vmprof is via command line. Basic usage would look like that:
-
-Example of usage::
+Main usage of vmprof is via command line. The following shows the basic usage
+to profile an example ``x.py`` program::
 
   fijal@hermann:~/src/vmprof-python$ cat x.py
   
@@ -96,31 +98,47 @@ Example of usage::
 .. _`CPython`: http://python.org
 .. _`PyPy`: http://pypy.org
 
-But we stronly suggest using the ``--web`` option that will display you
-a much nicer web interface hosted on ``vmprof.baroquesoftware.com``.
+We stronly suggest using the ``--web`` option that will display you a much
+nicer web interface hosted on ``vmprof.baroquesoftware.com``.
 
-Options that follow ``-m vmprof`` are:
+If you prefer to host your own vmprof visualization server, you need the
+`vmprof-server` package.
 
-* ``--web`` - to be used together with `vmprof-server`_, defaults to
-  ``vmprof.baroquesoftware.com`` as URL, uploads the output to the server as
-  JSON. Can be viewed on the `server`_.
+After ``-m vmprof`` you can specify some options:
 
-* ``--web-url`` - customize the URL for personal server
+* ``--web`` - Use the web-based visualization. By default, the result can be
+  viewed on our `server`_.
 
-* ``--web-auth`` - auth token for user name support in the server
+* ``--web-url`` - the URL to upload the profiling info as JSON. The default is
+  ``vmprof.baroquesoftware.com``
 
-* ``-p perios`` - float that gives you how often the profiling happens
-  (the max is about 300 Hz, rather don't touch it)
+* ``--web-auth`` - auth token for user name support in the server.
+
+* ``-p period`` - float that gives you how often the profiling happens
+  (the max is about 300 Hz, rather don't touch it).
 
 * ``-n`` - enable all C frames, only useful if you have a debug build of
-  pypy or cpython
+  PyPy or CPython.
 
 * ``-o file`` - save logs for later
 
 * ``--help`` - display help
+  
+* ``--config`` - a ini format config file with all options presented above. When passing a config file along with command line arguments, the command line arguments will take precedence and override the config file values.
+
+Example `config.ini` file::
+
+  web-url = vmprof.baroquesoftware.com
+  web-auth = ffb7d4bee2d6436bbe97e4d191bf7d23f85dfeb2
+  period = 0.1
 
 .. _`vmprof-server`: https://github.com/vmprof/vmprof-server
 .. _`server`: http://vmprof.baroquesoftware.com
+
+
+API
+===
+
 
 There is also an API that can bring more details to the table,
 but consider it unstable. The current API usage is as follows::
@@ -135,11 +153,11 @@ Module level functions
 
 * ``vmprof.disable()`` - finish writing vmprof data, disable the signal handler
 
-* ``vmprof.read_profile(filename, virtual_only=True)`` - read vmprof data
-  from ``filename`` and return ``Stats`` instance. If ``virtual_only`` is set
-  to ``False`` also report the C level stack (only if you know what you're
-  doing, right now will report PyPy JIT code without aligning it properly,
-  you've been warned)
+* ``vmprof.read_profile(filename, virtual_only=True)`` - read vmprof data from
+  ``filename`` and return ``Stats`` instance. If ``virtual_only`` is set to
+  ``False`` also report the C level stack (use it only if you know what you're
+  doing. Right now it will report the PyPy JIT code without aligning it
+  properly, you've been warned)
 
 ``Stats`` object
 ----------------
@@ -166,24 +184,26 @@ Tree is made of Nodes, each node supports at least the following interface:
 Why a new profiler?
 ===================
 
-There are a variety of python profilers on the market. `CProfile`_ is the one bundled
-with CPython, together with `lsprofcalltree.py`_ it provides decent
-visualization, while `plop`_ is an example of statistical profiler.
+There is a variety of python profilers on the market: `CProfile`_ is the one
+bundled with CPython, which together with `lsprofcalltree.py`_ provides good
+info and decent visualization; `plop`_ is an example of statistical profiler.
 
-We want a few things when using a profiler:
+We wanted a profiler with the following characteristics:
 
-* Minimal overhead, small enough to run it in production. 1-5%, ideally,
-  with a possibility to tune it for more accurate measurments
+* Minimal overhead, small enough that enabling the profiler in production is a
+  viable option. Ideally the overhead should be in the range 1-5%, with the
+  possibility to tune it for more accurate measurments
 
-* An ability to display a full stack of calls, so it can show how much time
-  was spent in a function, including all its children
+* Ability to display a full stack of calls, so it can show how much time was
+  spent in a function, including all its children
 
-* Work under PyPy and be aware of the underlaying JIT architecture to be
-  able to show jitted/not jitted code
+* Good integration with PyPy: in particular, it must be aware of the
+  underlying JIT, and be able to show how much time is spent inside JITted
+  code, Garbage collector and normal intepretation.
 
-So far none of the existing solutions satisfied our requirements, hence
-we decided to create our own profiler. Notably cProfile is slow on PyPy,
-does not understand the JITted code very well and shows in the JIT traces.
+None of the existing solutions satisfied our requirements, hence we decided to
+create our own profiler. In particular, cProfile is slow on PyPy, does not
+understand the JITted code very well and is shown in the JIT traces.
 
 .. _`CProfile`: https://docs.python.org/2/library/profile.html
 .. _`lsprofcalltree.py`: https://pypi.python.org/pypi/lsprofcalltree
@@ -192,13 +212,33 @@ does not understand the JITted code very well and shows in the JIT traces.
 How does it work?
 =================
 
-The main work is done by a signal handler that inspects the C stack (very
-much like gperftools). Additionally there is a special trampoline for CPython
-and special support for PyPy gives the same effect of being able to retrieve
-Python stack from the C stack. This gives us a unique opportunity of being
-able to see where is the JIT code, where is the Python code, what are we
-doing in the C standard library (e.g. filter out the places where we are
-inside ``select()`` calls, etc.). The machinery is there to report this 
-information, we are working
-on the frontend to make sure we can process and display the information.
+As most statistical profilers, the core idea is to have a signal handler which
+periodically inspects and dumps the C stack of the running program: the most
+frequently executed parts of the code will be dumped more often, and the
+post-processing and visualization tools have the chance to show the end user
+usueful info about the behavior of the profiled program. This is the very same
+approach used e.g. by `gperftools`_.
 
+However, when profiling an interpreter such as CPython, inspecting the C stack
+is not enough, because most of the time will always be spent inside the opcode
+dispatching loop of the virtual machine (e.g., ``PyEval_EvalFrameEx`` in case
+of CPython).  To be able to display useful information, we need to know which
+Python-level function correspond to each C-level ``PyEval_EvalFrameEx``.
+
+This is done by using a special trampoline: vmprof's signal handler recognizes
+the C-level stack frames of this trampoline, and fishes the corresponding
+``PyFrame*`` object from the C stack, which is then used to gather all the
+Python-level info it needs, such as the code object which is being executed.
+
+Additionally, when on top of PyPy the C stack contains also stack frames which
+belong to the JITted code: the vmprof signal handler is able to recognize and
+extract the relevant info from those as well.
+
+Once we have gathered all the low-level info, we can post-process and
+visualize them in various ways: for example, we can decide to filter out the
+places where we are inside the ``select()`` syscall, etc.
+
+The machinery to gather the information has been the focus of the initial
+phase of vmprof development and now it is working well: we are currently
+focusing on the frontend to make sure we can process and display the info in
+useful ways.
