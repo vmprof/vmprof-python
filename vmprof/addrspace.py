@@ -106,9 +106,9 @@ class AddressSpace(object):
                     # we're in a situation where we have a jitted
                     # virtual and not jitted virtual just above it,
                     # get rid of the not jitted one
-                    assert current[-1] == addr
                     last_virtual_was_jitted = False
-                    continue
+                    if current[-1] == addr:
+                        continue
                 last_virtual_was_jitted = jitting
                 first_virtual = True
                 current.append(addr)
