@@ -17,7 +17,8 @@ int custom_sanity_check()
 }
 
 static ptrdiff_t vmprof_unw_get_custom_offset(void* ip, unw_cursor_t *cp) {
-    // XXX remove hardcoded addresses
+    // XXX the return value is wrong for all the places before push and
+    //     after pop, fix
     if (ip >= tramp_start && ip <= tramp_end) {
         void *bp;
         void *sp;

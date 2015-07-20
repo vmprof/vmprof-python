@@ -119,6 +119,11 @@ static int vmprof_unw_step(unw_cursor_t *cp, int first_run) {
         return unw_step(cp);
     }
     else {
+        if (first_run) {
+            // on cpython the map in get_custom_offset is wrong if we
+            // happen to have trampoline as the top most frame XXX fix
+            return -1;
+        }
         // this is a horrible hack to manually walk the stack frame, by
         // setting the IP and SP in the cursor
         vmprof_hacked_unw_cursor_t *cp2 = (vmprof_hacked_unw_cursor_t*)cp;
