@@ -42,3 +42,11 @@ class TestAddrSpace(object):
         assert repr(tree) == '<Node: py:<module>:2:x.py (92) [(92, py:f:7:x.py)]>'
         values = list(tree.children.values())
         assert repr(values[0]) == '<Node: py:f:7:x.py (92) []>'
+
+    def test_wsgi_tree(self):
+        prof = read_profile(str(py.path.local(__file__).join(
+            '..', 'wsgi.prof')))
+        tree = prof.get_tree()
+        assert repr(tree) == '<Node: py:__call__:162:/vmprof/vmprof-test/.env/local/lib/python2.7/site-packages/django/core/handlers/wsgi.py (367) [(367, py:get_response:94:/vmprof/vmprof-test/.env/local/lib/python2.7/site-packages/django/core/handlers/base.py)]>'
+        values = list(tree.children.values())
+        assert repr(values[0]) == '<Node: py:get_response:94:/vmprof/vmprof-test/.env/local/lib/python2.7/site-packages/django/core/handlers/base.py (367) [(365, py:index:23:/vmprof/vmprof-test/app/main.py), (2, py:resolve:360:/vmprof/vmprof-test/.env/local/lib/python2.7/site-packages/django/core/urlresolvers.py)]>'

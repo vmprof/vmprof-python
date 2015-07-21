@@ -74,6 +74,9 @@ class Stats(object):
                 cur = cur.add_child(addr, self._get_name(addr))
         # get the first "interesting" node, that is after vmprof and pypy
         # mess
+
+        first_top = top
+
         while True:
             if top.name.startswith('py:<module>') and 'vmprof/__main__.py' not in top.name:
                 return top
@@ -90,7 +93,9 @@ class Stats(object):
                 try:
                     top = top['']
                 except KeyError:
-                    return top
+                    break
+
+        return first_top
 
 
 class Node(object):
