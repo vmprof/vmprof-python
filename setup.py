@@ -29,7 +29,7 @@ else:
 setup(
     name='vmprof',
     author='vmprof team',
-    author_email='sebastian.pawlus@gmail.com',
+    author_email='fijal@baroquesoftware.com',
     version="0.1.4",
     packages=find_packages(),
     description="Python's vmprof client",
