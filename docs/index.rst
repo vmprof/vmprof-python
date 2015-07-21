@@ -44,8 +44,9 @@ the program using the given API.
 Requirements
 ------------
 
-vmprof 0.1 works only on x86_64 linux, with beta support of Mac OS X and Free
-BSD. It supports  `CPython`_ 2.7, `CPython`_ 3 and `PyPy`_ >= 2.6.
+vmprof 0.1 works only on x86_64 linux, with upcoming support of Mac OS X and
+Free BSD. MacOS X and Free BSD should work with PyPy trunk (but not 2.6)
+It supports  `CPython`_ 2.7, `CPython`_ 3 and `PyPy`_ >= 2.6.
 
 Currently it does not work on Windows and 32bit machines, although support for
 those is planned in the future.
