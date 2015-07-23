@@ -30,7 +30,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.1.4",
+    version="0.1.4.1",
     packages=find_packages(),
     description="Python's vmprof client",
     install_requires=[
