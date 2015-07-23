@@ -10,7 +10,7 @@ def send(t, args):
 
 
     data = {
-        "profiles": t.get_tree().flatten()._serialize(),
+        "profiles": t.get_tree()._serialize(),
         "argv": "%s %s" % (name, " ".join(args.args)),
         "version": 1,
     }

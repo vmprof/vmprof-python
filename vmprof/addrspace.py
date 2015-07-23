@@ -9,6 +9,26 @@ def fmtaddr(x, name=None):
     else:
         return '0x%016x' % x
 
+class Hashable(object):
+    def __init__(self, addr):
+        self.addr = addr
+
+    def __hash__(self):
+        return hash(self.addr)
+
+    def __eq__(self, other):
+        if isinstance(other, Hashable):
+            return self.addr == other.addr
+        return self.addr == other
+
+    def __repr__(self):
+        return '<%s(%s)>' % (self.__class__.__name__, self.addr)
+    
+class JitAddr(Hashable):
+    pass
+
+class JittedCode(Hashable):
+    pass
 
 class AddressSpace(object):
     def __init__(self, libs):
@@ -70,8 +90,9 @@ class AddressSpace(object):
 
     def _next_profile(self, lst, jit_frames, addr_set, interp_name, extra_info,
                       only_virtual):
+        # XXX this function is too complicated and too pypy specific
+        #     refactor somehow
         current = []
-        last_virtual_was_jitted = False
         first_virtual = False
         jitting = False
         for j, addr in enumerate(lst):
@@ -81,8 +102,8 @@ class AddressSpace(object):
                 if orig_addr + 1 == 0x2:
                     jitting = True
                     prev_name, jit_addr, _, _ = self.lookup(lst[j - 1])
-                    current.append(jit_addr)
-                    jit_frames.add(jit_addr)
+                    current.append(JitAddr(jit_addr))
+                    addr_set.add(jit_addr)
                     continue
                 elif orig_addr + 1 == 0x3:
                     assert jitting
@@ -102,23 +123,16 @@ class AddressSpace(object):
                 else:
                     current.append(addr)
             elif is_virtual or not only_virtual:
-                if not jitting and last_virtual_was_jitted:
-                    # we're in a situation where we have a jitted
-                    # virtual and not jitted virtual just above it,
-                    # get rid of the not jitted one
-                    last_virtual_was_jitted = False
-                    if current[-1] == addr:
-                        continue
-                last_virtual_was_jitted = jitting
                 first_virtual = True
-                current.append(addr)
+                if jitting:
+                    current.append(JittedCode(addr))
+                else:
+                    current.append(addr)
                 addr_set.add(addr)
         return current
 
     def filter_addr(self, profiles, only_virtual=True, extra_info=False,
                     interp_name=None):
-        # XXX this function is too complicated and too pypy specific
-        #     refactor somehow
         filtered_profiles = []
         jit_frames = set()
         addr_set = set()

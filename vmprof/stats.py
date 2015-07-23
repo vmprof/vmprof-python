@@ -1,4 +1,5 @@
 import six
+from vmprof.addrspace import JittedCode, JitAddr
 
 class Stats(object):
     def __init__(self, profiles, adr_dict=None, jit_frames=None, interp=None):
@@ -30,14 +31,7 @@ class Stats(object):
 
     def _get_name(self, addr):
         if self.adr_dict is not None:
-            try:
-                return self.adr_dict[addr]
-            except KeyError:
-                if addr in self.jit_frames:
-                    name = 'jit:' + hex(addr)
-                    self.adr_dict[addr] = name
-                    return name
-                raise
+            return self.adr_dict[addr]
 
         return addr
 
@@ -68,10 +62,35 @@ class Stats(object):
         top = Node(top_addr, self._get_name(top_addr))
         top.count = len(self.profiles)
         for profile in self.profiles:
+            last_erased = False
             cur = top
+            last_jitted = False
             for i in range(1, len(profile[0])):
+                add_jit = False
                 addr = profile[0][i]
-                cur = cur.add_child(addr, self._get_name(addr))
+                if isinstance(addr, JitAddr):
+                    cur.jitcodes[addr.addr] = cur.jitcodes.get(addr.addr, 0) + 1
+                    continue # skip over the next code
+                elif isinstance(addr, JittedCode):
+                    if cur.addr == addr.addr and not last_erased:
+                        last_erased = True
+                        if not last_jitted:
+                            cur.meta['jit'] = cur.meta.get('jit', 0) + 1
+                        continue
+                    addr = addr.addr
+                    add_jit = True
+                last_erased = False
+                name = self._get_name(addr)
+                if name.startswith('meta'):
+                    name = name[5:]
+                    cur.meta[name] = cur.meta.get(name, 0) + 1
+                    break
+                cur = cur.add_child(addr, name)
+                if add_jit:
+                    last_jitted = True
+                    cur.meta['jit'] = cur.meta.get('jit', 0) + 1
+                else:
+                    last_jitted = False
         # get the first "interesting" node, that is after vmprof and pypy
         # mess
 
@@ -104,11 +123,14 @@ class Node(object):
     _self_count = None
     flat = False
 
-    def __init__(self, addr, name):
+    def __init__(self, addr, name, count=1):
         self.children = {}
         self.name = name
+        assert isinstance(addr, int)
         self.addr = addr
-        self.count = 1 # starts at 1
+        self.count = count # starts at 1
+        self.jitcodes = {}
+        self.meta = {}
 
     def __getitem__(self, item):
         if isinstance(item, int):
@@ -118,38 +140,9 @@ class Node(object):
                 return v
         raise KeyError
 
-    def update_meta_from(self, c, no_jit=False):
-        for elem, value in six.iteritems(c.meta):
-            if elem != 'jit':
-                self.meta[elem] = self.meta.get(elem, 0) + value
-
-    def flatten(self):
-        if self.flat:
-            return self
-        new = Node(self.addr, self.name)
-        new.meta = {}
-        new.jit_codes = {}
-        new_children = {}
-        new.count = self.count
-        for addr, c in six.iteritems(self.children):
-            c = c.flatten()
-            if c.name.startswith('meta'):
-                name = c.name[5:]
-                new.meta[name] = new.meta.get(name, 0) + c.count
-                new.update_meta_from(c)
-                assert not c.children
-            elif c.name.startswith('jit'):
-                new.update_meta_from(c, no_jit=True)
-                new.meta['jit'] = new.meta.get('jit', 0) + c.count
-            else:
-                new_children[addr] = c # normal
-        new.children = new_children
-        new.flat = True
-        return new
-
     def as_json(self):
         import json
-        return json.dumps(self.flatten()._serialize())
+        return json.dumps(self._serialize())
 
     def _serialize(self):
         chld = [ch._serialize() for ch in six.itervalues(self.children)]

@@ -6,6 +6,7 @@ import six
 
 import vmprof
 from vmprof.reader import LibraryData
+from vmprof.stats import Node
 
 
 def get_or_write_libcache(filename):
@@ -44,18 +45,18 @@ def test_read_simple():
     foo_name = 'py:foo:6:foo.py'
     bar_name = 'py:bar:2:foo.py'
     assert tree['foo'].name == foo_name
+    assert tree['foo'].meta['jit'] == 120
     assert tree['foo']['bar'].name == bar_name
-    assert tree['foo']['bar']['jit'].name.startswith('jit')
-    flat = tree.flatten()
-    assert tree['foo']['bar']['jit'].name.startswith('jit')
-    assert not flat['foo']['bar'].children
-    assert flat['foo']['bar'].meta['jit'] == 101
-    assert flat['foo']['bar'].meta['gc:minor'] == 2
+    assert tree['foo']['bar'].meta['jit'] == 101
+    assert tree['foo']['bar'].jitcodes == {140523638277712: 101, 140523638275600: 27, 140523638276656: 12}
+    assert tree['foo'].jitcodes == {140523638277712: 19}
+    assert not tree['foo']['bar'].children
+    assert tree['foo']['bar'].meta['gc:minor'] == 2
     data = json.loads(tree.as_json())
     main_addr = str(tree.addr)
     foo_addr = str(tree['foo'].addr)
     bar_addr = str(tree['foo']['bar'].addr)
     expected = [main_name, main_addr, 120, {}, [
-        [foo_name, foo_addr, 120, {'jit': 19, 'gc:minor': 2}, [
+        [foo_name, foo_addr, 120, {'jit': 120, 'gc:minor': 2}, [
             [bar_name, bar_addr, 101, {'gc:minor': 2, 'jit': 101}, []]]]]]
     assert data == expected

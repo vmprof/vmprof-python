@@ -54,7 +54,9 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
         virtual_only, include_extra_info, interp_name)
     d = {}
     for addr in addr_set:
-        name, _, _, _ = addrspace.lookup(addr)
+        name, _, _, lib = addrspace.lookup(addr)
+        if lib is None:
+            name = 'jit:' + name
         d[addr] = name
     if include_extra_info:
         d.update(addrspace.meta_data)
