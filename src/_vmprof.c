@@ -21,7 +21,9 @@ static void* PyEval_GetVirtualIp(PyFrameObject* f, long *thread_id) {
     // we don't risk spurious conflicts with loaded libraries. The proper
     // solution would be to tell the linker to reserve us some address space
     // and use that.
+#if PY_MAJOR_VERSION < 3
     *thread_id = f->f_tstate->thread_id;
+#endif
     if (f->f_code->co_flags & UNUSED_FLAG)
         return (void*)res;
     f->f_code->co_flags |= UNUSED_FLAG;
@@ -75,7 +77,6 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "id|s#", &fd, &period_float, &x, &x_len))
 		return NULL;
     buf = (char*)malloc(x_len + sizeof(long) + 2 + 7);
-    // 1 for marker 7 for cpython
     buf[0] = MARKER_HEADER;
     buf[1] = '\x00';
     buf[2] = VERSION_THREAD_ID;
