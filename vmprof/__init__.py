@@ -55,9 +55,16 @@ if not IS_PYPY:
         _prof_fileno = -1
 
 else:
-    def enable(fileno, period=0.001):
+    def enable(fileno, period=0.001, warn=True):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
+        if warn and sys.pypy_version_info[:3] <= (2, 6, 0):
+            print ("PyPy 2.6.0 and below has a bug in vmprof where "
+                   "fork() would disable your profiling. "
+                   "Pass warn=False if you know what you're doing")
+            raise Exception("PyPy 2.6.0 and below has a bug in vmprof where "
+                            "fork() would disable your profiling. "
+                            "Pass warn=False if you know what you're doing")
         _vmprof.enable(fileno, period)
 
     def disable():
