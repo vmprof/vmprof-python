@@ -141,7 +141,7 @@ class AddressSpace(object):
                                          interp_name, extra_info, only_virtual)
             if current:
                 current.reverse()
-                filtered_profiles.append((current, prof[1]))
+                filtered_profiles.append((current, prof[1], prof[2]))
         return filtered_profiles, addr_set, jit_frames
 
     def dump_stack(self, stacktrace):

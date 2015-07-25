@@ -45,7 +45,7 @@ static char profile_write_buffer[BUFFER_SIZE];
 static int profile_buffer_position = 0;
 void* vmprof_mainloop_func;
 static ptrdiff_t mainloop_sp_offset;
-static vmprof_get_virtual_ip_t mainloop_get_virtual_ip;
+static vmprof_get_virtual_ip_t mainloop_get_virtual_ip_and_thread_id;
 static long last_period_usec = 0;
 static int atfork_hook_installed = 0;
 
@@ -71,7 +71,8 @@ static void prof_header(long period_usec) {
     profile_buffer_position = 0;
 }
 
-static void prof_write_stacktrace(void** stack, int depth, int count) {
+static void prof_write_stacktrace(void** stack, int depth, int count,
+                                  long thread_id) {
     int i;
 	char marker = MARKER_STACKTRACE;
 
@@ -80,6 +81,7 @@ static void prof_write_stacktrace(void** stack, int depth, int count) {
     prof_word(depth);
     for(i=0; i<depth; i++)
         prof_word((long)stack[i]);
+    prof_word((long)thread_id);
     write(profile_file, profile_write_buffer, profile_buffer_position);
     profile_buffer_position = 0;
 }
@@ -142,6 +144,8 @@ static int vmprof_unw_step(unw_cursor_t *cp, int first_run) {
  * *************************************************************
  */
 
+// XXX understand why recursive exists, it's not like it's legal
+//     to call mmap from a signal handler to start
 // stolen from pprof:
 // Sometimes, we can try to get a stack trace from within a stack
 // trace, because libunwind can call mmap (maybe indirectly via an
@@ -151,20 +155,20 @@ static int vmprof_unw_step(unw_cursor_t *cp, int first_run) {
 // Luckily, it's safe to ignore those subsequent traces.  In such
 // cases, we return 0 to indicate the situation.
 //static __thread int recursive;
-static int recursive; // XXX antocuni: removed __thread
 
-int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext) {
+int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext,
+                    long *thread_id) {
     void *ip;
     int n = 0;
     unw_cursor_t cursor;
     unw_context_t uc = *ucontext;
-    if (recursive) {
-        return 0;
-    }
+    //if (recursive) {
+    //    return 0;
+    //}
 	if (!custom_sanity_check()) {
 		return 0;
 	}
-    ++recursive;
+    //++recursive;
 
     int ret = unw_init_local(&cursor, &uc);
     assert(ret >= 0);
@@ -197,8 +201,8 @@ int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext) {
           void **arg_ptr = (void**)arg_addr;
           // fprintf(stderr, "stacktrace mainloop: rsp %p   &f2 %p   offset %ld\n", 
           //         sp, arg_addr, mainloop_sp_offset);
-		  if (mainloop_get_virtual_ip) {
-			  ip = mainloop_get_virtual_ip(*arg_ptr);
+		  if (mainloop_get_virtual_ip_and_thread_id) {
+			  ip = mainloop_get_virtual_ip_and_thread_id(*arg_ptr, thread_id);
 		  } else {
 			  ip = *arg_ptr;
 		  }
@@ -211,7 +215,7 @@ int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext) {
         }
 		first_run = 0;
     }
-    --recursive;
+    //--recursive;
     return n;
 }
 
@@ -223,10 +227,11 @@ static int __attribute__((noinline)) frame_forcer(int rv) {
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext) {
     void* stack[MAX_STACK_DEPTH];
     int saved_errno = errno;
+    long thread_id = 0;
     stack[0] = GetPC((ucontext_t*)ucontext);
-    int depth = frame_forcer(get_stack_trace(stack+1, MAX_STACK_DEPTH-1, ucontext));
+    int depth = frame_forcer(get_stack_trace(stack+1, MAX_STACK_DEPTH-1, ucontext, &thread_id));
     depth++;  // To account for pc value in stack[0];
-    prof_write_stacktrace(stack, depth, 1);
+    prof_write_stacktrace(stack, depth, 1, thread_id);
     errno = saved_errno;
 }
 
@@ -351,9 +356,9 @@ static int install_pthread_atfork_hooks(void) {
  */
 
 void vmprof_set_mainloop(void* func, ptrdiff_t sp_offset, 
-                         vmprof_get_virtual_ip_t get_virtual_ip) {
+                         vmprof_get_virtual_ip_t get_virtual_ip_and_thread_id) {
     mainloop_sp_offset = sp_offset;
-    mainloop_get_virtual_ip = get_virtual_ip;
+    mainloop_get_virtual_ip_and_thread_id = get_virtual_ip_and_thread_id;
     vmprof_mainloop_func = func;
 }
 

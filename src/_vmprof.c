@@ -12,7 +12,7 @@ PyObject* vmprof_mod = NULL;
 #define UNUSED_FLAG 0x1000 // this is a flag unused since Python2.5, let's hope
 // noone uses it
 
-static void* PyEval_GetVirtualIp(PyFrameObject* f) {
+static void* PyEval_GetVirtualIp(PyFrameObject* f, long *thread_id) {
     char buf[4096];
     char *co_name, *co_filename;
     int co_firstlineno;
@@ -21,6 +21,7 @@ static void* PyEval_GetVirtualIp(PyFrameObject* f) {
     // we don't risk spurious conflicts with loaded libraries. The proper
     // solution would be to tell the linker to reserve us some address space
     // and use that.
+    *thread_id = f->f_tstate->thread_id;
     if (f->f_code->co_flags & UNUSED_FLAG)
         return (void*)res;
     f->f_code->co_flags |= UNUSED_FLAG;
@@ -73,18 +74,21 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
 	}
 	if (!PyArg_ParseTuple(args, "id|s#", &fd, &period_float, &x, &x_len))
 		return NULL;
-    buf = (char*)malloc(x_len + sizeof(long) + 1 + 7);
+    buf = (char*)malloc(x_len + sizeof(long) + 2 + 7);
     // 1 for marker 7 for cpython
-    buf[0] = MARKER_INTERP_NAME;
-    buf[1] = '\x07';
-    memcpy(buf + 1 + 1, "cpython", 7);
-    memcpy(buf + 1 + 8, x, x_len);
+    buf[0] = MARKER_HEADER;
+    buf[1] = '\x00';
+    buf[2] = VERSION_THREAD_ID;
+    buf[3] = '\x07';
+    memcpy(buf + 3 + 1, "cpython", 7);
+    if (x)
+        memcpy(buf + 3 + 8, x, x_len);
     if (period_float < 0 || period_float >= 1) {
         PyErr_Format(PyExc_ValueError, "Period too large or negative");
         return NULL;
     }
     period_usec = (int)(period_float * 1e6 + 0.5);
-	if (vmprof_enable(fd, period_usec, 1, buf, x_len + 8 + 1) == -1) {
+	if (vmprof_enable(fd, period_usec, 1, buf, x_len + 8 + 3) == -1) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}

@@ -105,6 +105,10 @@ MARKER_STACKTRACE = b'\x01'
 MARKER_VIRTUAL_IP = b'\x02'
 MARKER_TRAILER = b'\x03'
 MARKER_INTERP_NAME = b'\x04'
+MARKER_HEADER = b'\x05'
+
+VERSION_BASE = 0
+VERSION_THREAD_ID = 1
 
 def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count
@@ -117,10 +121,18 @@ def read_prof(fileobj, virtual_ips_only=False): #
     profiles = []
     all = 0
     interp_name = None
+    version = 0
 
     while True:
         marker = fileobj.read(1)
-        if marker == MARKER_STACKTRACE:
+        if marker == MARKER_HEADER:
+            assert not version, "multiple headers"
+            version, = struct.unpack("h", fileobj.read(2))
+            lgt = ord(fileobj.read(1))
+            interp_name = fileobj.read(lgt)
+            if PY3:
+                interp_name = interp_name.decode()
+        elif marker == MARKER_STACKTRACE:
             count = read_word(fileobj)
             # for now
             assert count == 1
@@ -135,8 +147,13 @@ def read_prof(fileobj, virtual_ips_only=False): #
                     if j > 0 and pc > 0:
                         pc -= 1
                     trace.append(pc)
-                profiles.append((trace, 1))
+            if version >= VERSION_THREAD_ID:
+                thread_id, = struct.unpack('l', fileobj.read(8))
+            else:
+                thread_id = 0
+            profiles.append((trace, 1, thread_id))
         elif marker == MARKER_INTERP_NAME:
+            assert not version, "multiple headers"
             assert not interp_name, "Dual interpreter name header"
             lgt = ord(fileobj.read(1))
             interp_name = fileobj.read(lgt)

@@ -8,12 +8,16 @@
 #define MARKER_VIRTUAL_IP '\x02'
 #define MARKER_TRAILER '\x03'
 #define MARKER_INTERP_NAME '\x04'
+#define MARKER_HEADER '\x05'
 
-typedef void* (*vmprof_get_virtual_ip_t)(void*);
+#define VERSION_BASE '\x00'
+#define VERSION_THREAD_ID '\x01'
+
+typedef void* (*vmprof_get_virtual_ip_t)(void*, long*);
 
 extern void* vmprof_mainloop_func;
 void vmprof_set_mainloop(void* func, ptrdiff_t sp_offset, 
-                         vmprof_get_virtual_ip_t get_virtual_ip);
+                         vmprof_get_virtual_ip_t get_virtual_ip_and_thread_id);
 
 void vmprof_register_virtual_function(const char* name, void* start, void* end);
 

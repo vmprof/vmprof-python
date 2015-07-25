@@ -2,9 +2,11 @@
 """ Test the actual run
 """
 
+import py
 import tempfile
 import vmprof
 import time
+import sys
 
 
 def function_foo():
@@ -60,3 +62,34 @@ def test_nested_call():
         assert names[1] == foo_full_name
         assert names[0].startswith('jit:')
 
+def test_multithreaded():
+    if '__pypy__' in sys.builtin_module_names:
+        py.test.skip("not supported on pypy just yet")
+    import threading
+    finished = []
+
+    def f():
+        t0 = time.time()
+        while time.time() - t0 < 1.5:
+            pass # busy loop
+        finished.append("foo")
+
+    threads = [threading.Thread(target=f), threading.Thread(target=f)]
+    prof = vmprof.Profiler()
+    with prof.measure():
+        for t in threads:
+            t.start()
+        f()
+        for t in threads:
+            t.join()
+    
+    stats = prof.get_stats()
+    all_ids = set([x[2] for x in stats.profiles])
+    cur_id = threading.currentThread().ident
+    assert all_ids == set([threading.currentThread().ident,
+                           threads[0].ident, threads[1].ident])
+    lgt1 = len([x[2] for x in stats.profiles if x[2] == cur_id])
+    total = len(stats.profiles)
+    # between 33-10% and 33+10% is within one profile
+    assert (0.23 * total) <= lgt1 <= (0.43 * total)
+    assert len(finished) == 3
