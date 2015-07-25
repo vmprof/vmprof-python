@@ -76,7 +76,7 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
 	}
 	if (!PyArg_ParseTuple(args, "id|s#", &fd, &period_float, &x, &x_len))
 		return NULL;
-    buf = (char*)malloc(x_len + sizeof(long) + 2 + 7);
+    buf = (char*)malloc(x_len + sizeof(long) + 4 + 7);
     buf[0] = MARKER_HEADER;
     buf[1] = '\x00';
     buf[2] = VERSION_THREAD_ID;
