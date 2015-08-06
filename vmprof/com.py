@@ -8,8 +8,8 @@ def send(t, args):
     base_url = args.web_url
     auth = args.web_auth
 
-
     data = {
+        "VM": t.interp,
         "profiles": t.get_tree()._serialize(),
         "argv": "%s %s" % (name, " ".join(args.args)),
         "version": 1,
