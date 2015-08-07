@@ -1,7 +1,6 @@
 import os
 import sys
 
-from . import com
 from . import cli
 
 import _vmprof
