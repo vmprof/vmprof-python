@@ -25,14 +25,14 @@ def show_stats(filename, output_mode, args):
         upload_stats(stats, args)
 
 def upload_stats(stats, args):
-    import vmprof.com
+    import vmprof.upload
     name = args.program
     argv = " ".join(args.args)
     host = args.web_url
     auth = args.web_auth
     #
     sys.stderr.write("Compiling and uploading to %s...\n" % (args.web_url,))
-    res = vmprof.com.upload(stats, name, argv, host, auth)
+    res = vmprof.upload.upload(stats, name, argv, host, auth)
     sys.stderr.write("Available at:\n%s\n" % res)
     
 
