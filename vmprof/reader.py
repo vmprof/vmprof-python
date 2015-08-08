@@ -23,6 +23,8 @@ class LibraryData(object):
             return
         offset = 0 if executable else self.start
         self.symbols = read_object(reader, self.name, offset)
+        if not self.symbols and not self.name.startswith('['):
+            print >> sys.stderr, 'WARNING: cannot read symbols for', self.name
         return self.symbols
 
     def get_symbols_from(self, cached_lib, executable=False):
