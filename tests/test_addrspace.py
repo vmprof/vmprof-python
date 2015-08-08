@@ -1,7 +1,7 @@
 import py
 from vmprof.reader import LibraryData
 from vmprof.addrspace import AddressSpace
-from vmprof import read_profile, Stats
+from vmprof import read_stats, Stats
 
 
 class TestAddrSpace(object):
@@ -36,7 +36,7 @@ class TestAddrSpace(object):
         assert p.function_profile("py:two") == ([('py:one', 1)], 1)
 
     def test_tree(self):
-        prof = read_profile(str(py.path.local(__file__).join(
+        prof = read_stats(str(py.path.local(__file__).join(
             '..', 'test.prof')))
         tree = prof.get_tree()
         assert repr(tree) == '<Node: py:<module>:2:x.py (92) [(92, py:f:7:x.py)]>'
@@ -44,7 +44,7 @@ class TestAddrSpace(object):
         assert repr(values[0]) == '<Node: py:f:7:x.py (92) []>'
 
     def test_wsgi_tree(self):
-        prof = read_profile(str(py.path.local(__file__).join(
+        prof = read_stats(str(py.path.local(__file__).join(
             '..', 'wsgi.prof')))
         tree = prof.get_tree()
         assert repr(tree) == '<Node: py:__call__:162:/vmprof/vmprof-test/.env/local/lib/python2.7/site-packages/django/core/handlers/wsgi.py (367) [(367, py:get_response:94:/vmprof/vmprof-test/.env/local/lib/python2.7/site-packages/django/core/handlers/base.py)]>'

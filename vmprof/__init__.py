@@ -8,7 +8,7 @@ import _vmprof
 from vmprof.reader import read_prof, LibraryData
 from vmprof.addrspace import AddressSpace
 from vmprof.stats import Stats
-from vmprof.profiler import Profiler, read_profile
+from vmprof.profiler import Profiler, read_profile, read_stats
 
 
 IS_PYPY = hasattr(sys, 'pypy_translation_info')

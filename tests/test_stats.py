@@ -25,8 +25,8 @@ def get_or_write_libcache(filename):
         pass
     path = py.path.local(__file__).join('..', filename)
     lib_cache = {}
-    vmprof.read_profile(path, virtual_only=True,
-                        include_extra_info=True, lib_cache=lib_cache)
+    vmprof.read_stats(path, virtual_only=True,
+                      include_extra_info=True, lib_cache=lib_cache)
     d = {}
     for k, lib in six.iteritems(lib_cache):
         d[k] = (lib.name, lib.start, lib.end, lib.is_virtual, lib.symbols)
@@ -38,8 +38,8 @@ def get_or_write_libcache(filename):
 def test_read_simple():
     lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
     path = py.path.local(__file__).join('..', 'simple_nested.pypy.prof')
-    stats = vmprof.read_profile(path, virtual_only=True,
-                                include_extra_info=True, lib_cache=lib_cache)
+    stats = vmprof.read_stats(path, virtual_only=True,
+                              include_extra_info=True, lib_cache=lib_cache)
     tree = stats.get_tree()
     main_name = 'py:<module>:2:foo.py'
     foo_name = 'py:foo:6:foo.py'

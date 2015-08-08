@@ -42,7 +42,7 @@ def upload(stats, name, argv, host, auth):
 @click.option('--web-auth', type=str, default=None,
               help='Authtoken for your acount on the server')
 def main(profile, web_url, web_auth): 
-    stats = vmprof.read_profile(profile, virtual_only=True)
+    stats = vmprof.read_stats(profile, virtual_only=True)
     sys.stderr.write("Compiling and uploading to %s...\n" % (web_url,))
     res = upload(stats, profile, [], web_url, web_auth)
     sys.stderr.write("Available at:\n%s\n" % res)

@@ -39,14 +39,13 @@ class PrettyPrinter(object):
         :type profile: str
         """
         try:
-            stats = vmprof.read_profile(profile, virtual_only=True, include_extra_info=True)
+            stats = vmprof.read_stats(profile, virtual_only=True, include_extra_info=True)
         except Exception as e:
             print("Fatal: could not read vmprof profile file '{}': {}".format(profile, e))
             return
 
         #vmprof.cli.show(stats)
         tree = stats.get_tree()
-
         self._print_tree(tree)
 
     def _walk_tree(self, parent, node, level, callback):

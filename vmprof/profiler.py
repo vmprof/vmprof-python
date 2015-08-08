@@ -23,9 +23,11 @@ class ProfilerContext(object):
         self.done = True
 
 
-# lib_cache is global on purpose
-def read_profile(prof_filename, lib_cache={}, extra_libs=None,
-                 virtual_only=True, include_extra_info=True):
+def read_profile(prof_filename, extra_libs=None, virtual_only=True,
+                 include_extra_info=True, lib_cache=None):
+    if lib_cache is None:
+        lib_cache = read_profile.lib_cache
+    
     prof = open(str(prof_filename), 'rb')
 
     period, profiles, virtual_symbols, libs, interp_name = read_prof(prof)
@@ -50,6 +52,19 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
     if extra_libs:
         libs += extra_libs
     addrspace = AddressSpace(libs)
+
+    return profiles, interp_name, addrspace
+
+read_profile.lib_cache = {}
+
+def read_stats(prof_filename, extra_libs=None,
+               virtual_only=True, include_extra_info=True,
+               lib_cache=None):
+
+    profiles, interp_name, addrspace = read_profile(prof_filename, extra_libs,
+                                                    virtual_only, include_extra_info,
+                                                    lib_cache)
+    
     filtered_profiles, addr_set, jit_frames = addrspace.filter_addr(profiles,
         virtual_only, include_extra_info, interp_name)
     d = {}
@@ -80,7 +95,7 @@ class Profiler(object):
             raise VMProfError("no profiling done")
         if not self.ctx.done:
             raise VMProfError("profiling in process")
-        res = read_profile(self.ctx.tmpfile.name)
+        res = read_stats(self.ctx.tmpfile.name)
         self.ctx = None
         return res
 

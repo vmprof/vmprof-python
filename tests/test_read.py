@@ -53,7 +53,7 @@ def test_read_ranges():
                        (s + 2195840, '_ufc_foobar')]
 
 
-def test_read_profile(here):
+def test_read_prof(here):
 
     prof_path = os.path.join(here, 'test.prof')
     prof_content = open(prof_path, 'rb')
