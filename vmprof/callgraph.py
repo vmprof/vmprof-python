@@ -57,7 +57,9 @@ class CallGraph(object):
 
 def get_tag(frame):
     # XXX this is a hack only for tests
-    if frame.name.startswith('jit:'):
+    if frame.is_virtual:
+        return 'Python'
+    elif frame.name.startswith('jit:'):
         return 'JIT'
     else:
         return 'C'
@@ -173,3 +175,16 @@ class StackFrameNode(object):
         print >> stream, '%s%s' % (' '*indent, self._shortrepr())
         for child in self.children.values():
             child.pprint(indent=indent+2, stream=stream)
+
+    def serialize(self):
+        """
+        Turn the Python object into a dict which can be json-serialized
+        """
+        return dict(frame = self.frame.name,
+                    is_virtual = self.is_virtual,
+                    tag = self.tag,
+                    self_ticks = self.self_ticks,
+                    cumulative_ticks = self.cumulative_ticks,
+                    virtual_ticks = self.virtual_ticks,
+                    children = [child.serialize() for child in self.children.itervalues()]
+                )

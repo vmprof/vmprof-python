@@ -64,12 +64,13 @@ def test_StackFrameNode_getitem_str_virtual():
 
 class TestCallGraph:
 
+    def stack(self, *symbols):
+        stacktrace = [Frame(name, is_virtual=name.startswith('py:'))
+                      for name in symbols]
+        return stacktrace
+
     def test_add_stacktrace(self):
-        def stack(*symbols):
-            stacktrace = [Frame(name, is_virtual=name.startswith('py:'))
-                          for name in symbols]
-            return stacktrace
-        #
+        stack = self.stack
         graph = CallGraph()
         graph.add_stacktrace(stack('main',
                                    'init'),
@@ -115,3 +116,59 @@ class TestCallGraph:
                     py:bar: self{} cumulative{C: 5} virtual{C: 5}
                       execute_frame: self{C: 5} cumulative{C: 5}
         """)
+
+    def test_serialize(self):
+        stack = self.stack
+        graph = CallGraph()
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame'),
+                             count=3)
+        #
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame',
+                                   'jit:loop#1'),
+                             count=10) # 10 ticks on py:foo
+        #
+        obj = graph.root.serialize()
+        assert obj == {
+            'frame': '<all>',
+            'tag': 'C',
+            'is_virtual': False,
+            'self_ticks': {},
+            'cumulative_ticks': {'JIT': 10, 'C': 3},
+            'virtual_ticks': None,
+            'children': [
+                {'frame': 'main',
+                 'tag': 'C',
+                 'is_virtual': False,
+                 'self_ticks': {},
+                 'cumulative_ticks': {'JIT': 10, 'C': 3},
+                 'virtual_ticks': None,
+                 'children': [
+                     {'frame': 'py:foo',
+                      'tag': 'Python',
+                      'is_virtual': True,
+                      'self_ticks': {},
+                      'cumulative_ticks': {'JIT': 10, 'C': 3},
+                      'virtual_ticks': {'JIT': 10, 'C': 3},
+                      'children': [
+                          {'frame': 'execute_frame',
+                           'tag': 'C',
+                           'is_virtual': False,
+                           'self_ticks': {'C': 3},
+                           'cumulative_ticks': {'JIT': 10, 'C': 3},
+                           'virtual_ticks': None,
+                           'children': [
+                               {'frame': 'jit:loop#1',
+                                'tag': 'JIT',
+                                'is_virtual': False,
+                                'self_ticks': {'JIT': 10},
+                                'cumulative_ticks': {'JIT': 10},
+                                'virtual_ticks': None,
+                                'children': []}
+                           ]}
+                      ]}
+                 ]}
+            ]}
