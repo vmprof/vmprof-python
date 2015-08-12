@@ -40,17 +40,18 @@ class CallGraph(object):
 
     def add_stacktrace(self, stacktrace, count):
         tag = get_tag(stacktrace[-1])
-
+        #
         topmost_virtual_node = None
-        self.root.cumulative_ticks[tag] += count
         node = self.root
         for frame in stacktrace:
-            node = node[frame]
             node.cumulative_ticks[tag] += count
+            node = node[frame]
             if frame.is_virtual:
                 topmost_virtual_node = node
         #
+        # now node is the topmost node, fix its values
         node.self_ticks[tag] += count
+        node.cumulative_ticks[tag] += count
         if topmost_virtual_node:
             topmost_virtual_node.virtual_ticks[tag] += count
 
