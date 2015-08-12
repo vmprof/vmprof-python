@@ -1,5 +1,8 @@
 import pytest
-from vmprof.callgraph import SymbolicStackTrace, Frame, CallGraph, StackFrameNode
+from cStringIO import StringIO
+import textwrap
+from vmprof.callgraph import (TickCounter, SymbolicStackTrace, Frame, CallGraph,
+                              StackFrameNode)
 from vmprof.reader import LibraryData
 from vmprof.addrspace import AddressSpace
 
@@ -17,6 +20,12 @@ def addrspace():
     return AddressSpace([lib, virtlib])
 
 
+def test_TickCounter():
+    c = TickCounter()
+    c['foo'] = 10
+    c['bar'] = 4
+    assert c.total() == 14
+
 
 def test_SymbolicStackTrace(addrspace):
     stacktrace = [0x123, 1005, 1210, 2005]
@@ -28,19 +37,14 @@ def test_SymbolicStackTrace(addrspace):
     # should document it
     assert repr(stacktrace) == '[0x0000000000000124, one, three, py:main]'
 
-
 def test_StackFrameNode():
     frame = Frame('foo', False)
-    root = StackFrameNode('main')
+    root = StackFrameNode(Frame('main', False))
     foo1 = root[frame]
     foo2 = root[frame]
     assert foo1 is foo2
     assert foo1.frame == frame
-    assert foo1.self_count == 0
-    #
-    foo1.self_count = 1
-    foo1['bar'].self_count = 3
-    assert root.cumulative_count() == 4
+
 
 def test_StackFrameNode_getitem_str():
     root = StackFrameNode(Frame('main', False))
@@ -49,20 +53,65 @@ def test_StackFrameNode_getitem_str():
     foo2 = root['foo']
     assert foo1 is foo2
 
+def test_StackFrameNode_getitem_str_virtual():
+    root = StackFrameNode(Frame('main', False))
+    fooframe = Frame('foo', True)
+    foo1 = root[fooframe]
+    foo2 = root['foo']
+    assert foo1 is foo2
+    pytest.raises(KeyError, "root['foobar']")
 
 
-def test_CallGraph_add_stacktrace():
-    def st(*symbols):
-        stacktrace = [Frame(name, False) for name in symbols]
-        return stacktrace
-    #
-    graph = CallGraph()
-    graph.add_stacktrace(st('main', 'one', 'two-1'), count=1)
-    graph.add_stacktrace(st('main', 'one', 'two-2'), count=2)
-    graph.add_stacktrace(st('main', 'one'), count=1)
-    #
-    assert graph.root.frame == Frame('<all>', False)
-    assert graph.root['main'].self_count == 0
-    assert graph.root['main']['one'].self_count == 1
-    assert graph.root['main']['one']['two-1'].self_count == 1
-    assert graph.root['main']['one']['two-2'].self_count == 2
+class TestCallGraph:
+
+    def test_add_stacktrace(self):
+        def stack(*symbols):
+            stacktrace = [Frame(name, is_virtual=name.startswith('py:'))
+                          for name in symbols]
+            return stacktrace
+        #
+        graph = CallGraph()
+        graph.add_stacktrace(stack('main',
+                                   'init'),
+                             count=1)  # no virtual frames
+        #
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame'),
+                             count=3)  # 3 ticks on py:foo
+        #
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame',
+                                   'py:bar',
+                                   'execute_frame'),
+                             count=5)  # 5 ticks on py:bar
+        #
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame',
+                                   'jit:loop#1'),
+                             count=10) # 10 ticks on py:foo
+        #
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame',
+                                   'py:baz',
+                                   'jit:loop#2'),
+                             count=7)  # 5 ticks on py:baz
+        #
+        out = StringIO()
+        graph.root.pprint(stream=out)
+        out = out.getvalue()
+        assert out == textwrap.dedent("""\
+            <all>: self{} cumulative{C: 9, JIT: 17}
+              main: self{} cumulative{C: 9, JIT: 17}
+                init: self{C: 1} cumulative{C: 1}
+                py:foo: self{} cumulative{C: 8, JIT: 17} virtual{C: 3, JIT: 10}
+                  execute_frame: self{C: 3} cumulative{C: 8, JIT: 17}
+                    py:baz: self{} cumulative{JIT: 7} virtual{JIT: 7}
+                      jit:loop#2: self{JIT: 7} cumulative{JIT: 7}
+                    jit:loop#1: self{JIT: 10} cumulative{JIT: 10}
+                    py:bar: self{} cumulative{C: 5} virtual{C: 5}
+                      execute_frame: self{C: 5} cumulative{C: 5}
+        """)

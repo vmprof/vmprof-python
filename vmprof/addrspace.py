@@ -32,10 +32,7 @@ class JittedCode(Hashable):
 
 class AddressSpace(object):
     def __init__(self, libs):
-        all = [(lib.start, lib) for lib in libs]
-        all.sort()
-        self.libs = [lib for _, lib in all]
-        self.lib_lookup = [lib.start for lib in self.libs]
+        self.set_libs(libs)
         # pypy metadata
         meta_data = {
             'pypy_g_resume_in_blackhole': 'meta:blackhole',
@@ -51,6 +48,12 @@ class AddressSpace(object):
             keys = self.reverse_lookup(k)
             for key in keys:
                 self.meta_data[key] = v
+
+    def set_libs(self, libs):
+        all = [(lib.start, lib) for lib in libs]
+        all.sort()
+        self.libs = [lib for _, lib in all]
+        self.lib_lookup = [lib.start for lib in self.libs]
 
     def lookup(self, arg):
         addr = arg + 1
