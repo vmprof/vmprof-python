@@ -16,11 +16,37 @@ static void* PyEval_GetVirtualIp(PyFrameObject* f, long *thread_id) {
     char buf[4096];
     char *co_name, *co_filename;
     int co_firstlineno;
-    unsigned long res = (unsigned long)f->f_code | 0x7000000000000000;
-    // set the first bit to 1; on my system, such address space is unused, so
-    // we don't risk spurious conflicts with loaded libraries. The proper
-    // solution would be to tell the linker to reserve us some address space
-    // and use that.
+    unsigned long code_id = (unsigned long)f->f_code | 0x7000000000000000;
+
+    /* XXX We emit the "py:" string identifying this code object the
+       first time it is seen, as identified by the absence of the
+       UNUSED_FLAG.  If we disable() and later re-enable() vmprof, the
+       code objects already produced won't be produced again; that's
+       the reason for the workaround '_virtual_ips_so_far' in the pure
+       Python vmprof.disable() function.
+
+       In case the code object is freed and another one allocated at
+       the same address, this logic will reuse the same code_id, but
+       produce a different "py:" string identifier.  The code that
+       later loads the profiler file should (ideally) detect that
+       there are multiple ids for the same address and, at least,
+       adjust what it prints for that address.
+
+       We need to modify PyCode_Type.tp_hash to ignore the UNUSED_FLAG
+       in co_flags.  Careful, in a multithreaded process the UNUSED_FLAG
+       may be added concurrently.
+
+       To support 32-bit, this should be modified to no longer do the
+       " | 0x7000000000000000" part.  The loader of the file can know
+       if an id corresponds to a "real" assembler address or a
+       "virtual" id produced here: it can do so by checking if there
+       is a "py:" string identifier corresponding to the id or not.
+
+       Other ideas have been considered (see #pypy irc log of August
+       17, 2015) but it seems that the current one has the least
+       amount of drawbacks: there is only the reuse of code_id's for
+       short-lived code objects.
+    */
 #if PY_MAJOR_VERSION < 3
     *thread_id = f->f_tstate->thread_id;
 #endif
