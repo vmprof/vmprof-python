@@ -1,22 +1,31 @@
+#define _GNU_SOURCE 1
 
 #include <Python.h>
+#include <frameobject.h>
+
+#define RPY_EXTERN static
+#define VMPROF_ADDR_OF_TRAMPOLINE(x)  0  // XXX
+
+#include "vmprof_main.h"
 #include "hotpatch/tramp.h"
 #include "hotpatch/bin_api.h"
-#include <frameobject.h>
-#include "vmprof.h"
 
-static PyObject* (*Original_PyEval_EvalFrameEx)(PyFrameObject *f, int throwflag);
-int initialized = 0;
-PyObject* vmprof_mod = NULL;
+
+static PyObject*(*Original_PyEval_EvalFrameEx)(PyFrameObject *f, int throwflag);
+static int initialized = 0;
 
 #define UNUSED_FLAG 0x1000 // this is a flag unused since Python2.5, let's hope
 // noone uses it
 
-static void* PyEval_GetVirtualIp(PyFrameObject* f, long *thread_id) {
-    char buf[4096];
+
+static void emit_code_object_from_signal_handler(PyCodeObject *, unsigned long);
+
+static void* get_virtual_ip(void* frame)
+{
     char *co_name, *co_filename;
     int co_firstlineno;
-    unsigned long code_id = (unsigned long)f->f_code | 0x7000000000000000;
+    PyFrameObject *f = (PyFrameObject *)frame;
+    unsigned long code_id = (unsigned long)f->f_code | 0x7000000000000000UL;
 
     /* XXX We emit the "py:" string identifying this code object the
        first time it is seen, as identified by the absence of the
@@ -47,18 +56,32 @@ static void* PyEval_GetVirtualIp(PyFrameObject* f, long *thread_id) {
        amount of drawbacks: there is only the reuse of code_id's for
        short-lived code objects.
     */
-#if PY_MAJOR_VERSION < 3
-    *thread_id = f->f_tstate->thread_id;
-#endif
-    if (f->f_code->co_flags & UNUSED_FLAG)
-        return (void*)res;
-    f->f_code->co_flags |= UNUSED_FLAG;
+    if (!(f->f_code->co_flags & UNUSED_FLAG))
+        emit_code_object_from_signal_handler(f->f_code, res);
+    return (void*)res;
+}
+
+static void emit_code_object_from_signal_handler(PyCodeObject *co,
+                                                 unsigned long code_uid)
+{
+    /* careful about multithreading here.  The code object cannot be
+       freed concurrently, because our thread holds at least one
+       reference to it from its (suspended) stack.  But other threads
+       may try to call emit_code_object_from_signal_handler() on the
+       same code object concurrently.
+    */
+    int flags = *(volatile int *)&co->co_flags;
+    if (!__sync_bool_compare_and_swap(&co->co_flags,
+                                      flags & ~UNUSED_FLAG,
+                                      flags | UNUSED_FLAG))
+        return;
+
 #if PY_MAJOR_VERSION >= 3
     co_name = PyUnicode_AsUTF8(f->f_code->co_name);
     co_filename = PyUnicode_AsUTF8(f->f_code->co_filename);
 #else
-    co_name = PyString_AsString(f->f_code->co_name);
-    co_filename = PyString_AsString(f->f_code->co_filename);
+    co_name = PyString_AS_STRING(f->f_code->co_name);
+    co_filename = PyString_AS_STRING(f->f_code->co_filename);
 #endif
     co_firstlineno = f->f_code->co_firstlineno;
     snprintf(buf, 4096, "py:%s:%d:%s", co_name, co_firstlineno, co_filename);
@@ -69,23 +92,23 @@ static void* PyEval_GetVirtualIp(PyFrameObject* f, long *thread_id) {
 __attribute__((optimize("O2")))
 PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag) {
     register void* _rsp asm("rsp");
-    ptrdiff_t offset;
     volatile PyFrameObject *f2 = f;
-    offset = (char*)&f2 - (char*)_rsp;
-    if (!vmprof_mainloop_func)
-        vmprof_set_mainloop(&cpyprof_PyEval_EvalFrameEx, offset, (void*)PyEval_GetVirtualIp);
-	return Original_PyEval_EvalFrameEx(f, throwflag);
+    if (!mainloop_get_virtual_ip) {
+        mainloop_sp_offset = (char*)&f2 - (char*)_rsp;
+        mainloop_get_virtual_ip = &get_virtual_ip;
+    }
+    return Original_PyEval_EvalFrameEx(f, throwflag);
 }
 
 void init_cpyprof(void) {
-	Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;	
-	// monkey-patch PyEval_EvalFrameEx
-	init_memprof_config_base();
-	bin_init();
-	create_tramp_table();
-	size_t tramp_size;
-	void* tramp_addr = insert_tramp("PyEval_EvalFrameEx", &cpyprof_PyEval_EvalFrameEx, &tramp_size);
-	vmprof_set_tramp_range(tramp_addr, tramp_addr+tramp_size);
+    Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;	
+    // monkey-patch PyEval_EvalFrameEx
+    init_memprof_config_base();
+    bin_init();
+    create_tramp_table();
+    size_t tramp_size;
+    void* tramp_addr = insert_tramp("PyEval_EvalFrameEx", &cpyprof_PyEval_EvalFrameEx, &tramp_size);
+    vmprof_set_tramp_range(tramp_addr, tramp_addr+tramp_size);
 }
 
 PyObject *enable_vmprof(PyObject* self, PyObject *args)
@@ -97,7 +120,7 @@ PyObject *enable_vmprof(PyObject* self, PyObject *args)
 	int x_len = 0;
 
 	if (!initialized) {
-		init_cpyprof();
+            init_cpyprof();
 		initialized = 1;
 	}
 	if (!PyArg_ParseTuple(args, "id|s#", &fd, &period_float, &x, &x_len))

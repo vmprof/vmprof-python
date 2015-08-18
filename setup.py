@@ -7,7 +7,7 @@ libdwarf = j(j(j(os.path.dirname(os.path.abspath(__file__)), 'src'),
              'hotpatch'), 'libdwarf.a')
 
 
-if hasattr(sys, 'pypy_translation_info'):
+if '__pypy__' in sys.builtin_module_names:
     ext_modules = [] # built-in
 else:
     ext_modules = [Extension('_vmprof',
@@ -17,7 +17,6 @@ else:
                                'src/hotpatch/elf.c',
                                'src/hotpatch/x86_gen.c',
                                'src/hotpatch/util.c',
-                               'src/vmprof.c',
                                ],
                             extra_compile_args=['-Wno-unused',
                                                 '-I/usr/include/elf',
