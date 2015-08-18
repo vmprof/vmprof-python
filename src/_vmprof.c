@@ -6,6 +6,7 @@
 #define RPY_EXTERN static
 static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 #define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
+#define CPYTHON_GET_CUSTOM_OFFSET
 
 #include "vmprof_main.h"
 #include "hotpatch/tramp.h"
@@ -139,9 +140,11 @@ static void init_cpyprof(void)
         init_memprof_config_base();
         bin_init();
         create_tramp_table();
-        size_t ignored;
-        insert_tramp("PyEval_EvalFrameEx", &cpyprof_PyEval_EvalFrameEx,
-                     &ignored);
+        size_t tramp_size;
+        tramp_start = insert_tramp("PyEval_EvalFrameEx",
+                                   &cpyprof_PyEval_EvalFrameEx,
+                                   &tramp_size);
+        tramp_end = tramp_start + tramp_size;
     }
     if (!Original_code_dealloc) {
         Original_code_dealloc = PyCode_Type.tp_dealloc;
