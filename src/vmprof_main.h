@@ -277,8 +277,8 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             st->stack[0] = GetPC((ucontext_t*)ucontext);
             depth = get_stack_trace(st->stack+1, MAX_STACK_DEPTH-2, ucontext);
             depth++;  // To account for pc value in stack[0];
-            st->stack[depth++] = get_current_thread_id();
             st->depth = depth;
+            st->stack[depth++] = get_current_thread_id();
             p->data_offset = offsetof(struct prof_stacktrace_s, marker);
             p->data_size = (depth * sizeof(void *) +
                             sizeof(struct prof_stacktrace_s) -
