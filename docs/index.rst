@@ -33,6 +33,10 @@ To display a terminal-based tree of calls::
 
     vmprofshow output.log
 
+To upload an already saved profile log to the vmprof web server::
+
+    python -m vmprof.upload output.log
+
 For more advanced use cases, vmprof can be invoked and controlled from within
 the program using the given API.
 
