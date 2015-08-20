@@ -4,23 +4,14 @@ python:
   - 2.7
   - 3.4
 
-# cache: apt
-sudo: false
+cache: apt
 
-addons:
-  apt:
-    packages:
-    - python-dev
-    - libdwarf-dev
-    - libelfg0-dev
-    - libunwind7-dev
-    
-# before_install:
-#   - sudo apt-get update -qq
-#   - sudo apt-get install -y python-dev
-#   - sudo apt-get install -y libdwarf-dev
-#   - sudo apt-get install -y libelfg0-dev
-#   - sudo apt-get install -y libunwind7-dev
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y python-dev
+  - sudo apt-get install -y libdwarf-dev
+  - sudo apt-get install -y libelfg0-dev
+  - sudo apt-get install -y libunwind7-dev
 
 install:
   - pip install .
