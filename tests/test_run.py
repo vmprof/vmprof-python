@@ -24,7 +24,7 @@ bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
 
 
 def test_basic():
-    tmpfile = tempfile.NamedTemporaryFile()
+    tmpfile = tempfile.NamedTemporaryFile(prefix=".")
     vmprof.enable(tmpfile.fileno())
     function_foo()
     vmprof.disable()
