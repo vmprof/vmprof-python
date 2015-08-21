@@ -26,11 +26,11 @@ bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
 
 
 def test_basic():
-    fileno, filename = tempfile.mkstemp(dir=".")
-    vmprof.enable(fileno)
+    tmpfile = tempfile.NamedTemporaryFile(dir=".")
+    vmprof.enable(tmpfile.fileno())
     function_foo()
     vmprof.disable()
-    assert b"function_foo" in open(filename, 'rb').read()
+    assert b"function_foo" in open(tmpfile.name, 'rb').read()
 
 def test_enable_disable():
     prof = vmprof.Profiler()
