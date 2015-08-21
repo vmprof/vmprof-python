@@ -24,12 +24,11 @@ bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
 
 
 def test_basic():
-    tmpfile = tempfile.NamedTemporaryFile(prefix=".")
-    assert True
-    # vmprof.enable(tmpfile.fileno())
-    # function_foo()
-    # vmprof.disable()
-    # assert b"function_foo" in  open(tmpfile.name, 'rb').read()
+    fileno, filename = tempfile.mkstemp()
+    vmprof.enable(fileno)
+    function_foo()
+    vmprof.disable()
+    assert b"function_foo" in open(filename, 'rb').read()
 
 def test_enable_disable():
     prof = vmprof.Profiler()
@@ -83,7 +82,7 @@ def test_multithreaded():
         f()
         for t in threads:
             t.join()
-    
+
     stats = prof.get_stats()
     all_ids = set([x[2] for x in stats.profiles])
     cur_id = threading.currentThread().ident
