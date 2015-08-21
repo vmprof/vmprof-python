@@ -3,10 +3,12 @@
 """
 
 import py
+import os
+import sys
+import pytest
 import tempfile
 import vmprof
 import time
-import sys
 
 
 def function_foo():
@@ -23,8 +25,9 @@ bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
 
 
+@pytest.mark.skipif('TRAVIS' in os.environ, reason="Travis has problem with creating tmp files")
 def test_basic():
-    fileno, filename = tempfile.mkstemp(dir=".")
+    fileno, filename = tempfile.mkstemp()
     vmprof.enable(fileno)
     function_foo()
     vmprof.disable()
