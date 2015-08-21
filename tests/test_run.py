@@ -25,9 +25,8 @@ bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
 
 
-@pytest.mark.skipif('TRAVIS' in os.environ, reason="Travis has problem with creating tmp files")
 def test_basic():
-    fileno, filename = tempfile.mkstemp()
+    fileno, filename = tempfile.mkstemp(dir=".")
     vmprof.enable(fileno)
     function_foo()
     vmprof.disable()
