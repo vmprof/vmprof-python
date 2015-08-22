@@ -11,7 +11,6 @@ import vmprof
 import time
 
 
-pytestmark = pytest.mark.skipif(True, reason="Travis has problem with creating tmp files")
 
 def function_foo():
     t0 = time.time()
