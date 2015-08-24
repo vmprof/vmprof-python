@@ -11,7 +11,7 @@ addons:
     packages:
     - python-dev
     - libelf-dev
-    - libunwind8-dev
+    - libunwind7-dev
 
 install:
   - pip install .
