@@ -18,7 +18,6 @@ addons:
     - python-dev
     - libelfg0-dev
     - libunwind8-dev
-    - libdwarf-dev
 
 
 install:
