@@ -4,14 +4,14 @@ python:
   - 2.7
   - 3.4
 
-# sudo: false
-cache: apt
+sudo: false
 
-before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y python-dev
-  - sudo apt-get install -y libelf-dev
-  - sudo apt-get install -y libunwind7-dev
+addons:
+  apt:
+    packages:
+    - python-dev
+    - libelf-dev
+    - libunwind8-dev
 
 install:
   - pip install .
