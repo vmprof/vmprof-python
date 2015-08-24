@@ -1,0 +1,31 @@
+#!/bin/sh
+# Assume configure done recently.
+
+cd libdwarf 
+if [ $? != 0 ]
+then
+	echo build failed
+	exit
+fi
+make
+if [ $? != 0 ]
+then
+	echo build failed
+	exit
+fi
+cd ..
+cd dwarfdump
+if [ $? != 0 ]
+then
+	echo build failed
+	exit
+fi
+# rm in case we changed libdwarf.
+rm dwarfdump
+make
+if [ $? != 0 ]
+then
+	echo build failed
+	exit
+fi
+cd ..

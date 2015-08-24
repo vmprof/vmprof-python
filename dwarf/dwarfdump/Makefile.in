@@ -1,0 +1,233 @@
+#
+#  Makefile for dwarfdump
+#  This is made very simple so it should work with
+#  any 'make'.
+#  The Makefile does assume that libdwarf is at ../libdwarf
+#  from the dwarfdump2 source directory.
+#
+
+srcdir =	@srcdir@
+VPATH =		@srcdir@
+
+prefix =	@prefix@
+exec_prefix =	@exec_prefix@
+bindir =	$(exec_prefix)/bin
+libdir =	$(exec_prefix)/lib
+mandir =        $(exec_prefix)/share/man
+man1dir =       $(mandir)/man1
+
+
+INSTALL =	@INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA =	@INSTALL_DATA@
+DATAROOT =      @datarootdir@
+SHELL =		/bin/sh
+CC =		@CC@
+AR =		@AR@
+ARFLAGS =	@ARFLAGS@
+RM =		rm
+RANLIB =	@RANLIB@
+DEFS =		@DEFS@
+# ../libdwarf gets us to local headers and a libdwarf 
+# archive, usually, so we assume it.
+DIRINC =        $(srcdir)/../libdwarf
+LIBS =		@LIBS@ -L../libdwarf -ldwarf -lelf
+INCLUDES =	-I. -I$(srcdir) -I$(srcdir)/../libdwarf
+CFLAGS =	$(PREINCS) @CFLAGS@ $(INCLUDES) -DCONFPREFIX=${libdir} $(POSTINCS)
+LDFLAGS =	$(PRELIBS) @LDFLAGS@  $(LIBS) $(POSTLIBS)
+#VG =            valgrind --leak-check=full
+VG =
+
+
+INSTALL = cp
+
+binprefix =
+
+FINALOBJECTS = \
+	addrmap.o \
+        checkutil.o \
+	dwarfdump.o \
+	dwarf_tsearchbal.o \
+	dwconf.o \
+	esb.o \
+	print_abbrevs.o \
+	print_aranges.o \
+	print_debugfission.o \
+	print_die.o \
+	print_frames.o  \
+	print_gdbindex.o  \
+	print_lines.o \
+	print_locs.o \
+	print_macros.o \
+	print_pubnames.o \
+	print_ranges.o \
+	print_reloc.o \
+	print_sections.o  \
+	print_static_funcs.o  \
+	print_static_vars.o  \
+	print_strings.o \
+	print_types.o \
+	print_weaknames.o  \
+        strstrnocase.o \
+        uri.o
+GEN_HFILES = common.o \
+	tmp-tt-table.c \
+	tmp-ta-table.c \
+	tmp-ta-ext-table.c \
+	tmp-tt-ext-table.c 
+
+all: dwarfdump
+
+HEADERS = $(srcdir)/checkutil.h \
+        $(srcdir)/common.h \
+        $(srcdir)/dwconf.h \
+        $(srcdir)/dwgetopt.h \
+        $(srcdir)/esb.h \
+        $(srcdir)/globals.h \
+        $(srcdir)/makename.h \
+        $(srcdir)/dwarf_tsearch.h \
+        $(srcdir)/print_frames.h \
+        $(srcdir)/uri.h
+
+$(FINALOBJECTS): $(GEN_HFILES)  $(HEADERS) $(srcdir)/naming.c
+
+default: $(TARGETS)
+
+dwarfdump: $(FINALOBJECTS) makename.o naming.o common.o dwgetopt.o
+	$(CC) $(CFLAGS) -o $@ $(FINALOBJECTS) common.o makename.o naming.o dwgetopt.o $(LDFLAGS) 
+
+#tag_common.o: $(srcdir)/tag_common.c $(HEADERS)  dwarf_names.h
+#	$(CC) $(CFLAGS) -c $(srcdir)/tag_common.c
+dwgetopt.o: $(srcdir)/dwgetopt.h $(srcdir)/dwgetopt.c 
+	$(CC) $(CFLAGS) -c $(srcdir)/dwgetopt.c
+makename.o: $(srcdir)/makename.h $(srcdir)/makename.c 
+	$(CC) $(CFLAGS) -c $(srcdir)/makename.c
+common.o:  $(srcdir)/common.c $(srcdir)/common.h
+	$(CC) $(CFLAGS) -c $(srcdir)/common.c
+
+# gennames should use a static libdwarf.
+gennames: $(srcdir)/gennames.c $(DIRINC)/dwarf.h $(HEADERS) common.o
+	$(CC) $(CFLAGS) $(srcdir)/gennames.c common.o ../libdwarf/libdwarf.a $(LDFLAGS) -o gennames
+naming.o:  $(srcdir)/naming.c $(srcdir)/naming.h
+	$(CC) $(CFLAGS) -c $(srcdir)/naming.c
+
+# We need this as naming.o has external references we cannot have
+# in the tree builds.
+trivial_naming.o: $(srcdir)/naming.c
+	$(CC) $(CFLAGS) -DTRIVIAL_NAMING  -c $(srcdir)/naming.c -o trivial_naming.o 
+
+# Use static libdwarf.a
+tag_tree_build:  $(srcdir)/tag_tree.c $(DIRINC)/dwarf.h $(HEADERS) tag_common.o makename.o common.o trivial_naming.o dwgetopt.o
+	$(CC) $(CFLAGS) $(srcdir)/tag_tree.c tag_common.o common.o makename.o trivial_naming.o dwgetopt.o ../libdwarf/libdwarf.a $(LDFLAGS) -o tag_tree_build 
+
+tag_attr_build:  $(srcdir)/tag_attr.c $(DIRINC)/dwarf.h $(HEADERS) tag_common.o makename.o common.o trivial_naming.o dwgetopt.o
+	$(CC) $(CFLAGS) $(srcdir)/tag_attr.c tag_common.o common.o makename.o trivial_naming.o dwgetopt.o ../libdwarf/libdwarf.a $(LDFLAGS) -o tag_attr_build 
+
+tmp-tt-table.c: $(srcdir)/tag_tree.list tag_tree_build
+	# gcc -E tag_tree.list does not work, so use a .c name
+	-rm -f  tmp-t1.c
+	cp $(srcdir)/tag_tree.list tmp-t1.c
+	$(CC) $(CFLAGS) -E tmp-t1.c  > ./tmp-tag-tree-build1.tmp
+	./tag_tree_build -s  -i tmp-tag-tree-build1.tmp  -o tmp-tt-table.c
+
+tmp-tt-ext-table.c: $(srcdir)/tag_tree_ext.list tag_tree_build
+	# gcc -E tag_tree_ext.list does not work, so use a .c name
+	-rm -f tmp-t4.c
+	cp $(srcdir)/tag_tree_ext.list tmp-t4.c
+	$(CC) $(CFLAGS) -E tmp-t4.c  > ./tmp-tag-tree-build4.tmp
+	./tag_tree_build -e  -i tmp-tag-tree-build4.tmp -o tmp-tt-ext-table.c
+
+tmp-ta-table.c: $(srcdir)/tag_attr.list tag_attr_build
+	# gcc -E tag_attr.list does not work, so use a .c name
+	-rm -f tmp-t2.c
+	cp $(srcdir)/tag_attr.list tmp-t2.c
+	$(CC) $(CFLAGS)  -E tmp-t2.c  > ./tmp-tag-attr-build2.tmp
+	./tag_attr_build -s -i tmp-tag-attr-build2.tmp -o tmp-ta-table.c
+
+tmp-ta-ext-table.c: $(srcdir)/tag_attr_ext.list tag_attr_build
+	# gcc -E tag_attr_ext.list does not work, so use a .c name
+	-rm -f tmp-t3.c
+	cp $(srcdir)/tag_attr_ext.list tmp-t3.c
+	$(CC) $(CFLAGS)  -E tmp-t3.c  > ./tmp-tag-attr-build3.tmp
+	./tag_attr_build -e -i tmp-tag-attr-build3.tmp -o tmp-ta-ext-table.c
+
+
+# The file dwarf_names.awk generates BOTH dwarf_names.h and dwarf_names.c
+#   be careful of the make dependencies here
+dwarf_names.h: gennames $(DIRINC)/dwarf.h
+	rm -f dwarf_names.h dwarf_names.c
+	./gennames -s  -i ../libdwarf -o .
+dwarf_names.c: dwarf_names.h
+
+
+test: esb.o dwgetopt.o 
+	echo "ESB test"
+	$(CC) $(CFLAGS) -o test $(srcdir)/testesb.c esb.o
+	$(VG) ./test
+	-rm -f ./test
+	echo "dwgetopt test"
+	$(CC) $(CFLAGS) -o getopttest $(srcdir)/getopttest.c dwgetopt.o
+	$(VG) ./getopttest
+	-rm -f ./getopttest
+	echo "Now use system getopt to validate our tests"
+	$(CC) $(CFLAGS) -DGETOPT_FROM_SYSTEM -o getopttestnat $(srcdir)/getopttest.c dwgetopt.o
+	./getopttestnat -c 1
+	./getopttestnat -c 2
+	./getopttestnat -c 3
+	./getopttestnat -c 5
+	./getopttestnat -c 6
+	./getopttestnat -c 7
+	./getopttestnat -c 8
+	-rm -f ./getopttestnat
+selftest:
+	-rm -f ./a.out
+	$(CC) -DSELFTEST -g esb.c
+	./a.out
+	-rm -f ./a.out
+        
+
+
+# This simply assumes that a default INSTALL (cp) command
+# will work and leave sensible permissions on the resulting files.
+# Some adjustment might be required, see README.
+install: all
+	$(INSTALL) dwarfdump $(bindir)/dwarfdump
+	$(INSTALL) $(srcdir)/dwarfdump.conf $(libdir)/dwarfdump.conf
+	$(INSTALL) $(srcdir)/dwarfdump.1 $(man1dir)/dwarfdump.1
+
+uninstall:
+	-rm -f $(bindir)/dwarfdump
+	-rm -f $(man1dir)/dwarfdump.1
+	-rm -f $(libdir)/dwarfdump.conf
+
+clean:
+	rm -f *.o dwarfdump 
+	rm -f _tag_attr_table.c 
+	rm -f _tag_attr_ext_table.c 
+	rm -f _tag_tree_table.c 
+	rm -f _tag_tree_ext_table.c 
+	-rm -f tag_attr_build*.tmp
+	-rm -f tag_tree_build*.tmp
+	rm -f tag_tree_build
+	rm -f tag_attr_build
+	-rm -f _*.c _*.h
+	-rm -f tmp-*.c tmp-*.h tmp-*.tmp
+	rm -f gennames
+	rm -f dwarf_names_new.c
+	rm -f dwarf_names_new.h
+	rm -f dwarf_names_enum.h
+	rm -f dwarf_names.h 
+	rm -f dwarf_names.c
+	rm -f a.out
+	rm -f getopttest
+	rm -f getopttestnat
+
+distclean: clean
+	rm -f config.log config.h config.cache config.status 
+	rm -rf autom4te.cache
+	rm -rf Makefile
+
+shar:
+	@echo "shar not set up yet"
+dist:
+	@echo "dist not set up yet"

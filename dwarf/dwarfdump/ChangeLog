@@ -1,0 +1,211 @@
+2015-05-07  David Anderson
+     * common.c, dwarfdump.c: Update version string.
+     * print_die.c: Print DW_AT_dwo_id properly as a Dwarf_Sig8 value.
+2015-05-03  David Anderson
+     * print_die.c: Print the fission data from the
+       index section when we print cu header, not when printing cu DIE.
+       Moved cu header/cu die print code to functions, simplifying
+       calling code.
+2015-05-01  David Anderson
+     * tag_attr.list: Added a DW_AT_signature and
+       moved a couple attributes to match the standard-document
+       order of attributes.
+2015-03-10  David Anderson
+     * dwarfdump.c: Update version string.
+     * common.c: Update version string.
+     * dwgetopt.c: Was mishandling options
+       missing their required argument and
+       coredumping dwarfdump.
+     * getopttest.c: Added new tests to ensure
+       we have the dwgetopt() fixes working properly.
+     * Makefile.in: Added new test runs to 'make test'.
+     * print_die.c, print_lines.c: Removed instances
+       of trailing whitespace.
+2015-03-09  David Anderson
+     * Makefile.in: added new tests of dwgetopt. 
+       Runs not only dwgetopt but system getopt.
+     * dwarfdump.c: New function set_checks_off()
+       so if printing we don't do checks (intended 
+       to be this way for a long time now).
+       Updated version string.
+     * 	common.c: Updated version string.
+     * print_die.c: Was not always recognizing unit DIES 
+       DW_TAG_partial_unit or DW_TAG_type_unit where it saw 
+       DW_TAG_compile_unit. Now does so.
+     * dwgetopt.c: Errors could lead to dwarfdump coredump. Fixed.
+     * getopttest.c: Added several new tests. Now one
+       can run single tests and run against either getopt or dwgetopt
+       (set at compile time of getopttest.c).
+2015-03-03  David Anderson
+     * tag_attr.list: Removed DW_AT_sibling from DW_TAG_partial_unit.
+       DW_TAG_compile_unit. Removed DW_AT_containing_type from 
+       DW_TAG_subprogram, DW_TAG_structure_type.
+     * dwarfdump.c,common.c: Update version strings.
+     * print_die.c: Fix indent mistakes. Add comment
+       in _dwarf_print_one_expr_op() that one error is
+       not presently realizable (FreeBSD compiler
+       noticed the situation).
+     * print_ranges.c: Fix indent mistakes.
+     * tag_attr.c: Remove trailing whitespace from a #include line.
+2015-03-03  Carlos Alberto-Enciso
+     * dwarfdump.c: Add allocate_range_array_info(),
+        release_range_array_info() calls to help fix range checking.
+     * globals.h: Add declarations of range checking functions.
+     * print_die.c: Add check_range_array_info() call.
+       Add record_range_array_info_entry() call.
+       Move all the range check code out of print_die.c.
+       Add handling of high_pc as an offset, not just as a value.
+     * print_ranges.c: Delete unneeded includes.
+       Add check_ranges_list() implementation moved from
+       print_die.c. Add new ranges check functions.
+       Range check error messages now appear later in the output,
+       though the content is identical.
+     * tag_attr_ext.list: Add DW_TAG_GNU_call_site and 
+       DW_TAG_GNU_call_site_parameter tag attr combinations.
+     * tag_tree_ext.list: Add DW_TAG_GNU_call_site DW_TAG_call_site_parameter
+2015-02-22  David Anderson
+     * configure.in: removed getopt.h from tests, we use
+       local dwgetopt now.
+     * dwgetopt.h: Function name is dwgetopt. Prototype named right now.
+       Copied from libdwarf dwgetopt.h
+     * configure: regenerated
+     * Makefile.in: build dwgetopt.o
+     * dwgetopt.c: Copied from libdwarf source. 
+     * tag_attr.c,tag_tree.c: Now call dwgetopt() instead of getopt().
+
+2015-02-04  David Anderson
+     * 	common.c,dwarfdump.c:Updated version string.
+     * print_debugfission.c: Now we are using a Dwarf_Sig8
+       for fission hash so we introduce an esb_s to do
+       the formatting.
+     * tag_attr.c: Now we format a more detailed message when
+       we detect an insufficient static tag_attr or tag_tree
+       array instance. It's code only used at build time so
+       just giving up is fine: someone changed dwarf.h.
+     * tag_attr.list:  Adding new TAGs and new Attrs
+       from DWARF5. Since the DWARF5 standard not yet final
+       these could change!
+     * tag_attr_ext.list: Added new GNU attributes.
+     * tag_common.h:  updated DW_TAG_last and DW_AT_last 
+        STD_TAG_TABLE_ROWS STD_ATTR_TABLE_COLUMNS values
+       due to dwarf.h updates.
+     * tag_tree.list: New entries from DWARF5.
+2015-01-31  David Anderson
+     * DWARFDUMPCOPYRIGHT: updated to
+       reflect changes today. Old versions
+       of the copyright notices still shown here.
+     * common.c,dwarfdump.c,dwconf.c,esb.c,makename.c,naming.c,
+       print_abbrevs.c,print_aranges.c,print_die.c,print_frames.c,
+       print_lines.c,print_locs.c,print_macros.c,print_pubnames.c,
+       print_ranges.c,print_reloc.c,print_sections.c,print_static_funcs.c,
+       print_static_vars.c,print_strings.c,print_types.c,print_weaknames.c,
+       strstrnocase.c,tag_attr.c,tag_attr.list,tag_attr_ext.list,
+       tag_common.c,tag_tree.c,tag_tree.list,tag_tree_ext.list,
+       uri.c,uritablebuild.c: Removed obsolete SGI postal
+       address and web references.
+2015-01-31  David Anderson
+     * common.h,dwconf.h,esb.h,globals.h,makename.h,naming.h,
+       print_frames.h,print_reloc.h,print_sections.h,tag_common.h,uri.h:
+       The address and URI for SGI is obsolete and there is no
+       replacement so deleted some lines from the copyright
+       statements. 
+2015-01-30  David Anderson
+     * common.c,dwarfdump.c: Update version string.
+     * globals.h: Added format_sig8_string() to global functions.
+     * print_debug_fission.c: Updated .debug_cu/tu_index hash signature
+       code to match libdwarf (Dwarf_Sig8, not Dwarf_Unsigned).
+       Allow for missing hash (?).
+     * print_die.c: Use format_sig8_string().
+2015-01-29  David Anderson
+     * print_die.c: Two places used C99-only variable
+       declaration. Moved declarations up to conform to C90.
+2015-01-24  David Anderson
+     * dwgetopt.c,dwgetopt.h: Using NetBSD getopt source with
+       modifications to support :: for uniform behavior
+       for all users. Not all getopt are the same. Named dwgetopt().
+     * dwgetopttest.c: Does tests of dwgetopt() for conformance
+       with dwarfdump requirements. See 'make selftest'.
+     * Makefile.in: Now has selftest for dwgetopt and
+       links dwgetopt.o into dwarfdump.
+     * esb.c: Now prints PASS on success and counts errors.
+     * dwarfdump.c: Now calls dwgetopt and includes dwgetopt.h
+       Added a new global so we recognize where needed 
+       not to do some checks when checking (
+       for debugfission some things not sensible).
+     * globals.h: Removed cu_offset (not needed) and added
+       suppress_checking_on_dwp flags.
+     * print_die.c:renamed cu_offset to be a static: dieprint_cu_offset
+       Reset it when finished with a CU. (-k checks got into trouble
+       when both .debug_info and .debug_types present).
+2015-01-21  David Anderson
+     * common.c, dwarfdump.c: Update version string.
+     * print_die.c: For a DW_FORM_ref_sig8 type signature
+       value, if not printing the actual FORM print
+       <type signature> so the hex value makes sense.
+       It is obviously not a .debug_info global offset.
+       Now prints debug fission (dwp) information for
+       each CU with such.
+2015-01-18  David Anderson
+     * common.c, dwarfdump.c: Update version string.
+2015-01-15  David Anderson
+     * dwarfdump.c: dump_unique_errors_table() ifdef out
+       of normal compiles, it is unused. Unused local variables
+       removed.
+       Update version string.
+     * esb.c: Moved stdarg.h include just after stdio.h include
+       for positioning consistency.
+     * globals.h: Added stdarg.h include just after stdio.h
+       include as we use va_list a lot and so stdarg.h
+       is required.
+     * print_debugfission.c: Remove two unused local variables.
+     * print_frames.c: Remove trailing whitespace.
+     * tag_attr.c: #include stdarg.h. Add {} to array initializers
+       output to avoid compiler warning.
+     * tag_common.c: Move stdarg.h include to just after
+       stdio.h for positioning consistency.
+       Update version string.
+     * tag_tree.c: Revised include order to start with
+       globals.h and to not duplicate includes of stdio.h etc.
+       Add {} to array initializers
+       output to avoid compiler warning.
+     * testesb.c: Add include of stdarg.h.
+2015-01-12  David Anderson
+     * tag_common.c: Add comments about va_start, va_end.
+     * esb.c: Add comments about va_start, va_end.
+       Add va_end in the selftest code.
+     * common.c: Update version string.
+     * dwarfdump.c: Update version string. Add va_end()
+       and comments about va_end.
+2015-01-08  David Anderson and Carlos Alberto Enciso
+     * Makefile.in: add selftest: rule, which tests esb.c
+     * dwarfdump.c: Add new options -O file=path, -kD -kG -ku kuf.
+       New checking and reporting features intended to give a
+       report on attribute and tag usage.
+       Update version string.
+     * common.c: Update version string.
+     * esb.c, esb.h: Added new interface using stdarg.
+       Added self-test feature.
+     * dwarf_makename.c: new #pragma (not Linux/Unix related).
+     * print_die.c: Implements collecting the new statistics
+       dwarfdump reports.
+     * print_lines.c: New statistics collected.
+     * tag_attr.c: New checks for the tag/attr table correctness.
+     * tag_attr.list: Fixes duplicated entries.
+     * tag_attr.list_ext: Adds APPLE attribute DW_AT_APPLE_optimized
+       that llvm emits.
+     * tag_common.c: bad_line_input() now allows stdarg calls so
+       its easier to emit good error messages.
+     * tag_common.h: bad_line_input() arg list changed a little. Stdarg now.
+     * tag_tree.c: New tag tree checking done. New statistics
+       available.
+     * tag_tree.list:  Adds DW_TAG_unspecified_type,
+       DW_TAG_rvalue_reference_type,
+       DW_TAG_restrict_type.
+     * tag_tree_ext.list: Adds DW_TAG_GNU_template_template_parameter.
+       Fixes duplication of entries.
+2015-01-05  David Anderson
+     * dwarfdump.c:  Don't call dwarf_finish() if
+       the dwarf-init call failed.
+     * common.c,dwarfdump.c: Updated version string.
+2015-01-01  David Anderson
+     *	A new year begins.

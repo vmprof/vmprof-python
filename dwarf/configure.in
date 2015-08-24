@@ -1,0 +1,55 @@
+dnl Process this file with autoconf to produce a configure script.
+dnlAC_INIT(libdwarf.h)
+AC_INIT()
+AC_CONFIG_HEADER(config.h)
+
+AC_PROG_CC
+AC_C_BIGENDIAN
+AC_GCC_TRADITIONAL
+AC_PROG_INSTALL
+AC_CHECK_TOOL(RANLIB, ranlib, :)
+AC_CHECK_TOOL(AR, ar)
+
+dnl libdwarf default-disabled shared
+shrd=''
+AC_ARG_ENABLE(shared,AC_HELP_STRING([--enable-shared],
+                [build shared library libdwarf.so]))
+AS_IF([ test "x$enable_shared" = "xyes"], [
+   shrd='--enable-shared'])
+
+dnl We always build a non-shared so libdwarf
+dnl can use it itself as part of its build.
+dnl hence no --disable-nonshared provided here.
+
+chckres() {
+if test $1 != 0
+then
+  echo "Configure Error exit:  $2"
+  exit 2
+fi
+}
+
+cd libdwarf 
+echo "configuring libdwarf $shrd  "
+./configure  "$shrd" 
+chckres $? "libdwarf configure failed"
+echo "done configuring libdwarf $shrd "
+cd ..
+
+cd dwarfdump 
+echo "configuring dwarfdump"
+./configure
+chckres $? "dwarfdump configure failed"
+echo "done configuring dwarfdump"
+cd ..
+
+cd dwarfgen 
+echo "configuring dwarfgen"
+./configure
+chckres $? "dwarfgen configure failed"
+echo "done configuring dwarfgen"
+cd ..
+
+#dwarfexample: nothing to configure.
+
+AC_OUTPUT(Makefile)
