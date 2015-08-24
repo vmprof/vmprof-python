@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include "libdwarf.h"
-#include "gelf.h"
+#include <gelf.h>
 #include <libgen.h>
 #include <limits.h>
 #include <link.h>
