@@ -1,0 +1,118 @@
+#
+#
+#  Copyright (C) 2000,2003,2004,2006 Silicon Graphics, Inc.  All Rights Reserved.
+#  Portions Copyright (C) 2010-2013 David B Anderson.  All Rights Reserved.
+#
+#  This program is free software; you can redistribute it and/or modify it
+#  under the terms of version 2.1 of the GNU Lesser General Public License 
+#  as published by the Free Software Foundation.
+#
+#  This program is distributed in the hope that it would be useful, but
+#  WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+#
+#  Further, this software is distributed without any warranty that it is
+#  free of the rightful claim of any third person regarding infringement 
+#  or the like.  Any license provided herein, whether implied or 
+#  otherwise, applies only to this software file.  Patent licenses, if
+#  any, provided herein do not apply to combinations of this program with 
+#  other software, or any other product whatsoever.  
+#
+#  You should have received a copy of the GNU Lesser General Public 
+#  License along with this program; if not, write the Free Software 
+#  Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston MA 02110-1301,
+#  USA.
+
+#
+#  Contact information:  Silicon Graphics, Inc., 1500 Crittenden Lane,
+#  Mountain View, CA 94043, or:
+#
+#  http://www.sgi.com
+#
+#  For further information regarding this notice, see:
+#
+#  http://oss.sgi.com/projects/GenInfo/NoticeExplan
+#
+#
+
+#
+#  Makefile for libdwarf
+#  This is made very simple so it should work with
+#  any 'make'.
+#
+
+srcdir =	@srcdir@
+VPATH =		@srcdir@
+
+prefix =	@prefix@
+exec_prefix =	@exec_prefix@
+bindir =	$(exec_prefix)/bin
+libdir =	$(exec_prefix)/lib
+
+INSTALL =	@INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA =	@INSTALL_DATA@
+SHELL =		/bin/sh
+CC =		@CC@
+AR =		@AR@
+# For use with BSD ar (MacOSX ar) edit the ARFLAGS to be -s
+#ARFLAGS =	@ARFLAGS@
+RM =		rm
+RANLIB =	@RANLIB@
+DEFS =		@DEFS@
+LIBS =		@LIBS@
+INCLUDES =	-I. -I$(srcdir)
+dwfpic =        @dwfpic@
+CFLAGS =	$(PREINCS) @CFLAGS@ $(INCLUDES) $(dwfpic) $(POSTINCS)
+LDFLAGS =	$(PRELIBS) @LDFLAGS@ $(POSTLIBS)
+
+basic:
+	cd libdwarf && make
+	cd dwarfdump && make
+
+# The dd target takes the least space and time
+# to build.
+dd:
+	cd libdwarf && make
+	cd dwarfdump && make
+all:    basic
+	cd dwarfgen && make
+	cd dwarfexample && make
+
+clean:
+	sh ./CLEANUP
+
+install: all
+	echo "No install provided, see comments in the README"
+
+distclean:  clean
+	rm -f dwarfgen/config.status 
+	rm -f dwarfgen/config.log 
+	rm -f dwarfgen/config.cache 
+	rm -f dwarfgen/config.h
+	rm -f dwarfgen/configure.lineno
+	rm -rf dwarfgen/autom4te.cache 
+	rm -f dwarfgen/Makefile
+	rm -f dwarfdump/config.status 
+	rm -f dwarfdump/config.log 
+	rm -f dwarfdump/config.cache 
+	rm -f dwarfdump/config.h
+	rm -rf dwarfdump/autom4te.cache 
+	rm -f dwarfdump/Makefile
+	rm -f libdwarf/config.status 
+	rm -f libdwarf/config.log 
+	rm -f libdwarf/config.cache 
+	rm -f libdwarf/config.h
+	rm -rf libdwarf/autom4te.cache 
+	rm -f libdwarf/Makefile
+	rm -f config.status 
+	rm -f config.log 
+	rm -f config.cache 
+	rm -f config.h
+	rm -rf autom4te.cache 
+	rm -f Makefile
+
+shar:
+		@echo "shar not set up"
+dist:
+		@echo "dist not set up"

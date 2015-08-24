@@ -1,0 +1,203 @@
+#
+#
+#  Copyright (C) 2000,2003,2004,2006 Silicon Graphics, Inc.  All Rights Reserved.
+#  Portions Copyright (C) 2010 David B Anderson.  All Rights Reserved.
+#
+#  This program is free software; you can redistribute it and/or modify it
+#  under the terms of version 2.1 of the GNU Lesser General Public License 
+#  as published by the Free Software Foundation.
+#
+#  This program is distributed in the hope that it would be useful, but
+#  WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+#
+#  Further, this software is distributed without any warranty that it is
+#  free of the rightful claim of any third person regarding infringement 
+#  or the like.  Any license provided herein, whether implied or 
+#  otherwise, applies only to this software file.  Patent licenses, if
+#  any, provided herein do not apply to combinations of this program with 
+#  other software, or any other product whatsoever.  
+#
+#  You should have received a copy of the GNU Lesser General Public 
+#  License along with this program; if not, write the Free Software 
+#  Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston MA 02110-1301,
+#  USA.
+
+#
+#  Makefile for libdwarf
+#  This is made very simple so it should work with
+#  any 'make'.
+#
+
+srcdir =	@srcdir@
+VPATH =		@srcdir@
+
+prefix =	@prefix@
+exec_prefix =	@exec_prefix@
+bindir =	$(exec_prefix)/bin
+libdir =	$(exec_prefix)/lib
+
+INSTALL =	@INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA =	@INSTALL_DATA@
+SHELL =		/bin/sh
+CC =		@CC@
+AR =		@AR@
+# For use with BSD ar (MacOSX ar) edit the ARFLAGS to be -s
+#ARFLAGS =	@ARFLAGS@
+RM =		rm
+RANLIB =	@RANLIB@
+DEFS =		@DEFS@
+LIBS =		@LIBS@
+INCLUDES =	-I. -I$(srcdir)
+dwfpic =        @dwfpic@
+CFLAGS =	$(PREINCS) @CFLAGS@ $(INCLUDES) $(dwfpic) $(POSTINCS)
+LDFLAGS =	$(PRELIBS) @LDFLAGS@ $(POSTLIBS)
+
+
+BUILD_BASE = .
+
+OBJS= dwarf_abbrev.o \
+        dwarf_alloc.o \
+        dwarf_arange.o \
+        dwarf_die_deliv.o \
+        dwarf_elf_access.o \
+        dwarf_error.o \
+        dwarf_form.o \
+        dwarf_frame.o \
+        dwarf_frame2.o \
+        dwarf_frame3.o \
+        dwarf_funcs.o \
+        dwarf_gdbindex.o \
+        dwarf_global.o \
+        dwarf_harmless.o \
+        dwarf_init_finish.o  \
+        dwarf_line.o \
+        dwarf_line2.o \
+        dwarf_loc.o \
+	dwarf_macro.o \
+        dwarf_original_elf_init.o \
+        dwarf_query.o \
+        dwarf_string.o \
+        dwarf_stubs.o \
+        dwarf_pubtypes.o \
+        dwarf_types.o \
+        dwarf_util.o \
+        dwarf_leb.o \
+        dwarf_ranges.o \
+        dwarf_tsearchhash.o \
+        dwarf_vars.o \
+        dwarf_weaks.o    \
+        dwarf_xu_index.o    \
+        dwarf_addr_finder.o \
+	dwarf_sort_line.o \
+	dwarf_print_lines.o \
+	malloc_check.o \
+        pro_alloc.o \
+        pro_arange.o \
+        pro_die.o \
+	pro_encode_nm.o \
+        pro_error.o \
+        pro_expr.o \
+        pro_finish.o \
+        pro_forms.o \
+        pro_funcs.o \
+        pro_frame.o \
+        pro_init.o \
+        pro_line.o \
+        pro_reloc.o \
+        pro_reloc_stream.o \
+        pro_reloc_symbolic.o \
+        pro_pubnames.o \
+        pro_section.o \
+        pro_types.o \
+        pro_vars.o \
+        pro_macinfo.o \
+        pro_weaks.o
+        
+
+all: @build_shared@ @build_nonshared@
+
+libdwarf.a: dwarf_names.h dwarf_names.c  $(OBJS) dwarf_names.o
+	$(AR) $(ARFLAGS) $@ $(OBJS)  dwarf_names.o > ar-output-temp
+
+libdwarf.so: dwarf_names.h dwarf_names.c $(OBJS) dwarf_names.o
+	$(CC) $(CFLAGS) -shared $(OBJS)  dwarf_names.o -o $@
+
+none:
+	echo "do nothing " $@
+dwgetopt.o: $(srcdir)/dwgetopt.c $(srcdir)/dwgetopt.h
+	$(CC) $(CFLAGS) -c $(srcdir)/dwgetopt.c
+common.o: $(srcdir)/common.c $(srcdir)/common.h
+	$(CC) $(CFLAGS) -c $(srcdir)/common.c
+gennames: $(srcdir)/gennames.c $(srcdir)/dwarf.h common.o dwgetopt.o
+	$(CC) $(CFLAGS) $(srcdir)/gennames.c common.o dwgetopt.o $(LDFLAGS) -o gennames
+dwarf_names.h: dwarf_names.c
+dwarf_names.c: gennames $(srcdir)/dwarf.h
+	rm -f dwarf_names.h dwarf_names.c
+	./gennames  @dwarf_namestable@  -i $(srcdir) -o .
+
+
+
+#
+# The following are very SGI-centric
+# psroff is just a troff formatter.
+# the .mm files are in ATT/USL/USG mm form.
+# Calling it pdfbld or bldpdf is arbitrary, so allow both.
+
+docbld:pdfbld 
+bldpdf: pdfbld
+pdfbld: libdwarf2.1.pdf libdwarf2p.1.pdf mips_extensions.pdf
+#Oriented to using gsroff now.
+TROFF=/usr/bin/groff
+TROFFDEV="-T ps"
+TROFFDEV=
+PSTOPDF=/usr/bin/ps2pdf
+# pr expands tabs to spaces: this avoids problems with tab
+# interpretation
+
+# The warning about 'cant break line' is a too-long line used
+# in the table of contents.
+# Ignore the warning (and those like it).
+libdwarf2.1.pdf:  $(BUILD_BASE)/libdwarf2.1.mm
+	-pr -t -e $(BUILD_BASE)/libdwarf2.1.mm \
+		  | tbl | $(TROFF) $(TROFFDEV) -mm >libdwarf2.1.ps
+	$(PSTOPDF) libdwarf2.1.ps libdwarf2.1.pdf
+
+libdwarf2p.1.pdf:  $(BUILD_BASE)/libdwarf2p.1.mm
+	-pr -t -e  $(BUILD_BASE)/libdwarf2p.1.mm \
+		  | tbl | $(TROFF) $(TROFFDEV) -mm >libdwarf2p.1.ps
+	$(PSTOPDF) libdwarf2p.1.ps libdwarf2p.1.pdf
+
+mips_extensions.pdf: mips_extensions.mm
+	-pr $(TROFFDEV) -e mips_extensions.mm | tbl | \
+                 $(TROFF) $(TROFFDEV) -mm >mips_extensions.ps
+	$(PSTOPDF) mips_extensions.ps  mips_extensions.pdf
+
+clean:
+	rm -f *.o libdwarf.a 
+	rm -f libdwarf.so
+	rm -f libdwarf2.1.ps
+	rm -f mips_extensions.ps
+	rm -f libdwarf2p.1.ps
+	rm -f gennames 
+	rm -f ar-output-temp
+	rm -f junk 
+	rm -f ALL
+	rm -f gennames 
+	rm -f dwarf_names_enum.h dwarf_names_new.h dwarf_names.c dwarf_names.h
+
+install: all
+	echo "No install provided, see comments in the README"
+
+distclean:	clean
+	rm -f config.status config.log config.cache config.h
+	rm -rf autom4te.cache 
+	rm -f Makefile
+	rm -f libdwarf.h
+
+
+shar:
+		@echo "shar not set up yet"
+dist:
+		@echo "dist not set up yet"

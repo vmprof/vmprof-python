@@ -1,0 +1,76 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(dwarfdump.c)
+AC_CONFIG_HEADER(config.h)
+
+AC_PROG_CC
+AC_GCC_TRADITIONAL
+AC_PROG_INSTALL
+AC_CHECK_TOOL(RANLIB, ranlib, :)
+AC_CHECK_TOOL(AR, ar)
+dnl AC_ARFLAGS
+
+AC_CHECK_HEADERS(elf.h libelf.h libelf/libelf.h sgidefs.h sys/types.h)
+AC_CHECK_LIB(elf,elf64_getehdr,
+  AC_DEFINE(HAVE_ELF64_GETEHDR,1, 
+	[Define to 1 if the elf64_getehdr function is in libelf.a.]))
+
+dnl Find out where the elf header is.
+if test "$ac_cv_header_elf_h" = yes; then
+ AC_DEFINE(LOCATION_OF_LIBELFHEADER,[<elf.h>], [Define to header that first defines elf])
+elif test "$ac_cv_header_libelf_h" = yes; then
+ AC_DEFINE(LOCATION_OF_LIBELFHEADER, [<libelf.h>],
+	[Define to header that first defines elf.])
+elif test "$ac_cv_header_libelf_libelf_h" = yes; then
+ AC_DEFINE(LOCATION_OF_LIBELFHEADER,[<libelf/libelf.h>],
+	[Define to header that first defines elf.])
+fi
+
+AC_TRY_COMPILE([#include "stdafx.h"],[  int p; p = 27;] ,
+  AC_DEFINE(HAVE_STDAFX_H,1,
+        [Define 1 if we have the Windows specific header stdafx.h]))
+
+AC_TRY_COMPILE([#include LOCATION_OF_LIBELFHEADER],  Elf64_Rel *p; int i; i = p->r_info; ,AC_DEFINE(HAVE_ELF64_R_INFO,1,
+	[Define to 1 if the Elf64_Rel structure has r_info field.]))
+AC_TRY_COMPILE([],  __uint32_t p; p = 3; ,AC_DEFINE(HAVE___UINT32_T,
+	1,[See if __uint32_t is predefined in the compiler.  ]))
+AC_TRY_COMPILE([],  __uint64_t p; p = 3; ,AC_DEFINE(HAVE___UINT64_T,
+	1,[See if __uint64_t is predefined in the compiler. ]))
+AC_TRY_COMPILE([#include <sys/types.h>],[  __uint32_t p; p = 3;] ,
+  AC_DEFINE(HAVE___UINT32_T_IN_SYS_TYPES_H,1,
+        [Define 1 if sys/types.h defines __uint32_t.]))
+AC_TRY_COMPILE([#include <sys/types.h>],[  __uint64_t p; p = 3;] ,
+  AC_DEFINE(HAVE___UINT64_T_IN_SYS_TYPES_H,1,
+        [Define 1 if sys/types.h defines __uint64_t.]))
+
+AC_TRY_COMPILE([#include <sys/types.h>
+        #include <regex.h>],[  int i; 
+        regex_t r;
+        int cflags = REG_EXTENDED;
+        const char *s = "abc";
+        i = regcomp(&r,s,cflags);
+        regfree(&r);
+        ]; ,
+	AC_DEFINE(HAVE_REGEX,1,
+		[Define 1 if regex seems to be defined]))
+
+AC_ARG_ENABLE(nonstandardprintf,AC_HELP_STRING([--enable-nonstandardprintf],
+                [Use a special printf format for 64bit (default is NO)]),
+                [ AC_DEFINE([HAVE_NONSTANDARD_PRINTF_64_FORMAT],[1],
+                   [Define 1 if need nonstandard printf format for  64bit] )],
+                [])
+
+AC_TRY_COMPILE([
+#include <libelf.h>
+],[  int p; p = 0; ] ,
+  AC_DEFINE(HAVE_RAW_LIBELF_OK,1,
+        [Define 1 if plain libelf builds.]))
+AC_TRY_COMPILE([
+#define _GNU_SOURCE
+#include <libelf.h>
+],[  off64_t  p; p = 0;] ,
+  AC_DEFINE(HAVE_LIBELF_OFF64_OK,1,
+        [Define 1 if  off64 is defined via libelf with GNU_SOURCE.]))
+
+
+
+AC_OUTPUT(Makefile)

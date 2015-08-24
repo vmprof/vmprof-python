@@ -1,0 +1,41 @@
+
+set -x
+sh CLEANUP
+dobld () {
+  cd $1
+  if [ $? -ne 0 ]
+  then
+    echo FAIL CD  in $1
+    exit 1
+  fi
+  make distclean
+  ./configure
+  make
+  if [ $? -ne 0 ]
+  then
+    echo FAIL BUILD in $1
+    exit 1
+  fi
+  cd ..
+}
+dobld libdwarf
+dobld dwarfdump
+dobld dwarfgen
+cd dwarfexample   
+  if [ $? -ne 0 ]
+  then
+    echo FAIL BUILD a in dwarfexample
+    exit 1
+  fi
+make clean
+if [ $? -ne 0 ]
+then
+    echo FAIL BUILD b in dwarfexample
+    exit 1
+fi
+make 
+if [ $? -ne 0 ]
+  then
+    echo FAIL BUILD c in dwarfexample
+    exit 1
+fi

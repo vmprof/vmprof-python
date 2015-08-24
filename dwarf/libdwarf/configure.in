@@ -1,0 +1,161 @@
+dnl Process this file with autoconf to produce a configure script.
+dnlAC_INIT(libdwarf.h)
+AC_INIT()
+AC_CONFIG_HEADER(config.h)
+
+AC_PROG_CC
+AC_C_BIGENDIAN
+AC_GCC_TRADITIONAL
+AC_PROG_INSTALL
+AC_CHECK_TOOL(RANLIB, ranlib, :)
+AC_CHECK_TOOL(AR, ar)
+
+dnl AC_ARFLAGS
+
+AC_CHECK_HEADERS(alloca.h elf.h elfaccess.h libelf.h libelf/libelf.h  sys/types.h sys/ia64/elf.h)
+
+dnl The default libdwarf is the one with struct Elf
+echo Assuming struct Elf for the default libdwarf.h
+cp libdwarf.h.in libdwarf.h
+
+AC_CHECK_LIB(elf,elf64_getehdr,
+  AC_DEFINE(HAVE_ELF64_GETEHDR,1,
+	[Define to 1 if the elf64_getehdr function is in libelf.a.]))
+AC_CHECK_LIB(elf,elf64_getshdr,
+  AC_DEFINE(HAVE_ELF64_GETSHDR,1,
+	[Define to 1 if the elf64_getshdr function is in libelf.a.]))
+AC_TRY_COMPILE( ,  __uint32_t p; p = 3; ,AC_DEFINE(HAVE___UINT32_T,1,
+	[See if __uint32_t is predefined in the compiler.]))
+AC_TRY_COMPILE( ,  __uint64_t p; p = 3; ,AC_DEFINE(HAVE___UINT64_T,1,
+	[See if __uint64_t is predefined in the compiler.]))
+AC_TRY_COMPILE([#include <sys/types.h>],[  __uint32_t p; p = 3;] ,
+  AC_DEFINE(HAVE___UINT32_T_IN_SYS_TYPES_H,1,
+	[Define 1 if sys/types.h defines __uint32_t.]))
+AC_TRY_COMPILE([#include <sys/types.h>],[  __uint64_t p; p = 3;] ,
+  AC_DEFINE(HAVE___UINT64_T_IN_SYS_TYPES_H,1,
+	[Define 1 if sys/types.h defines __uint64_t.]))
+
+
+dnl The following are for FreeBSD and others which
+dnl use struct _Elf as the actual struct type.
+AC_TRY_COMPILE([#include <libelf/libelf.h>  
+  struct _Elf; typedef struct _Elf Elf; ],
+  [struct _Elf *a = 0; ],
+  [ sed 's/struct Elf/struct _Elf/g' <libdwarf.h.in >libdwarf.h ;
+    echo Found struct _Elf in libelf/libelf.h, using it in libdwarf.h ],
+  [echo libelf/libelf.h does not have struct _Elf]) 
+AC_TRY_COMPILE([#include <libelf.h>
+  struct _Elf; typedef struct _Elf Elf; ],
+  [ struct _Elf *a = 0; ],
+  [ sed 's/struct Elf/struct _Elf/g' <libdwarf.h.in >libdwarf.h ;
+    echo Found struct _Elf in libelf.h, using it in libdwarf.h ],
+  [echo libelf.h does not have struct _Elf]) 
+
+
+dnl checking for ia 64 types, which might be enums, using HAVE_R_IA_64_DIR32LSB
+dnl to stand in for a small set.
+AC_TRY_COMPILE([#include <elf.h>],[  int p; p = R_IA_64_DIR32LSB;] ,
+  AC_DEFINE(HAVE_R_IA_64_DIR32LSB,1,
+	[Define 1 if  R_IA_64_DIR32LSB is defined (might be enum value).]))
+
+AC_TRY_COMPILE([#include <libelf.h>],[ struct _Elf a; int i; i = 0; ] ,
+  AC_DEFINE(HAVE_STRUCT_UNDERSCORE_ELF,1,
+	[Define 1 if libelf.h defines struct _Elf ]))
+
+AC_TRY_COMPILE([
+#include <libelf.h>
+],[  int p; p = 0; ] ,
+  AC_DEFINE(HAVE_RAW_LIBELF_OK,1,
+	[Define 1 if plain libelf builds.]))
+AC_TRY_COMPILE([
+#define _GNU_SOURCE
+#include <libelf.h>
+],[  off64_t  p; p = 0;] ,
+  AC_DEFINE(HAVE_LIBELF_OFF64_OK,1,
+	[Define 1 if  off64 is defined via libelf with GNU_SOURCE.]))
+
+dnl the existence of sgidefs.h does not prove it's truly SGI, nor
+dnl prove that __uint32_t or __uint64_t is defined therein.
+AC_TRY_COMPILE([#include <sgidefs.h>],[  __uint32_t p; p = 27;] ,
+  AC_DEFINE(HAVE___UINT32_T_IN_SGIDEFS_H,1,
+        [Define 1 if __uint32_t is in sgidefs.h.])) 
+AC_TRY_COMPILE([#include <sgidefs.h>],[  __uint64_t p; p = 27;] ,
+  AC_DEFINE(HAVE___UINT64_T_IN_SGIDEFS_H,1,
+        [Define 1 if __uint64_t is in sgidefs.h.])) 
+AC_TRY_COMPILE([#include <sgidefs.h>],[  __uint64_t p; p = 27;] ,
+  AC_DEFINE(HAVE___UINT64_T_IN_SGIDEFS_H,1,
+        [Define 1 if  is in sgidefs.h.])) 
+AC_TRY_COMPILE([#include <elf.h>],[  Elf64_Rela p; p.r_offset = 1; ],
+  AC_DEFINE(HAVE_ELF64_RELA,1,
+        [Define 1 if Elf64_Rela defined.])) 
+AC_TRY_COMPILE([#include <elf.h>],[  Elf64_Sym p; p.st_info = 1; ],
+  AC_DEFINE(HAVE_ELF64_SYM,1,
+        [Define 1 if Elf64_Sym defined.])) 
+
+
+
+dnl default-disabled shared
+AC_SUBST(build_shared,[none])
+AC_SUBST(dwfpic,[])
+AC_ARG_ENABLE(shared,AC_HELP_STRING([--enable-shared],
+		[build shared library libdwarf.so]))
+AS_IF([ test "x$enable_shared" = "xyes"], [
+   AC_SUBST(build_shared,[libdwarf.so])
+   AC_SUBST(dwfpic,[-fPIC])
+])
+
+dnl default-enabled nonshared
+AC_SUBST(build_nonshared,[libdwarf.a])
+AC_ARG_ENABLE(nonshared,AC_HELP_STRING([--disable-nonshared],
+		[do not build archive library libdwarf.a]))
+AS_IF([ test "x$enable_nonshared" = "xno"], [
+   dnl We could turn on shared here if not already on.
+   AC_SUBST(build_nonshared,[none])
+])
+
+
+dnl  This changes the gennames option from -s  to -t
+AC_SUBST(dwarf_namestable,[-s])
+AC_ARG_ENABLE(namestable,AC_HELP_STRING([--enable-namestable],
+	[Name string functions implemented as binary search (default is with C switch)]),
+	[ AC_SUBST(dwarf_namestable,[-s]) ]
+	[ AC_SUBST(dwarf_namestable,[-t]) ])
+
+AC_ARG_ENABLE(nonstandardprintf,AS_HELP_STRING([--enable-nonstandardprintf],
+	[Use a special printf format for 64bit (default is NO)]),
+	[ AC_DEFINE([HAVE_NONSTANDARD_PRINTF_64_FORMAT],[1], 
+	   [Define 1 if need nonstandard printf format for  64bit] )],
+        [])
+
+AC_ARG_ENABLE(windowspath,AC_HELP_STRING([--enable-windowspath],
+	[Detect certain Windows paths as full paths (default is NO)]),
+	[ AC_DEFINE([HAVE_WINDOWS_PATH],[1], 
+	   [Define 1 if want to allow Windows full path detection] )],
+        [])
+
+AC_ARG_ENABLE(oldframecol,AC_HELP_STRING([--enable-oldframecol],
+	[Use HAVE_OLD_FRAME_CFA_COL (default is to use new DW_FRAME_CFA_COL3)]),
+	[ AC_DEFINE([HAVE_OLD_FRAME_CFA_COL],[1], 
+	   [Define 1 to default to old DW_FRAME_CFA_COL] )],
+        [])
+
+AC_TRY_COMPILE([#include "stdafx.h"],[  int p; p = 27;] ,
+  AC_DEFINE(HAVE_STDAFX_H,1,
+        [Define 1 if we have the Windows specific header stdafx.h])) 
+
+dnl See pro_init(), HAVE_DWARF2_99_EXTENSION also generates
+dnl 32bit offset dwarf unless DW_DLC_OFFSET_SIZE_64 flag passed to
+dnl pro_init.
+AC_ARG_ENABLE(dwarf_format_sgi_irix, AC_HELP_STRING([--enable-dwarf-format-sgi-irix],
+	[Force producer to SGI IRIX offset dwarf.]),
+  	[AC_DEFINE(HAVE_SGI_IRIX_OFFSETS,1,
+		[Define 1 if want producer to build with IRIX offset sizes] )],
+        
+    [AC_ARG_ENABLE(dwarf_format_strict_32bit, AC_HELP_STRING([--enable-dwarf-format-strict-32bit],
+	[Force producer to generate only DWARF format 32bit.]),
+  	[AC_DEFINE(HAVE_STRICT_DWARF2_32BIT_OFFSET,1,
+		[Define 1 if want producer to build with only 32bit section offsets] )],
+	[AC_DEFINE(HAVE_DWARF2_99_EXTENSION,1,
+		[Define 1 if want to allow producer to build with 32/64bit section offsets per dwarf3] )])])
+
+AC_OUTPUT(Makefile)
