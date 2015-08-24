@@ -11,7 +11,7 @@ import time
 
 
 def function_foo():
-    return [a for a in six.moves.range(20000000)]
+    return [a for a in six.moves.range(10000000)]
 
 
 def function_bar():
