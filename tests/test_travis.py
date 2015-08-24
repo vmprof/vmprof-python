@@ -1,9 +1,10 @@
+import six
 import vmprof
 import tempfile
 
 
 def function_foo():
-    return [a for a in xrange(50000000)]
+    return [a for a in six.moves.range(20000000)]
 
 
 def function_bar():
