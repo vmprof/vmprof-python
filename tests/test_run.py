@@ -73,10 +73,8 @@ def test_multithreaded():
     finished = []
 
     def f():
-        t0 = time.time()
-        while time.time() - t0 < 1.5:
-            pass # busy loop
-        finished.append("foo")
+        for _ in six.moves.range(20000000):
+            finished.append("foo")  # busy loop
 
     threads = [threading.Thread(target=f), threading.Thread(target=f)]
     prof = vmprof.Profiler()
