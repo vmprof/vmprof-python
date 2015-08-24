@@ -3,23 +3,20 @@
 """
 
 import py
-import os
+import six
 import sys
-import pytest
 import tempfile
 import vmprof
 import time
 
 
-pytestmark = pytest.mark.skipif(True, reason="Travis has problem with creating tmp files")
-
 def function_foo():
-    t0 = time.time()
-    while time.time() - t0 < 0.5:
-        pass # busy loop for 0.5s
+    return [a for a in six.moves.range(20000000)]
+
 
 def function_bar():
-    function_foo()
+    return function_foo()
+
 
 foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
                                            function_foo.__code__.co_filename)
@@ -27,9 +24,8 @@ bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
 
 
-
 def test_basic():
-    tmpfile = tempfile.NamedTemporaryFile(dir=".")
+    tmpfile = tempfile.NamedTemporaryFile()
     vmprof.enable(tmpfile.fileno())
     function_foo()
     vmprof.disable()
