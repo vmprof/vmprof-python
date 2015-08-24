@@ -16,7 +16,7 @@ addons:
   apt:
     packages:
     - python-dev
-    - libelfg0-dev
+    - libelf-dev
     - libunwind8-dev
 
 
