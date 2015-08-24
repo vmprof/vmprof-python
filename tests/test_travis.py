@@ -8,7 +8,7 @@ def function_foo():
     t = time.time() - t0 < 0.5
     while t:
         t = time.time() - t0 < 0.5
-        print time.time() - t0
+        print(time.time() - t0)
 
 
 def test_travis_1():
