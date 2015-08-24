@@ -1,16 +1,23 @@
 language: python
-
+sudo: false
 python:
   - 2.7
   - 3.4
 
-cache: apt
+# cache: apt
 
-before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y python-dev
-  - sudo apt-get install -y libelfg0-dev
-  - sudo apt-get install -y libunwind8-dev
+# before_install:
+#   - sudo apt-get update -qq
+#   - sudo apt-get install -y python-dev
+#   - sudo apt-get install -y libelfg0-dev
+#   - sudo apt-get install -y libunwind8-dev
+
+addons:
+  apt:
+    packages:
+    - python-dev
+    - libelfg0-dev
+    - libunwind8-dev
 
 install:
   - pip install .
