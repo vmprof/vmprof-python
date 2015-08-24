@@ -17,7 +17,7 @@ addons:
     packages:
     - python-dev
     - libelf-dev
-    - libelfg0-dev
+    # - libelfg0-dev
     - libunwind8-dev
 
 
