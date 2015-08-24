@@ -21,7 +21,7 @@ else:
                                ],
                             extra_compile_args=['-Wno-unused',
                                                 '-I/usr/include/elf',
-                                                '-I/usr/include/libdwarf'],
+                                                '-I./dwarf/libdwarf'],
                             libraries=['elf', 'unwind', 'rt'],
                             extra_link_args=['%s' % libdwarf])]
 
