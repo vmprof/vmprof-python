@@ -57,12 +57,16 @@ def test_nested_call():
             bar_adr = k
             break
     names = [stats._get_name(i[0]) for i in stats.function_profile(bar_adr)[0]]
-    if len(names) == 1: # cpython
-        assert names == [foo_full_name]
-    else:
+
+    if '__pypy__' in sys.builtin_module_names:
         names.sort()
         assert names[1] == foo_full_name
         assert names[0].startswith('jit:')
+
+    if sys.version_info.major == 2:
+        assert names == [foo_full_name]
+    else:
+        assert foo_full_name in names
 
 
 def test_multithreaded():
