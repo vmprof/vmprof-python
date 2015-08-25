@@ -49,7 +49,7 @@ def main():
     if output_mode == OUTPUT_FILE:
         prof_file = args.output
     else:
-        prof_file = tempfile.NamedTemporaryFile()
+        prof_file = tempfile.NamedTemporaryFile(dir=".")
 
     vmprof.enable(prof_file.fileno(), args.period)
 

@@ -3,19 +3,19 @@
 """
 
 import py
+import six
+import sys
 import tempfile
 import vmprof
-import time
-import sys
 
 
 def function_foo():
-    t0 = time.time()
-    while time.time() - t0 < 0.5:
-        pass # busy loop for 0.5s
+    return [a for a in six.moves.range(10000000)]
+
 
 def function_bar():
-    function_foo()
+    return function_foo()
+
 
 foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
                                            function_foo.__code__.co_filename)
@@ -28,7 +28,8 @@ def test_basic():
     vmprof.enable(tmpfile.fileno())
     function_foo()
     vmprof.disable()
-    assert b"function_foo" in  open(tmpfile.name, 'rb').read()
+    assert b"function_foo" in open(tmpfile.name, 'rb').read()
+
 
 def test_enable_disable():
     prof = vmprof.Profiler()
@@ -37,6 +38,7 @@ def test_enable_disable():
     stats = prof.get_stats()
     d = dict(stats.top_profile())
     assert d[foo_full_name] > 0
+
 
 def test_nested_call():
     prof = vmprof.Profiler()
@@ -62,6 +64,7 @@ def test_nested_call():
         assert names[1] == foo_full_name
         assert names[0].startswith('jit:')
 
+
 def test_multithreaded():
     if '__pypy__' in sys.builtin_module_names:
         py.test.skip("not supported on pypy just yet")
@@ -69,9 +72,8 @@ def test_multithreaded():
     finished = []
 
     def f():
-        t0 = time.time()
-        while time.time() - t0 < 1.5:
-            pass # busy loop
+        for _ in six.moves.range(20000000):
+            pass  # busy loop
         finished.append("foo")
 
     threads = [threading.Thread(target=f), threading.Thread(target=f)]
@@ -82,7 +84,7 @@ def test_multithreaded():
         f()
         for t in threads:
             t.join()
-    
+
     stats = prof.get_stats()
     all_ids = set([x[2] for x in stats.profiles])
     cur_id = threading.currentThread().ident
