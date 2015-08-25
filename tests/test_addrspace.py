@@ -1,6 +1,6 @@
 import py
 from vmprof.reader import LibraryData
-from vmprof.addrspace import AddressSpace
+from vmprof.addrspace import AddressSpace, JittedVirtual, JitAddr
 from vmprof import read_profile, Stats
 
 
@@ -34,6 +34,19 @@ class TestAddrSpace(object):
         p = Stats(profiles)
         assert p.functions == {"py:one": 2, "py:two": 1}
         assert p.function_profile("py:two") == ([('py:one', 1)], 1)
+
+    def test_filter_jit(self):
+        l = LibraryData("lib", 100, 200, True)
+        l.symbols = [(112, "py:one"), (113, "py:two")]
+        addr_space = AddressSpace([l])
+        r = addr_space.filter_addr([
+            ([213, 0x1, 111, 112, 0x2], 1, 1)
+            ], interp_name='pypy')
+        assert r[0] == [([JitAddr(214), JittedVirtual(113), JittedVirtual(112)], 1, 1)]
+        r = addr_space.filter_addr([
+            ([111, 213, 0x1, 111, 112, 0x2], 1, 1)
+            ], interp_name='pypy')
+        assert r[0] == [([JitAddr(214), JittedVirtual(113), JittedVirtual(112)], 1, 1)]
 
     def test_tree(self):
         prof = read_profile(str(py.path.local(__file__).join(

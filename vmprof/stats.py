@@ -1,5 +1,8 @@
 import six
-from vmprof.addrspace import JittedCode, JitAddr
+from vmprof.addrspace import JittedVirtual, JitAddr, VirtualFrame
+
+class EmptyProfileFile(Exception):
+    pass
 
 class Stats(object):
     def __init__(self, profiles, adr_dict=None, jit_frames=None, interp=None):
@@ -58,39 +61,31 @@ class Stats(object):
         return result, total
 
     def get_tree(self):
-        top_addr = self.profiles[0][0][0]
-        top = Node(top_addr, self._get_name(top_addr))
+        # fine the first non-empty profile
+        top_addr = 0
+        for prof in self.profiles:
+            for x in prof[0]:
+                if isinstance(x, VirtualFrame):
+                    top_addr = x
+                    break
+            if top_addr:
+                break
+        if not top_addr:
+            raise EmptyProfileFile()
+        top = Node(top_addr.addr, self._get_name(top_addr))
         top.count = len(self.profiles)
         for profile in self.profiles:
-            last_erased = False
             cur = top
-            last_jitted = False
             for i in range(1, len(profile[0])):
-                add_jit = False
                 addr = profile[0][i]
                 if isinstance(addr, JitAddr):
                     cur.jitcodes[addr.addr] = cur.jitcodes.get(addr.addr, 0) + 1
                     continue # skip over the next code
-                elif isinstance(addr, JittedCode):
-                    if cur.addr == addr.addr and not last_erased:
-                        last_erased = True
-                        if not last_jitted:
-                            cur.meta['jit'] = cur.meta.get('jit', 0) + 1
-                        continue
-                    addr = addr.addr
-                    add_jit = True
-                last_erased = False
                 name = self._get_name(addr)
-                if name.startswith('meta'):
-                    name = name[5:]
-                    cur.meta[name] = cur.meta.get(name, 0) + 1
-                    break
-                cur = cur.add_child(addr, name)
-                if add_jit:
-                    last_jitted = True
-                    cur.meta['jit'] = cur.meta.get('jit', 0) + 1
-                else:
-                    last_jitted = False
+                if isinstance(addr, (VirtualFrame, JittedVirtual)):
+                    cur = cur.add_child(addr.addr, name)
+            if isinstance(addr, JittedVirtual):
+                cur.meta['jit'] = cur.meta.get('jit', 0) + 1
         # get the first "interesting" node, that is after vmprof and pypy
         # mess
 

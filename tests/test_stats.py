@@ -45,10 +45,11 @@ def test_read_simple():
     foo_name = 'py:foo:6:foo.py'
     bar_name = 'py:bar:2:foo.py'
     assert tree['foo'].name == foo_name
-    assert tree['foo'].meta['jit'] == 120
+    assert tree['foo'].meta['jit'] == 19
     assert tree['foo']['bar'].name == bar_name
-    assert tree['foo']['bar'].meta['jit'] == 101
-    assert tree['foo']['bar'].jitcodes == {140523638277712: 101, 140523638275600: 27, 140523638276656: 12}
+    assert tree['foo']['bar'].meta['jit'] == 62
+    assert tree['foo']['bar'].jitcodes == {140523638275600: 27,
+                                           140523638276656: 12}
     assert tree['foo'].jitcodes == {140523638277712: 19}
     assert not tree['foo']['bar'].children
     assert tree['foo']['bar'].meta['gc:minor'] == 2

@@ -25,9 +25,27 @@ class Hashable(object):
         return '<%s(%s)>' % (self.__class__.__name__, self.addr)
     
 class JitAddr(Hashable):
+    def jitted_version_of(self, addr):
+        return False
+
+class JittedVirtual(Hashable):
+    def jitted_version_of(self, addr):
+        return self.addr == addr
+
+class VirtualFrame(Hashable):
+    def jitted_version_of(self, addr):
+        return self.addr == addr
+
+class GCFrame(Hashable):
     pass
 
-class JittedCode(Hashable):
+class MinorGCFrame(GCFrame):
+    pass
+
+class MajorGCFrame(GCFrame):
+    pass
+
+class WarmupFrame(Hashable):
     pass
 
 class AddressSpace(object):
@@ -88,12 +106,9 @@ class AddressSpace(object):
                 filtered_profiles.append((current, prof[1]))
         return filtered_profiles
 
-    def _next_profile(self, lst, jit_frames, addr_set, interp_name, extra_info,
+    def _next_profile(self, lst, jit_frames, addr_set, interp_name,
                       only_virtual):
-        # XXX this function is too complicated and too pypy specific
-        #     refactor somehow
         current = []
-        first_virtual = False
         jitting = False
         for j, addr in enumerate(lst):
             orig_addr = addr
@@ -102,43 +117,48 @@ class AddressSpace(object):
                 if orig_addr + 1 == 0x2:
                     jitting = True
                     prev_name, jit_addr, _, _ = self.lookup(lst[j - 1])
-                    current.append(JitAddr(jit_addr))
+                    # pop the previous python function if it's the same
+                    # as the next one
+                    # XXXX this is wrong, we should mark more frames
                     addr_set.add(jit_addr)
                     continue
                 elif orig_addr + 1 == 0x3:
                     assert jitting
+                    current.append(JitAddr(jit_addr))
                     jitting = False
                     continue
-            if extra_info and addr in self.meta_data and not first_virtual:
+            if addr in self.meta_data:
                 # XXX hack for pypy - gc:minor calling asm_stackwalk
                 #     is just gc minor
-                if self.meta_data[addr].startswith('meta:gc') and current:
-                    current = []
-                for item in current:
-                    # sanity check if we're not double-counting,
-                    # we need to change meta data setting if we are
-                    if self.meta_data.get(item, None) == self.meta_data[addr]:
-                        break # we can have blackhole in blackhole
-                        # or whatever
-                else:
-                    current.append(addr)
+                #if self.meta_data[addr].startswith('meta:gc') and current:
+                #    current = []
+                #for item in current:
+                #    # sanity check if we're not double-counting,
+                #    # we need to change meta data setting if we are
+                #    if self.meta_data.get(item, None) == self.meta_data[addr]:
+                #        break # we can have blackhole in blackhole
+                #        # or whatever
+                #else:
+                #    current.append(addr)
+                pass
             elif is_virtual or not only_virtual:
-                first_virtual = True
                 if jitting:
-                    current.append(JittedCode(addr))
+                    current.append(JittedVirtual(addr))
                 else:
-                    current.append(addr)
+                    if (not current or len(current) < 3 or
+                        not current[-2].jitted_version_of(addr)):
+                        current.append(VirtualFrame(addr))
                 addr_set.add(addr)
         return current
 
-    def filter_addr(self, profiles, only_virtual=True, extra_info=False,
+    def filter_addr(self, profiles, only_virtual=True,
                     interp_name=None):
         filtered_profiles = []
         jit_frames = set()
         addr_set = set()
         for i, prof in enumerate(profiles):
             current = self._next_profile(prof[0], jit_frames, addr_set,
-                                         interp_name, extra_info, only_virtual)
+                                         interp_name, only_virtual)
             if current:
                 current.reverse()
                 filtered_profiles.append((current, prof[1], prof[2]))
