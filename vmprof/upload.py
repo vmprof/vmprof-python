@@ -9,7 +9,7 @@ def upload(stats, name, argv, host, auth):
 
     data = {
         "VM": stats.interp,
-        "profiles": stats.get_tree()._serialize(),
+        "callgraph": stats.get_tree().serialize(),
         "argv": "%s %s" % (name, argv),
         "version": 1,
     }
