@@ -161,7 +161,8 @@ class StackFrameNode(object):
         return '<StackFrameNode %s>' % self._shortrepr()
 
     def _shortrepr(self):
-        res = '%s: %s %s' % (self.frame.name,
+        name = self.frame.name
+        res = '%s: %s %s' % (name,
                              self.self_ticks._shortrepr('self'),
                              self.cumulative_ticks._shortrepr('cumulative'))
         if self.is_virtual:
