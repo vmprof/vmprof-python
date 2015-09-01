@@ -129,7 +129,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
         marker = fileobj.read(1)
         if marker == MARKER_HEADER:
             assert not version, "multiple headers"
-            version, = struct.unpack("h", fileobj.read(2))
+            version, = struct.unpack("!h", fileobj.read(2))
             lgt = ord(fileobj.read(1))
             interp_name = fileobj.read(lgt)
             if PY3:
