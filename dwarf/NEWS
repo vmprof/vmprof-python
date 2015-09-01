@@ -1,4 +1,0 @@
-2015-01-13:  Removed dwarfdump2 and references to it.
-  dwarfdump has the (tsearch) features needed so the C++
-  version no longer a benefit.
-
