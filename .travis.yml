@@ -16,7 +16,7 @@ addons:
     - libelf-dev
 
 install:
-  - pip instaPll .
+  - pip install .
 
 script:
   - py.test tests/ -vrs
