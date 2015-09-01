@@ -10,13 +10,13 @@ addons:
   apt:
     packages:
     - python-dev
-    - libunwind8-dev
+    - libunwind7-dev
     - libdwarf-dev
     - libelfg0-dev
     - libelf-dev
 
 install:
-  - pip install .
+  - pip instaPll .
 
 script:
   - py.test tests/ -vrs
