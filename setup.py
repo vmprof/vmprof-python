@@ -19,11 +19,9 @@ else:
                                  'src/hotpatch/util.c',
                              ],
                              extra_compile_args=['-Wno-unused',
-                                                 '-I./libelf/lib',
-                                                 '-I./dwarf/libdwarf'],
+                                                 '-I/usr/include/libelf/'],
 
-                             # define_macros=[("__LIBELF_INTERNAL__", 1)],
-                             # libraries=['elf', 'unwind', 'rt'],
+                             libraries=['elf', 'unwind', 'rt'],
                              extra_link_args=['%s' % libdwarf])]
 
 
