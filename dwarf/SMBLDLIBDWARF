@@ -1,0 +1,35 @@
+
+#!/bin/sh
+#
+
+cd libdwarf 
+touch *.c
+CFLAGS="-g -O0 -DDWARF_SIMPLE_MALLOC" ./configure
+if [ $? != 0 ]
+then
+	echo build failed
+	exit
+fi
+make
+if [ $? != 0 ]
+then
+	echo build failed
+	exit
+fi
+cd ..
+cd dwarfdump
+rm dwarfdump 
+touch *.c
+CFLAGS="-g -O0" ./configure
+if [ $? != 0 ]
+then
+	echo build failed
+	exit
+fi
+make
+if [ $? != 0 ]
+then
+	echo build failed
+	exit
+fi
+cd ..

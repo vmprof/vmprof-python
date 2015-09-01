@@ -1,0 +1,37 @@
+To just build libdwarf and dwarfdump one might do:
+    ./configure
+    make dd
+    #You may need to be root to do the following copy commands
+    cp dwarfdump/dwarfdump      /usr/local/bin
+    cp dwarfdump/dwarfdump.conf /usr/local/lib
+    #The following is optional, not needed to run dwarfdump
+    #when doing the default build.
+    cp libdwarf/libdwarf.a      /usr/local/lib
+
+For a simple build of libdwarf, and dwarfdump
+and the other tools:
+    ./configure
+    make
+    #Optionally: cp libdwarf/libdwarf.a <somewhere>
+
+To build all the tools (including dwarfgen and 
+dwarfexample) use 'make all'. There are known 
+small compile-time issues with building dwarfgen on 
+MaxOSX and most don't need to build dwarfgen.
+    ./configure
+    make all
+
+To also build a shared libdwarf in the process, do:
+    ./configure --enable-shared
+    make
+    cp libdwarf/libdwarf.so <somewhere>
+
+When ready to create a new distro,
+do
+./CPTOPUBLIC
+./BLDLIBDWARF yyyymmdd
+where that could be
+	./BLDLIBDWARF 20140131
+as an example.
+
+David Anderson.  Updated December 28, 2014 (removed dwarfdump2)

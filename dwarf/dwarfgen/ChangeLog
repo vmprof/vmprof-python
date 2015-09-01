@@ -1,0 +1,11 @@
+2015-02-22  David Anderson
+     * Now uses dwgetopt.h, .c from dwarfdump.
+     * dwarfgen.cc: Now references dwgetopt.h and dwgetopt().
+     * Makefile.in: Reaches around to libdwarf for dwgetopt.
+     * configure.in: Removed getopt.h check
+     * configure: regenerated
+2015-01-06  David Anderson
+     * dwarfgen.cc: Fixed indents and removed trailing whitespace.
+2015-01-01  David Anderson
+     * A new year begins.
+

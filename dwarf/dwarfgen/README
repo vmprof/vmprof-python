@@ -1,0 +1,20 @@
+
+David Anderson, September 20, 2010
+
+The dwarfgen application is intended as both a vehicle
+for testing dwarf-generation by libdwarf and as an example
+of how one uses libdwarf to generate DWARF.
+In addition, it should be useful as a test vehicle for
+evaluating future changes to the DWARF standard.
+
+It is necessary as a test-vehicle so that the libdwarf
+producer code can be updated to allow more recent features
+of DWARF to be supported while trying to guarantee current
+producer code users are correctly supported.
+
+By default dwarfgen produces a fake a.out. By that we mean
+that no relocation sections are written.  Instead, relocations
+are processed directly by dwarfgen.
+Perhaps at some point a more a.out-like output will be optionally
+supported.
+
