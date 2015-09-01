@@ -11,18 +11,20 @@ if '__pypy__' in sys.builtin_module_names:
     ext_modules = [] # built-in
 else:
     ext_modules = [Extension('_vmprof',
-                           sources=[
-                               'src/_vmprof.c',
-                               'src/hotpatch/tramp.c',
-                               'src/hotpatch/elf.c',
-                               'src/hotpatch/x86_gen.c',
-                               'src/hotpatch/util.c',
-                               ],
-                            extra_compile_args=['-Wno-unused',
-                                                '-I/usr/include/elf',
-                                                '-I./dwarf/libdwarf'],
-                            libraries=['elf', 'unwind', 'rt'],
-                            extra_link_args=['%s' % libdwarf])]
+                             sources=[
+                                 'src/_vmprof.c',
+                                 'src/hotpatch/tramp.c',
+                                 'src/hotpatch/elf.c',
+                                 'src/hotpatch/x86_gen.c',
+                                 'src/hotpatch/util.c',
+                             ],
+                             extra_compile_args=['-Wno-unused',
+                                                 '-I./libelf/lib',
+                                                 '-I./dwarf/libdwarf'],
+
+                             # define_macros=[("__LIBELF_INTERNAL__", 1)],
+                             # libraries=['elf', 'unwind', 'rt'],
+                             extra_link_args=['%s' % libdwarf])]
 
 
 setup(

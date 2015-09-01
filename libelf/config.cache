@@ -1,0 +1,75 @@
+# This file is a shell script that caches the results of configure
+# tests run on this system so they can be shared between configure
+# scripts and configure runs.  It is not useful on other systems.
+# If it contains results you don't want to keep, you may remove or edit it.
+#
+# By default, configure uses ./config.cache as the cache file,
+# creating it if it does not exist already.  You can give configure
+# the --cache-file=FILE option to use a different cache file; that is
+# what configure does when it calls configure scripts in
+# subdirectories, so they share the cache.
+# Giving --cache-file=/dev/null disables caching, for debugging configure.
+# config.status only pays attention to the cache file if you give it the
+# --recheck option to rerun configure.
+#
+ac_cv_c_const=${ac_cv_c_const='yes'}
+ac_cv_func_ftruncate=${ac_cv_func_ftruncate='yes'}
+ac_cv_func_getpagesize=${ac_cv_func_getpagesize='yes'}
+ac_cv_func_memcmp=${ac_cv_func_memcmp='yes'}
+ac_cv_func_memcpy=${ac_cv_func_memcpy='yes'}
+ac_cv_func_memmove=${ac_cv_func_memmove='yes'}
+ac_cv_func_memset=${ac_cv_func_memset='yes'}
+ac_cv_func_mmap_fixed_mapped=${ac_cv_func_mmap_fixed_mapped='yes'}
+ac_cv_header_ar_h=${ac_cv_header_ar_h='yes'}
+ac_cv_header_elf_h=${ac_cv_header_elf_h='yes'}
+ac_cv_header_fcntl_h=${ac_cv_header_fcntl_h='yes'}
+ac_cv_header_gelf_h=${ac_cv_header_gelf_h='yes'}
+ac_cv_header_libelf_h=${ac_cv_header_libelf_h='yes'}
+ac_cv_header_link_h=${ac_cv_header_link_h='yes'}
+ac_cv_header_nlist_h=${ac_cv_header_nlist_h='yes'}
+ac_cv_header_stdc=${ac_cv_header_stdc='yes'}
+ac_cv_header_stdint_h=${ac_cv_header_stdint_h='yes'}
+ac_cv_header_sys_elf_h=${ac_cv_header_sys_elf_h='no'}
+ac_cv_header_sys_link_h=${ac_cv_header_sys_link_h='no'}
+ac_cv_header_unistd_h=${ac_cv_header_unistd_h='yes'}
+ac_cv_lib_intl_gettext=${ac_cv_lib_intl_gettext='no'}
+ac_cv_path_GENCAT=${ac_cv_path_GENCAT='/usr/bin/gencat'}
+ac_cv_path_GMSGFMT=${ac_cv_path_GMSGFMT='msgfmt'}
+ac_cv_path_LD=${ac_cv_path_LD='/usr/bin/ld'}
+ac_cv_path_MSGFMT=${ac_cv_path_MSGFMT='no'}
+ac_cv_path_XGETTEXT=${ac_cv_path_XGETTEXT='xgettext'}
+ac_cv_path_install=${ac_cv_path_install='/usr/bin/install -c'}
+ac_cv_prog_CC=${ac_cv_prog_CC='gcc'}
+ac_cv_prog_CPP=${ac_cv_prog_CPP='gcc -E'}
+ac_cv_prog_LN_S=${ac_cv_prog_LN_S='ln -s'}
+ac_cv_prog_RANLIB=${ac_cv_prog_RANLIB='ranlib'}
+ac_cv_prog_cc_cross=${ac_cv_prog_cc_cross='no'}
+ac_cv_prog_cc_g=${ac_cv_prog_cc_g='yes'}
+ac_cv_prog_cc_works=${ac_cv_prog_cc_works='yes'}
+ac_cv_prog_gcc=${ac_cv_prog_gcc='yes'}
+ac_cv_prog_make_make_set=${ac_cv_prog_make_make_set='yes'}
+ac_cv_sizeof___int64=${ac_cv_sizeof___int64='0'}
+ac_cv_sizeof_int=${ac_cv_sizeof_int='4'}
+ac_cv_sizeof_long=${ac_cv_sizeof_long='8'}
+ac_cv_sizeof_long_long=${ac_cv_sizeof_long_long='8'}
+ac_cv_sizeof_short=${ac_cv_sizeof_short='2'}
+ac_cv_type_off_t=${ac_cv_type_off_t='yes'}
+ac_cv_type_size_t=${ac_cv_type_size_t='yes'}
+libelf_cv_elf_h_works=${libelf_cv_elf_h_works='yes'}
+libelf_cv_gnu_verdef=${libelf_cv_gnu_verdef='yes'}
+libelf_cv_int16=${libelf_cv_int16='short'}
+libelf_cv_int32=${libelf_cv_int32='int'}
+libelf_cv_int64=${libelf_cv_int64='long'}
+libelf_cv_struct_elf32_dyn=${libelf_cv_struct_elf32_dyn='yes'}
+libelf_cv_struct_elf64_ehdr=${libelf_cv_struct_elf64_ehdr='yes'}
+libelf_cv_struct_elf64_rel=${libelf_cv_struct_elf64_rel='yes'}
+libelf_cv_struct_nlist=${libelf_cv_struct_nlist='no'}
+libelf_cv_sun_verdef=${libelf_cv_sun_verdef='no'}
+libelf_cv_type_elf64_addr=${libelf_cv_type_elf64_addr='yes'}
+libelf_cv_verdef32=${libelf_cv_verdef32='yes'}
+libelf_cv_verdef64=${libelf_cv_verdef64='yes'}
+libelf_cv_working_memmove=${libelf_cv_working_memmove='yes'}
+mr_cv_coffee_machine=${mr_cv_coffee_machine='empty - operator may not work as expected'}
+mr_cv_func_catgets=${mr_cv_func_catgets='yes'}
+mr_cv_func_dgettext=${mr_cv_func_dgettext='no'}
+mr_cv_target_elf=${mr_cv_target_elf='yes'}
