@@ -3,11 +3,8 @@ import bisect
 import six
 
 
-def fmtaddr(x, name=None):
-    if name:
-        return '0x%016x:%s' % (x, name)
-    else:
-        return '0x%016x' % x
+def fmtaddr(x):
+    return '0x%016x' % x
 
 class Hashable(object):
     def __init__(self, addr):
@@ -61,14 +58,13 @@ class AddressSpace(object):
         if i > len(self.libs) or i <= 0:
             return fmtaddr(addr), addr, False, None
         lib = self.libs[i - 1]
-        if addr < lib.start or addr >= lib.end:
+        try:
+            start_addr, symbol = lib.lookup(addr)
+        except KeyError:
             return fmtaddr(addr), addr, False, None
-        i = bisect.bisect(lib.symbols, (addr + 1,))
-        if i > len(lib.symbols) or i <= 0:
-            return fmtaddr(addr, lib.name), addr, False, None
-        addr, name = lib.symbols[i - 1]
-        is_virtual = lib.is_virtual
-        return name, addr, is_virtual, lib
+        else:
+            is_virtual = lib.is_virtual
+            return symbol, start_addr, is_virtual, lib
 
     def reverse_lookup(self, name):
         l = []
