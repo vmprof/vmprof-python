@@ -10,6 +10,7 @@ addons:
   apt:
     packages:
     - python-dev
+    - libdwarf-dev
     - libelf-dev
     - libunwind8-dev
 
@@ -19,15 +20,15 @@ install:
 script:
   - py.test tests/ -vrs
 
-# notifications:
-#   irc:
-#     channels: "irc.freenode.org#baroque-dev"
-#     template:
-#       - "%{repository}@%{branch}: %{message} (%{build_url})"
-#     use_notice: true
-#     on_success: always
-#     on_failure: always
+notifications:
+  irc:
+    channels: "irc.freenode.org#baroque-dev"
+    template:
+      - "%{repository}@%{branch}: %{message} (%{build_url})"
+    use_notice: true
+    on_success: always
+    on_failure: always
 
-#   email:
-#     on_success: change
-#     on_failure: change
+  email:
+    on_success: change
+    on_failure: change
