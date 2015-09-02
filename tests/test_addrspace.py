@@ -3,6 +3,23 @@ from vmprof.reader import LibraryData
 from vmprof.addrspace import AddressSpace
 from vmprof import read_stats, Stats
 
+class TestLibraryData(object):
+    def test_lookup(self):
+        d = LibraryData("lib", 1200, 1300)
+        d.symbols = [(1234, "a"), (1250, None), (1260, "b")]
+        #
+        py.test.raises(KeyError, "d.lookup(1199)")
+        assert d.lookup(1200) == (1200, "0x00000000000004b0:lib")
+        assert d.lookup(1233) == (1233, "0x00000000000004d1:lib")
+        assert d.lookup(1234) == (1234, "a")
+        assert d.lookup(1240) == (1234, "a")
+        assert d.lookup(1249) == (1234, "a")
+        py.test.raises(KeyError, "d.lookup(1250)")
+        py.test.raises(KeyError, "d.lookup(1259)")
+        assert d.lookup(1260) == (1260, "b")
+        assert d.lookup(1299) == (1260, "b")
+        py.test.raises(KeyError, "d.lookup(1300)")
+
 
 class TestAddrSpace(object):
     def test_lookup(self):

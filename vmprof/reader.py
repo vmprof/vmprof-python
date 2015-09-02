@@ -40,13 +40,15 @@ class LibraryData(object):
     def lookup(self, addr):
         if addr < self.start or addr >= self.end:
             raise KeyError(addr)
-        i = bisect.bisect(self.symbols, (addr+1,)) # XXX why +1?
+        i = bisect.bisect(self.symbols, (addr+1,))
         if i > len(self.symbols) or i <= 0:
             # cannot determine the precise symbol info, try to do our best
             start_addr = addr
             symbol = '0x%016x:%s' % (addr, self.name)
         else:
             start_addr, symbol = self.symbols[i-1]
+            if symbol is None:
+                raise KeyError(addr)
         return start_addr, symbol
 
     def __repr__(self):
