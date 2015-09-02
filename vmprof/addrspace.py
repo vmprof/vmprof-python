@@ -51,8 +51,25 @@ class AddressSpace(object):
         all.sort()
         self.libs = [lib for _, lib in all]
         self.lib_lookup = [lib.start for lib in self.libs]
+        #
+        # the JIT addresses might be anywhere in the memory, which means that
+        # the interval (JIT_symbols.start, JIT_symbols.end) might overlap with
+        # the ranges of the other libs, causing the bisection algorithm to no
+        # longer work correctly.  Thus, we put the JIT symbols in a special,
+        # higher-priority lib which is looked up BEFORE the others. If an
+        # address falls inside a JIT trace, we return it, else we do the usual
+        # lookup inside self.libs
+        self.JIT_symbols = None
 
     def lookup(self, arg):
+        if self.JIT_symbols:
+            try:
+                start_addr, symbol = self.JIT_symbols.lookup(arg)
+            except KeyError:
+                pass
+            else:
+                return symbol, start_addr, False, self.JIT_symbols
+        #
         addr = arg + 1
         i = bisect.bisect(self.lib_lookup, addr)
         if i > len(self.libs) or i <= 0:

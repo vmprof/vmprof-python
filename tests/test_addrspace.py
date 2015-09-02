@@ -4,6 +4,7 @@ from vmprof.addrspace import AddressSpace
 from vmprof import read_stats, Stats
 
 class TestLibraryData(object):
+
     def test_lookup(self):
         d = LibraryData("lib", 1200, 1300)
         d.symbols = [(1234, "a"), (1250, None), (1260, "b")]
@@ -22,6 +23,7 @@ class TestLibraryData(object):
 
 
 class TestAddrSpace(object):
+
     def test_lookup(self):
         d = LibraryData("lib", 1234, 1300)
         d.symbols = [(1234, "a"), (1260, "b")]
@@ -32,6 +34,20 @@ class TestAddrSpace(object):
         assert fn == '0x0000000000000547'  # outside of range
         fn, _, is_virtual, _ = addr.lookup(1250)
         assert fn == "a"
+
+    def test_JIT_symbols(self):
+        d = LibraryData("lib", 1234, 1300)
+        d.symbols = [(1234, "a"), (1260, "b")]
+        JIT_symbols = LibraryData("<JIT>", 1400, 1500)
+        JIT_symbols.symbols = [(1400, "jit loop 1"), (1450, None),
+                               (1480, "jit loop 2"), (1500, None)]
+        addr = AddressSpace([d])
+        addr.JIT_symbols = JIT_symbols
+        #
+        assert addr.lookup(1250) == ("a", 1234, False, d)
+        assert addr.lookup(1400) == ("jit loop 1", 1400, False, JIT_symbols)
+        assert addr.lookup(1449) == ("jit loop 1", 1400, False, JIT_symbols)
+        assert addr.lookup(1490) == ("jit loop 2", 1480, False, JIT_symbols)
 
     def test_filter_profiles(self):
         d = LibraryData("lib", 12, 20)
