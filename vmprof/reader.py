@@ -50,8 +50,8 @@ class LibraryData(object):
         return start_addr, symbol
 
     def __repr__(self):
-        return '<Library data for %s, ranges %x-%x>' % (self.name, self.start,
-                                                        self.end)
+        return '<Library data for %s, ranges 0x%x-0x%x>' % (self.name, self.start,
+                                                            self.end)
 
 
 def read_object(reader, name, lib_start_addr, repeat=True):
