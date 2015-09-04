@@ -69,6 +69,11 @@ class TestCallGraph:
                       for name in symbols]
         return stacktrace
 
+    def pprint(self, tree):
+        out = StringIO()
+        tree.pprint(stream=out)
+        return out.getvalue()
+
     def test_add_stacktrace(self):
         stack = self.stack
         graph = CallGraph()
@@ -101,9 +106,7 @@ class TestCallGraph:
                                    'jit:loop#2'),
                              count=7)  # 5 ticks on py:baz
         #
-        out = StringIO()
-        graph.root.pprint(stream=out)
-        out = out.getvalue()
+        out = self.pprint(graph.root)
         assert out == textwrap.dedent("""\
             <all>: self{} cumulative{C: 9, JIT: 17}
               main: self{} cumulative{C: 9, JIT: 17}
@@ -172,3 +175,36 @@ class TestCallGraph:
                       ]}
                  ]}
             ]}
+
+    def test_virtual_graph(self):
+        stack = self.stack
+        graph = CallGraph()
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame'),
+                             count=1)
+        #
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame',
+                                   'CALL_FUNCTION',
+                                   'py:bar',
+                                   'execute_frame'),
+                             count=10)
+        #
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame',
+                                   'CALL_FUNCTION',
+                                   'py:baz',
+                                   'execute_frame'),
+                             count=1)
+        #
+        vroot = graph.get_virtual_root()
+        out = self.pprint(vroot)
+        assert out == textwrap.dedent("""\
+            <all>: self{} cumulative{C: 12}
+              py:foo: self{} cumulative{C: 12} virtual{C: 1}
+                py:bar: self{} cumulative{C: 10} virtual{C: 10}
+                py:baz: self{} cumulative{C: 1} virtual{C: 1}
+        """)

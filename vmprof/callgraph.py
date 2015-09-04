@@ -13,6 +13,9 @@ class TickCounter(Counter):
         return '%s{%s}' % (label, ', '.join(tags))
 
 
+JITSTACK_START = 0x01
+JITSTACK_END = 0x02
+
 class SymbolicStackTrace(object):
 
     def __init__(self, stacktrace, addrspace):
@@ -54,6 +57,15 @@ class CallGraph(object):
         node.cumulative_ticks[tag] += count
         if topmost_virtual_node:
             topmost_virtual_node.virtual_ticks[tag] += count
+
+    def get_virtual_root(self):
+        """
+        Transform the raw tree into a tree which contains only the virtual nodes
+        """
+        vroot = self.root.clone()
+        for vchild in self.root.get_virtuals():
+            vroot.children[vchild.frame] = vchild
+        return vroot
 
 def get_tag(frame):
     # XXX this is a hack only for tests
@@ -136,6 +148,20 @@ class StackFrameNode(object):
     def is_virtual(self):
         return self.frame.is_virtual
 
+    def clone(self):
+        """
+        Shallow clone: it returns a copy of itself, but with no children
+        """
+        res = StackFrameNode(self.frame)
+        res.tag = self.tag
+        res.self_ticks = self.self_ticks.copy()
+        res.cumulative_ticks = self.cumulative_ticks.copy()
+        if self.virtual_ticks is None:
+            res.virtual_ticks = None
+        else:
+            res.virtual_ticks = self.virtual_ticks.copy()
+        return res
+
     def __getitem__(self, frame):
         if isinstance(frame, str):
             # lookup by symbol name is read-only
@@ -189,3 +215,19 @@ class StackFrameNode(object):
                     virtual_ticks = self.virtual_ticks,
                     children = [child.serialize() for child in self.children.itervalues()]
                 )
+
+    def get_virtuals(self):
+        """
+        Return a list of virtual-only nodes to be attached to a parent node.
+        """
+        vchildren = []
+        for child in self.children.itervalues():
+            vchildren += child.get_virtuals()
+        #
+        if self.is_virtual:
+            selfnode = self.clone()
+            for vchild in vchildren:
+                selfnode.children[vchild.frame] = vchild
+            return [selfnode]
+        #
+        return vchildren
