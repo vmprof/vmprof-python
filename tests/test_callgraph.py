@@ -208,3 +208,36 @@ class TestCallGraph:
                 py:bar: self{} cumulative{C: 10} virtual{C: 10}
                 py:baz: self{} cumulative{C: 1} virtual{C: 1}
         """)
+
+    def test_virtual_graph_merge_children(self):
+        stack = self.stack
+        graph = CallGraph()
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame'),
+                             count=1)
+        #
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame',
+                                   'CALL_FUNCTION',
+                                   'py:bar',
+                                   'execute_frame'),
+                             count=10)
+        #
+        graph.add_stacktrace(stack('main',
+                                   'py:foo',
+                                   'execute_frame',
+                                   'CALL_METHOD',
+                                   'some_other_internal_func',
+                                   'py:bar',
+                                   'jit:loop1'),
+                             count=100)
+        #
+        vroot = graph.get_virtual_root()
+        out = self.pprint(vroot)
+        assert out == textwrap.dedent("""\
+            <all>: self{} cumulative{C: 11, JIT: 100}
+              py:foo: self{} cumulative{C: 11, JIT: 100} virtual{C: 1}
+                py:bar: self{} cumulative{C: 10, JIT: 100} virtual{C: 10, JIT: 100}
+        """)

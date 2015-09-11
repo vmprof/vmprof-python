@@ -230,4 +230,18 @@ class StackFrameNode(object):
                 selfnode.children[vchild.frame] = vchild
             return [selfnode]
         #
-        return vchildren
+        return self._merge(vchildren)
+
+    def _merge(self, nodes):
+        byframe = {}
+        for node in nodes:
+            try:
+                old_node = byframe[node.frame]
+            except KeyError:
+                byframe[node.frame] = node
+            else:
+                old_node.self_ticks.update(node.self_ticks)
+                old_node.cumulative_ticks.update(node.cumulative_ticks)
+                old_node.virtual_ticks.update(node.virtual_ticks)
+        #
+        return byframe.values()
