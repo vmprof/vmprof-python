@@ -9,7 +9,8 @@ def upload(stats, name, argv, host, auth):
 
     data = {
         "VM": stats.interp,
-        "callgraph": stats.get_tree().serialize(),
+        "root": stats.get_tree().serialize(),
+        "vroot": stats.get_virtual_tree().serialize(),
         "argv": "%s %s" % (name, argv),
         "version": 1,
     }
