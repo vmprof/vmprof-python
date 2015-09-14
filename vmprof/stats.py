@@ -74,6 +74,8 @@ class Stats(object):
             raise EmptyProfileFile()
         top = Node(top_addr.addr, self._get_name(top_addr))
         top.count = len(self.profiles)
+        addr = None
+        xxx
         for profile in self.profiles:
             cur = top
             for i in range(1, len(profile[0])):
@@ -118,8 +120,10 @@ class Node(object):
     _self_count = None
     flat = False
 
-    def __init__(self, addr, name, count=1):
-        self.children = {}
+    def __init__(self, addr, name, count=1, children=None):
+        if children is None:
+            children = {}
+        self.children = children
         self.name = name
         assert isinstance(addr, int)
         self.addr = addr
@@ -192,6 +196,14 @@ class Node(object):
             next = Node(addr, name)
             self.children[addr] = next
         return next
+
+    def __eq__(self, other):
+        if not isinstance(other, Node):
+            return False
+        return self.name == other.name and self.addr == other.addr and self.count == other.count and self.children == other.children
+
+    def __ne__(self, other):
+        return not self == other
 
     def __repr__(self):
         items = sorted(self.children.items())

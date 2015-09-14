@@ -21,6 +21,9 @@ class Hashable(object):
             return self.addr == other.addr
         return self.addr == other
 
+    def __ne__(self, other):
+        return not self == other
+
     def __repr__(self):
         return '<%s(%s)>' % (self.__class__.__name__, self.addr)
     
@@ -29,12 +32,10 @@ class JitAddr(Hashable):
         return False
 
 class JittedVirtual(Hashable):
-    def jitted_version_of(self, addr):
-        return self.addr == addr
+    pass
 
 class VirtualFrame(Hashable):
-    def jitted_version_of(self, addr):
-        return self.addr == addr
+    pass
 
 class GCFrame(Hashable):
     pass
@@ -48,6 +49,9 @@ class MajorGCFrame(GCFrame):
 class WarmupFrame(Hashable):
     pass
 
+class BlackholeWarmupFrame(WarmupFrame):
+    pass
+
 class AddressSpace(object):
     def __init__(self, libs):
         all = [(lib.start, lib) for lib in libs]
@@ -56,12 +60,11 @@ class AddressSpace(object):
         self.lib_lookup = [lib.start for lib in self.libs]
         # pypy metadata
         meta_data = {
-            'pypy_g_resume_in_blackhole': 'meta:blackhole',
-            'pypy_g_MetaInterp__compile_and_run_once': 'meta:tracing',
-            'pypy_g_ResumeGuardDescr__trace_and_compile_from_bridge': 'meta:tracing',
-            'pypy_g_IncrementalMiniMarkGC_major_collection_step': 'meta:gc:major',
-            'pypy_asm_stackwalk': 'meta:external',
-            'pypy_g_IncrementalMiniMarkGC_minor_collection': 'meta:gc:minor',
+            'pypy_g_resume_in_blackhole': BlackholeWarmupFrame,
+            'pypy_g_MetaInterp__compile_and_run_once': WarmupFrame,
+            'pypy_g_ResumeGuardDescr__trace_and_compile_from_bridge': WarmupFrame,
+            'pypy_g_IncrementalMiniMarkGC_major_collection_step': MajorGCFrame,
+            'pypy_g_IncrementalMiniMarkGC_minor_collection': MinorGCFrame,
 
         }
         self.meta_data = {}
@@ -110,6 +113,7 @@ class AddressSpace(object):
                       only_virtual):
         current = []
         jitting = False
+        previous_virtual = None
         for j, addr in enumerate(lst):
             orig_addr = addr
             name, addr, is_virtual, lib = self.lookup(addr)
@@ -128,26 +132,15 @@ class AddressSpace(object):
                     jitting = False
                     continue
             if addr in self.meta_data:
-                # XXX hack for pypy - gc:minor calling asm_stackwalk
-                #     is just gc minor
-                #if self.meta_data[addr].startswith('meta:gc') and current:
-                #    current = []
-                #for item in current:
-                #    # sanity check if we're not double-counting,
-                #    # we need to change meta data setting if we are
-                #    if self.meta_data.get(item, None) == self.meta_data[addr]:
-                #        break # we can have blackhole in blackhole
-                #        # or whatever
-                #else:
-                #    current.append(addr)
-                pass
+                current.append(self.meta_data[addr](addr))
             elif is_virtual or not only_virtual:
                 if jitting:
-                    current.append(JittedVirtual(addr))
+                    cls = JittedVirtual
                 else:
-                    if (not current or len(current) < 3 or
-                        not current[-2].jitted_version_of(addr)):
-                        current.append(VirtualFrame(addr))
+                    cls = VirtualFrame
+                if previous_virtual != addr:
+                    current.append(cls(addr))
+                    previous_virtual = current[-1]
                 addr_set.add(addr)
         return current
 

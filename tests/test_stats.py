@@ -6,7 +6,8 @@ import six
 
 import vmprof
 from vmprof.reader import LibraryData
-from vmprof.stats import Node
+from vmprof.stats import Node, Stats
+from vmprof.addrspace import VirtualFrame, MinorGCFrame
 
 
 def get_or_write_libcache(filename):
@@ -34,6 +35,29 @@ def get_or_write_libcache(filename):
         f.write(zlib.compress(json.dumps(d).encode('utf-8')))
     return lib_cache
 
+def test_tree_basic():
+    profiles = [([VirtualFrame(1), VirtualFrame(2)], 1, 1),
+                ([VirtualFrame(1), VirtualFrame(2)], 1, 1)]
+    stats = Stats(profiles, adr_dict={1: 'foo', 2: 'bar'})
+    tree = stats.get_tree()
+    assert tree == Node(1, 'foo', 2, {2: Node(2, 'bar', 2)})
+    assert repr(tree) == '<Node: foo (2) [(2, bar)]>'
+
+    profiles = [([VirtualFrame(1), VirtualFrame(2)], 1, 1),
+                ([VirtualFrame(1), VirtualFrame(3)], 1, 1)]
+    stats = Stats(profiles, adr_dict={1: 'foo', 2: 'bar', 3: 'baz'})
+    tree = stats.get_tree()
+    assert tree == Node(1, 'foo', 2, {
+        2: Node(2, 'bar', 1),
+        3: Node(3, 'baz', 1)})
+
+def test_tree_gc():
+    profiles = [([VirtualFrame(1)], 1, 1),
+                ([VirtualFrame(1), MinorGCFrame(100)], 1, 1)]
+    stats = Stats(profiles, adr_dict={1: 'foo', 100: 'gc_collect'})
+    tree = stats.get_tree()
+    assert tree == Node(1, 'foo', 2)
+    assert tree.meta['gc_minor'] == 1
 
 def test_read_simple():
     lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
