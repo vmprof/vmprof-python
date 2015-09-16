@@ -5,18 +5,33 @@ import click
 
 import vmprof
 
-def upload(stats, name, argv, host, auth):
-
+def upload_v1(stats, name, argv, host, auth):
     data = {
         "VM": stats.interp,
-        "root": stats.get_tree().serialize(),
-        "vroot": stats.get_virtual_tree().serialize(),
+        "profiles": stats.get_tree()._serialize(),
         "argv": "%s %s" % (name, argv),
         "version": 1,
     }
 
     data = json.dumps(data).encode('utf-8')
+    return upload_json(data, host, auth)
 
+
+def upload_v2(VM, callgraph, name, argv, host, auth):
+    root = callgraph.root
+    vroot = callgraph.get_virtual_root()
+    data = {
+        "VM": VM,
+        "root": root.serialize(),
+        "vroot": vroot.serialize(),
+        "argv": "%s %s" % (name, argv),
+        "version": 2,
+    }
+    data = json.dumps(data).encode('utf-8')
+    return upload_json(data, host, auth)
+
+
+def upload_json(data, host, auth):
     # XXX http only for now
     if host.startswith("http"):
         url = '%s/api/log/' % host.rstrip("/")
@@ -45,7 +60,7 @@ def upload(stats, name, argv, host, auth):
 def main(profile, web_url, web_auth): 
     stats = vmprof.read_stats(profile, virtual_only=True)
     sys.stderr.write("Compiling and uploading to %s...\n" % (web_url,))
-    res = upload(stats, profile, [], web_url, web_auth)
+    res = upload_v1(stats, profile, [], web_url, web_auth)
     sys.stderr.write("Available at:\n%s\n" % res)
 
 if __name__ == '__main__':
