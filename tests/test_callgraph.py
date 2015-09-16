@@ -264,3 +264,25 @@ class TestCallGraph:
               py:foo: self{} cumulative{C: 11, JIT: 100} virtual{C: 1}
                 py:bar: self{} cumulative{C: 10, JIT: 100} virtual{C: 10, JIT: 100}
         """)
+
+    def test_from_profiles(self, addrspace):
+        # note that stacktraces are top-to-bottom
+        stacktrace1 = [1101, 2000, 1001] # two, py:main, one
+        stacktrace2 = [1201, 2101, 1101, 2000, 1001] # three, py:func, two, py:main, one
+        #
+        profiles = [
+          # (stacktrace, count, thread_id)
+            (stacktrace1, 5, 0),
+            (stacktrace2, 2, 0),
+        ]
+        #
+        graph = CallGraph.from_profiles(addrspace, profiles)
+        out = self.pprint(graph.root)
+        assert out == textwrap.dedent("""\
+            <all>: self{} cumulative{C: 7}
+              one: self{} cumulative{C: 7}
+                py:main: self{} cumulative{C: 7} virtual{C: 5}
+                  two: self{C: 5} cumulative{C: 7}
+                    py:func: self{} cumulative{C: 2} virtual{C: 2}
+                      three: self{C: 2} cumulative{C: 2}
+        """)

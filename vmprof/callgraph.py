@@ -41,6 +41,20 @@ class CallGraph(object):
     def __init__(self):
         self.root = StackFrameNode(Frame('<all>', False))
 
+    @classmethod
+    def from_profiles(cls, addrspace, profiles):
+        callgraph = cls()
+        for profile in profiles:
+            stacktrace, count, _ = profile
+            # _vmprof produces stacktraces which are ordered from the top-most
+            # frame to the bottom. add_stacktrace expects them in the opposite
+            # order, so we need to reverse it first
+            stacktrace.reverse()
+            #stacktrace = remove_jit_hack_2(stacktrace)
+            stacktrace = SymbolicStackTrace(stacktrace, addrspace)
+            callgraph.add_stacktrace(stacktrace, count)
+        return callgraph
+
     def add_stacktrace(self, stacktrace, count):
         tag = get_tag(stacktrace[-1])
         #
