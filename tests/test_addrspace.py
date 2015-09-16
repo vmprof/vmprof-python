@@ -1,6 +1,7 @@
 import py
 from vmprof.reader import LibraryData
-from vmprof.addrspace import AddressSpace
+from vmprof.addrspace import AddressSpace, JittedVirtual, JitAddr,\
+     BlackholeWarmupFrame, VirtualFrame
 from vmprof import read_profile, Stats
 
 
@@ -34,6 +35,41 @@ class TestAddrSpace(object):
         p = Stats(profiles)
         assert p.functions == {"py:one": 2, "py:two": 1}
         assert p.function_profile("py:two") == ([('py:one', 1)], 1)
+
+    def test_filter_jit(self):
+        l = LibraryData("lib", 100, 200, True)
+        l.symbols = [(112, "py:one"), (113, "py:two")]
+        addr_space = AddressSpace([l])
+        r = addr_space.filter_addr([
+            ([213, 0x1, 111, 112, 0x2], 1, 1)
+            ], interp_name='pypy')
+        assert r[0] == [([JitAddr(214), JittedVirtual(113), JittedVirtual(112)], 1, 1)]
+        r = addr_space.filter_addr([
+            ([111, 213, 0x1, 111, 112, 0x2], 1, 1)
+            ], interp_name='pypy')
+        assert r[0] == [([JitAddr(214), JittedVirtual(113), JittedVirtual(112)], 1, 1)]
+
+    def test_filter_jit_2(self):
+        l = LibraryData("python", 100, 200, True)
+        l.symbols = [(101, 'py:one'), (105, 'py:two'), (107, 'py:three')]
+        addr_space = AddressSpace([l])
+        r = addr_space.filter_addr([
+            ([0x2222, 0x1111, 0x1, 100, 104, 0x2, 0x3333,
+            0x1, 104, 106, 0x2], 1, 1)
+            ], interp_name='pypy')
+        assert r[0][0][0] == [JitAddr(0x3334), JittedVirtual(107),
+                              JitAddr(0x1112),
+                              JittedVirtual(105), JittedVirtual(101)]
+
+    def test_filter_gc_frames(self):
+        l = LibraryData('foo', 100, 200, True)
+        l.symbols = [(101, 'py:one'), (105, 'py:two'), (107, 'py:three')]
+        l2 = LibraryData("binary", 1000, 2000, False)
+        l2.symbols = [(1500, "pypy_g_resume_in_blackhole")]
+        addr_space = AddressSpace([l, l2])
+        r = addr_space.filter_addr([
+            ([1500, 101, 105], 1, 1)])
+        assert r[0][0][0] == [VirtualFrame(105), VirtualFrame(101), BlackholeWarmupFrame(1500)]
 
     def test_tree(self):
         prof = read_profile(str(py.path.local(__file__).join(

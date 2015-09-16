@@ -6,7 +6,8 @@ import six
 
 import vmprof
 from vmprof.reader import LibraryData
-from vmprof.stats import Node
+from vmprof.stats import Node, Stats
+from vmprof.addrspace import VirtualFrame, MinorGCFrame
 
 
 def get_or_write_libcache(filename):
@@ -34,6 +35,29 @@ def get_or_write_libcache(filename):
         f.write(zlib.compress(json.dumps(d).encode('utf-8')))
     return lib_cache
 
+def test_tree_basic():
+    profiles = [([VirtualFrame(1), VirtualFrame(2)], 1, 1),
+                ([VirtualFrame(1), VirtualFrame(2)], 1, 1)]
+    stats = Stats(profiles, adr_dict={1: 'foo', 2: 'bar'})
+    tree = stats.get_tree()
+    assert tree == Node(1, 'foo', 2, {2: Node(2, 'bar', 2)})
+    assert repr(tree) == '<Node: foo (2) [(2, bar)]>'
+
+    profiles = [([VirtualFrame(1), VirtualFrame(2)], 1, 1),
+                ([VirtualFrame(1), VirtualFrame(3)], 1, 1)]
+    stats = Stats(profiles, adr_dict={1: 'foo', 2: 'bar', 3: 'baz'})
+    tree = stats.get_tree()
+    assert tree == Node(1, 'foo', 2, {
+        2: Node(2, 'bar', 1),
+        3: Node(3, 'baz', 1)})
+
+def test_tree_gc():
+    profiles = [([VirtualFrame(1)], 1, 1),
+                ([VirtualFrame(1), MinorGCFrame(100)], 1, 1)]
+    stats = Stats(profiles, adr_dict={1: 'foo', 100: 'gc_collect'})
+    tree = stats.get_tree()
+    assert tree == Node(1, 'foo', 2)
+    assert tree.meta['gc_minor'] == 1
 
 def test_read_simple():
     lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
@@ -45,18 +69,19 @@ def test_read_simple():
     foo_name = 'py:foo:6:foo.py'
     bar_name = 'py:bar:2:foo.py'
     assert tree['foo'].name == foo_name
-    assert tree['foo'].meta['jit'] == 120
+    assert tree['foo'].meta['jit'] == 17
     assert tree['foo']['bar'].name == bar_name
-    assert tree['foo']['bar'].meta['jit'] == 101
-    assert tree['foo']['bar'].jitcodes == {140523638277712: 101, 140523638275600: 27, 140523638276656: 12}
-    assert tree['foo'].jitcodes == {140523638277712: 19}
+    assert tree['foo']['bar'].meta['jit'] == 90
+    assert tree['foo'].jitcodes == {140523638277712: 120}
+    assert tree['foo']['bar'].jitcodes == {140523638275600: 27,
+                                           140523638276656: 3}
     assert not tree['foo']['bar'].children
-    assert tree['foo']['bar'].meta['gc:minor'] == 2
+    assert tree['foo']['bar'].meta['gc_minor'] == 2
     data = json.loads(tree.as_json())
     main_addr = str(tree.addr)
     foo_addr = str(tree['foo'].addr)
     bar_addr = str(tree['foo']['bar'].addr)
     expected = [main_name, main_addr, 120, {}, [
-        [foo_name, foo_addr, 120, {'jit': 120, 'gc:minor': 2}, [
-            [bar_name, bar_addr, 101, {'gc:minor': 2, 'jit': 101}, []]]]]]
+        [foo_name, foo_addr, 120, {'jit': 17, 'gc_minor': 2}, [
+            [bar_name, bar_addr, 101, {'gc_minor': 2, 'jit': 90}, []]]]]]
     assert data == expected

@@ -51,7 +51,7 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
         libs += extra_libs
     addrspace = AddressSpace(libs)
     filtered_profiles, addr_set, jit_frames = addrspace.filter_addr(profiles,
-        virtual_only, include_extra_info, interp_name)
+        virtual_only, interp_name)
     d = {}
     for addr in addr_set:
         name, _, _, lib = addrspace.lookup(addr)
@@ -61,7 +61,6 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
     if include_extra_info:
         d.update(addrspace.meta_data)
     s = Stats(filtered_profiles, d, jit_frames, interp_name)
-    s.addrspace = addrspace
     return s
 
 

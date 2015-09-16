@@ -21,14 +21,40 @@ class Hashable(object):
             return self.addr == other.addr
         return self.addr == other
 
+    def __ne__(self, other):
+        return not self == other
+
     def __repr__(self):
         return '<%s(%s)>' % (self.__class__.__name__, self.addr)
     
 class JitAddr(Hashable):
+    def jitted_version_of(self, addr):
+        return False
+
+class JittedVirtual(Hashable):
     pass
 
-class JittedCode(Hashable):
+class VirtualFrame(Hashable):
     pass
+
+class BaseMetaFrame(Hashable):
+    def add_to_meta(self, node):
+        node.meta[self.name] = node.meta.get(self.name, 0) + 1
+
+class GCFrame(BaseMetaFrame):
+    pass
+
+class MinorGCFrame(GCFrame):
+    name = 'gc_minor'
+
+class MajorGCFrame(GCFrame):
+    name = 'gc_major'
+
+class WarmupFrame(BaseMetaFrame):
+    name = 'jitting'
+
+class BlackholeWarmupFrame(WarmupFrame):
+    name = 'blackhole'
 
 class AddressSpace(object):
     def __init__(self, libs):
@@ -38,12 +64,11 @@ class AddressSpace(object):
         self.lib_lookup = [lib.start for lib in self.libs]
         # pypy metadata
         meta_data = {
-            'pypy_g_resume_in_blackhole': 'meta:blackhole',
-            'pypy_g_MetaInterp__compile_and_run_once': 'meta:tracing',
-            'pypy_g_ResumeGuardDescr__trace_and_compile_from_bridge': 'meta:tracing',
-            'pypy_g_IncrementalMiniMarkGC_major_collection_step': 'meta:gc:major',
-            'pypy_asm_stackwalk': 'meta:external',
-            'pypy_g_IncrementalMiniMarkGC_minor_collection': 'meta:gc:minor',
+            'pypy_g_resume_in_blackhole': BlackholeWarmupFrame,
+            'pypy_g_MetaInterp__compile_and_run_once': WarmupFrame,
+            'pypy_g_ResumeGuardDescr__trace_and_compile_from_bridge': WarmupFrame,
+            'pypy_g_IncrementalMiniMarkGC_major_collection_step': MajorGCFrame,
+            'pypy_g_IncrementalMiniMarkGC_minor_collection': MinorGCFrame,
 
         }
         self.meta_data = {}
@@ -88,13 +113,11 @@ class AddressSpace(object):
                 filtered_profiles.append((current, prof[1]))
         return filtered_profiles
 
-    def _next_profile(self, lst, jit_frames, addr_set, interp_name, extra_info,
+    def _next_profile(self, lst, jit_frames, addr_set, interp_name,
                       only_virtual):
-        # XXX this function is too complicated and too pypy specific
-        #     refactor somehow
         current = []
-        first_virtual = False
         jitting = False
+        previous_virtual = None
         for j, addr in enumerate(lst):
             orig_addr = addr
             name, addr, is_virtual, lib = self.lookup(addr)
@@ -102,43 +125,37 @@ class AddressSpace(object):
                 if orig_addr + 1 == 0x2:
                     jitting = True
                     prev_name, jit_addr, _, _ = self.lookup(lst[j - 1])
-                    current.append(JitAddr(jit_addr))
+                    # pop the previous python function if it's the same
+                    # as the next one
+                    # XXXX this is wrong, we should mark more frames
                     addr_set.add(jit_addr)
                     continue
                 elif orig_addr + 1 == 0x3:
                     assert jitting
+                    current.append(JitAddr(jit_addr))
                     jitting = False
                     continue
-            if extra_info and addr in self.meta_data and not first_virtual:
-                # XXX hack for pypy - gc:minor calling asm_stackwalk
-                #     is just gc minor
-                if self.meta_data[addr].startswith('meta:gc') and current:
-                    current = []
-                for item in current:
-                    # sanity check if we're not double-counting,
-                    # we need to change meta data setting if we are
-                    if self.meta_data.get(item, None) == self.meta_data[addr]:
-                        break # we can have blackhole in blackhole
-                        # or whatever
-                else:
-                    current.append(addr)
+            if addr in self.meta_data:
+                current.append(self.meta_data[addr](addr))
             elif is_virtual or not only_virtual:
-                first_virtual = True
                 if jitting:
-                    current.append(JittedCode(addr))
+                    cls = JittedVirtual
                 else:
-                    current.append(addr)
+                    cls = VirtualFrame
+                if previous_virtual != addr:
+                    current.append(cls(addr))
+                    previous_virtual = current[-1]
                 addr_set.add(addr)
         return current
 
-    def filter_addr(self, profiles, only_virtual=True, extra_info=False,
+    def filter_addr(self, profiles, only_virtual=True,
                     interp_name=None):
         filtered_profiles = []
         jit_frames = set()
         addr_set = set()
         for i, prof in enumerate(profiles):
             current = self._next_profile(prof[0], jit_frames, addr_set,
-                                         interp_name, extra_info, only_virtual)
+                                         interp_name, only_virtual)
             if current:
                 current.reverse()
                 filtered_profiles.append((current, prof[1], prof[2]))
