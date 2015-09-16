@@ -69,19 +69,19 @@ def test_read_simple():
     foo_name = 'py:foo:6:foo.py'
     bar_name = 'py:bar:2:foo.py'
     assert tree['foo'].name == foo_name
-    assert tree['foo'].meta['jit'] == 19
+    assert tree['foo'].meta['jit'] == 17
     assert tree['foo']['bar'].name == bar_name
-    assert tree['foo']['bar'].meta['jit'] == 62
+    assert tree['foo']['bar'].meta['jit'] == 90
+    assert tree['foo'].jitcodes == {140523638277712: 120}
     assert tree['foo']['bar'].jitcodes == {140523638275600: 27,
-                                           140523638276656: 12}
-    assert tree['foo'].jitcodes == {140523638277712: 19}
+                                           140523638276656: 3}
     assert not tree['foo']['bar'].children
-    assert tree['foo']['bar'].meta['gc:minor'] == 2
+    assert tree['foo']['bar'].meta['gc_minor'] == 2
     data = json.loads(tree.as_json())
     main_addr = str(tree.addr)
     foo_addr = str(tree['foo'].addr)
     bar_addr = str(tree['foo']['bar'].addr)
     expected = [main_name, main_addr, 120, {}, [
-        [foo_name, foo_addr, 120, {'jit': 120, 'gc:minor': 2}, [
-            [bar_name, bar_addr, 101, {'gc:minor': 2, 'jit': 101}, []]]]]]
+        [foo_name, foo_addr, 120, {'jit': 17, 'gc_minor': 2}, [
+            [bar_name, bar_addr, 101, {'gc_minor': 2, 'jit': 90}, []]]]]]
     assert data == expected

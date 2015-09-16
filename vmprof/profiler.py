@@ -61,7 +61,6 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
     if include_extra_info:
         d.update(addrspace.meta_data)
     s = Stats(filtered_profiles, d, jit_frames, interp_name)
-    s.addrspace = addrspace
     return s
 
 

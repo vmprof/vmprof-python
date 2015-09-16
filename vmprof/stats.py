@@ -1,5 +1,6 @@
 import six
-from vmprof.addrspace import JittedVirtual, JitAddr, VirtualFrame
+from vmprof.addrspace import JittedVirtual, JitAddr, VirtualFrame,\
+     BaseMetaFrame
 
 class EmptyProfileFile(Exception):
     pass
@@ -75,17 +76,24 @@ class Stats(object):
         top = Node(top_addr.addr, self._get_name(top_addr))
         top.count = len(self.profiles)
         addr = None
-        xxx
+
+        def x(i):
+            return [self._get_name(xx) for xx in self.profiles[i][0]]
+        
         for profile in self.profiles:
             cur = top
             for i in range(1, len(profile[0])):
                 addr = profile[0][i]
                 if isinstance(addr, JitAddr):
-                    cur.jitcodes[addr.addr] = cur.jitcodes.get(addr.addr, 0) + 1
                     continue # skip over the next code
                 name = self._get_name(addr)
                 if isinstance(addr, (VirtualFrame, JittedVirtual)):
                     cur = cur.add_child(addr.addr, name)
+                elif isinstance(addr, BaseMetaFrame):
+                    addr.add_to_meta(cur)
+                if i > 1 and isinstance(profile[0][i - 1], JitAddr):
+                    jit_addr = profile[0][i - 1].addr
+                    cur.jitcodes[jit_addr] = cur.jitcodes.get(jit_addr, 0) + 1
             if isinstance(addr, JittedVirtual):
                 cur.meta['jit'] = cur.meta.get('jit', 0) + 1
         # get the first "interesting" node, that is after vmprof and pypy

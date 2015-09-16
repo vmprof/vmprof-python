@@ -37,20 +37,24 @@ class JittedVirtual(Hashable):
 class VirtualFrame(Hashable):
     pass
 
-class GCFrame(Hashable):
+class BaseMetaFrame(Hashable):
+    def add_to_meta(self, node):
+        node.meta[self.name] = node.meta.get(self.name, 0) + 1
+
+class GCFrame(BaseMetaFrame):
     pass
 
 class MinorGCFrame(GCFrame):
-    pass
+    name = 'gc_minor'
 
 class MajorGCFrame(GCFrame):
-    pass
+    name = 'gc_major'
 
-class WarmupFrame(Hashable):
-    pass
+class WarmupFrame(BaseMetaFrame):
+    name = 'jitting'
 
 class BlackholeWarmupFrame(WarmupFrame):
-    pass
+    name = 'blackhole'
 
 class AddressSpace(object):
     def __init__(self, libs):
