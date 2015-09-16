@@ -3,22 +3,22 @@
 """
 
 import py
-import os
 import sys
-import pytest
 import tempfile
 import vmprof
-import time
 
-
+if sys.version_info.major == 3:
+    xrange = range
 
 def function_foo():
-    t0 = time.time()
-    while time.time() - t0 < 0.5:
-        pass # busy loop for 0.5s
+    for k in range(1000):
+        l = [a for a in xrange(100000)]
+    return l
+
 
 def function_bar():
-    function_foo()
+    return function_foo()
+
 
 foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
                                            function_foo.__code__.co_filename)
@@ -26,9 +26,8 @@ bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
 
 
-
 def test_basic():
-    tmpfile = tempfile.NamedTemporaryFile(dir=".")
+    tmpfile = tempfile.NamedTemporaryFile()
     vmprof.enable(tmpfile.fileno())
     function_foo()
     vmprof.disable()
@@ -61,12 +60,17 @@ def test_nested_call():
             bar_adr = k
             break
     names = [stats._get_name(i[0]) for i in stats.function_profile(bar_adr)[0]]
-    if len(names) == 1: # cpython
-        assert names == [foo_full_name]
-    else:
+
+    if '__pypy__' in sys.builtin_module_names:
         names.sort()
         assert names[1] == foo_full_name
         assert names[0].startswith('jit:')
+
+    else:
+        if sys.version_info.major == 2:
+            assert names == [foo_full_name]
+        else:
+            assert foo_full_name in names
 
 
 def test_multithreaded():
@@ -76,9 +80,8 @@ def test_multithreaded():
     finished = []
 
     def f():
-        t0 = time.time()
-        while time.time() - t0 < 1.5:
-            pass # busy loop
+        for k in range(1000):
+            l = [a for a in xrange(100000)]
         finished.append("foo")
 
     threads = [threading.Thread(target=f), threading.Thread(target=f)]
