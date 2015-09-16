@@ -9,6 +9,9 @@ import vmprof
 
 if sys.version_info.major == 3:
     xrange = range
+    PY3K = True
+else:
+    PY3K = False
 
 if '__pypy__' in sys.builtin_module_names:
     COUNT = 100000
@@ -78,8 +81,8 @@ def test_nested_call():
 
 
 def test_multithreaded():
-    if '__pypy__' in sys.builtin_module_names:
-        py.test.skip("not supported on pypy just yet")
+    if '__pypy__' in sys.builtin_module_names or PY3K:
+        py.test.skip("not supported on pypy and python3 just yet")
     import threading
     finished = []
 
