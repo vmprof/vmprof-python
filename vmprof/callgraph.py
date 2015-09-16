@@ -207,14 +207,24 @@ class StackFrameNode(object):
         """
         Turn the Python object into a dict which can be json-serialized
         """
+        def key(node):
+            # virtual frames first, then order by total cumulative ticks, then
+            # by name
+            total_ticks = sum(node.cumulative_ticks.values())
+            return (-node.is_virtual, -total_ticks, node.frame.name)
+        children = self.children.values()
+        children.sort(key=key)
+        children = [child.serialize() for child in children]
+        #
         return dict(frame = self.frame.name,
                     is_virtual = self.is_virtual,
                     tag = self.tag,
                     self_ticks = self.self_ticks,
                     cumulative_ticks = self.cumulative_ticks,
                     virtual_ticks = self.virtual_ticks,
-                    children = [child.serialize() for child in self.children.itervalues()]
+                    children = children,
                 )
+
 
     def get_virtuals(self):
         """

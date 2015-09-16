@@ -62,6 +62,28 @@ class TestStackFrameNode:
         assert foo1 is foo2
         pytest.raises(KeyError, "root['foobar']")
 
+    def test_serialize_children_order(self):
+        root = StackFrameNode(Frame('main', False))
+        # virtual frames first
+        a = Frame('a', True)
+        root[a] # create child
+        #
+        # then, order by cumulative ticks
+        b1 = Frame('b1', False)
+        b2 = Frame('b2', False)
+        root[b1].cumulative_ticks = {'C': 5, 'JIT': 10}
+        root[b2].cumulative_ticks = {'C': 5, 'JIT':  8}
+        #
+        # finally, order by name
+        c1 = Frame('c1', False)
+        c2 = Frame('c2', False)
+        root[c1] # create child
+        root[c2] # create child
+        #
+        data = root.serialize()
+        frames = [child['frame'] for child in data['children']]
+        assert frames == ['a', 'b1', 'b2', 'c1', 'c2']
+
 
 class TestCallGraph:
 
