@@ -37,29 +37,30 @@ def test_SymbolicStackTrace(addrspace):
     # should document it
     assert repr(stacktrace) == '[0x0000000000000124, one, three, py:main]'
 
-def test_StackFrameNode():
-    frame = Frame('foo', False)
-    root = StackFrameNode(Frame('main', False))
-    foo1 = root[frame]
-    foo2 = root[frame]
-    assert foo1 is foo2
-    assert foo1.frame == frame
+class TestStackFrameNode:
 
+    def test_getitem_frame(self):
+        frame = Frame('foo', False)
+        root = StackFrameNode(Frame('main', False))
+        foo1 = root[frame]
+        foo2 = root[frame]
+        assert foo1 is foo2
+        assert foo1.frame == frame
 
-def test_StackFrameNode_getitem_str():
-    root = StackFrameNode(Frame('main', False))
-    fooframe = Frame('foo', False)
-    foo1 = root[fooframe]
-    foo2 = root['foo']
-    assert foo1 is foo2
+    def test_getitem_str(self):
+        root = StackFrameNode(Frame('main', False))
+        fooframe = Frame('foo', False)
+        foo1 = root[fooframe]
+        foo2 = root['foo']
+        assert foo1 is foo2
 
-def test_StackFrameNode_getitem_str_virtual():
-    root = StackFrameNode(Frame('main', False))
-    fooframe = Frame('foo', True)
-    foo1 = root[fooframe]
-    foo2 = root['foo']
-    assert foo1 is foo2
-    pytest.raises(KeyError, "root['foobar']")
+    def test_getitem_str_virtual(self):
+        root = StackFrameNode(Frame('main', False))
+        fooframe = Frame('foo', True)
+        foo1 = root[fooframe]
+        foo2 = root['foo']
+        assert foo1 is foo2
+        pytest.raises(KeyError, "root['foobar']")
 
 
 class TestCallGraph:
