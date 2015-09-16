@@ -68,7 +68,7 @@ class TestAddrSpace(object):
         l2.symbols = [(1500, "pypy_g_resume_in_blackhole")]
         addr_space = AddressSpace([l, l2])
         r = addr_space.filter_addr([
-            ([1500, 101, 105], 1, 1)])
+            ([1, 1, 1, 1500, 101, 105], 1, 1)])
         assert r[0][0][0] == [VirtualFrame(105), VirtualFrame(101), BlackholeWarmupFrame(1500)]
 
     def test_tree(self):

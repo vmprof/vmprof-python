@@ -1,6 +1,7 @@
 from __future__ import print_function
 import bisect
 import six
+import warnings
 
 
 def fmtaddr(x, name=None):
@@ -45,13 +46,13 @@ class GCFrame(BaseMetaFrame):
     pass
 
 class MinorGCFrame(GCFrame):
-    name = 'gc_minor'
+    name = 'gc:minor'
 
 class MajorGCFrame(GCFrame):
-    name = 'gc_major'
+    name = 'gc:major'
 
 class WarmupFrame(BaseMetaFrame):
-    name = 'jitting'
+    name = 'tracing'
 
 class BlackholeWarmupFrame(WarmupFrame):
     name = 'blackhole'
@@ -153,12 +154,20 @@ class AddressSpace(object):
         filtered_profiles = []
         jit_frames = set()
         addr_set = set()
+        skipped = 0
         for i, prof in enumerate(profiles):
+            if len(prof[0]) < 5 or prof[0][-1] == 0x3:
+                skipped += 1
+                continue # broken profile
             current = self._next_profile(prof[0], jit_frames, addr_set,
                                          interp_name, only_virtual)
             if current:
                 current.reverse()
                 filtered_profiles.append((current, prof[1], prof[2]))
+        if len(filtered_profiles) < 10:
+            warnings.warn("there are only %d profiles, data will be unreliable" % (len(filtered_profiles),))
+        if skipped > 0.05 * len(filtered_profiles):
+            warnings.warn("there are %d broken profiles out of %d, data will be unreliable" % (skipped, len(filtered_profiles)))
         return filtered_profiles, addr_set, jit_frames
 
     def dump_stack(self, stacktrace):

@@ -107,7 +107,7 @@ We stronly suggest using the ``--web`` option that will display you a much
 nicer web interface hosted on ``vmprof.baroquesoftware.com``.
 
 If you prefer to host your own vmprof visualization server, you need the
-`vmprof-server` package.
+`vmprof-server`_ package.
 
 After ``-m vmprof`` you can specify some options:
 

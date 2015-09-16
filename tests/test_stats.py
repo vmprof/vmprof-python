@@ -57,7 +57,7 @@ def test_tree_gc():
     stats = Stats(profiles, adr_dict={1: 'foo', 100: 'gc_collect'})
     tree = stats.get_tree()
     assert tree == Node(1, 'foo', 2)
-    assert tree.meta['gc_minor'] == 1
+    assert tree.meta['gc:minor'] == 1
 
 def test_read_simple():
     lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
@@ -76,12 +76,12 @@ def test_read_simple():
     assert tree['foo']['bar'].jitcodes == {140523638275600: 27,
                                            140523638276656: 3}
     assert not tree['foo']['bar'].children
-    assert tree['foo']['bar'].meta['gc_minor'] == 2
+    assert tree['foo']['bar'].meta['gc:minor'] == 2
     data = json.loads(tree.as_json())
     main_addr = str(tree.addr)
     foo_addr = str(tree['foo'].addr)
     bar_addr = str(tree['foo']['bar'].addr)
     expected = [main_name, main_addr, 120, {}, [
-        [foo_name, foo_addr, 120, {'jit': 17, 'gc_minor': 2}, [
-            [bar_name, bar_addr, 101, {'gc_minor': 2, 'jit': 90}, []]]]]]
+        [foo_name, foo_addr, 120, {'jit': 17, 'gc:minor': 2}, [
+            [bar_name, bar_addr, 101, {'gc:minor': 2, 'jit': 90}, []]]]]]
     assert data == expected
