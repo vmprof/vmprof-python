@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from vmprof.reader import read_ranges, read_prof, LibraryData
+from vmprof.reader import read_ranges, read_prof, LibraryData, read_jit_symbols_maybe
 from vmprof.addrspace import AddressSpace
 
 RANGES = """0400000-005a1000 r-xp 00000000 08:01 5389781                            /home/fijal/.virtualenvs/cffi3/bin/python
@@ -83,3 +83,18 @@ def test_read_prof(here):
     name, start_addr, is_virtual, _ = addrspace.lookup(sym_dict['py:<module>:2:x.py'])
     assert name == 'py:<module>:2:x.py'
     assert is_virtual
+
+def test_read_jit_symbols(tmpdir):
+    import json
+    f = tmpdir.join('my.jitinfo')
+    f.write("""
+        {"name": "loop #1", "asmstart": 100, "asmend": 200}
+        {"name": "loop #2", "asmstart": 400, "asmend": 500}
+    """.strip())
+    #
+    lib = read_jit_symbols_maybe(str(f))
+    assert lib.lookup(150) == (100, "jit:loop #1")
+    assert lib.lookup(450) == (400, "jit:loop #2")
+    pytest.raises(KeyError, "lib.lookup(50)")
+    pytest.raises(KeyError, "lib.lookup(300)")
+    pytest.raises(KeyError, "lib.lookup(550)")

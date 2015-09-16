@@ -1,9 +1,10 @@
-import vmprof
+import sys
 import tempfile
 
+import vmprof
 from vmprof.addrspace import AddressSpace
 from vmprof.stats import Stats
-from vmprof.reader import read_prof, LibraryData
+from vmprof.reader import read_prof, LibraryData, read_jit_symbols_maybe
 
 
 class VMProfError(Exception):
@@ -24,7 +25,8 @@ class ProfilerContext(object):
 
 
 def read_profile(prof_filename, extra_libs=None, virtual_only=True,
-                 include_extra_info=True, lib_cache=None):
+                 include_extra_info=True, lib_cache=None,
+                 load_jit_symbols=False):
     if lib_cache is None:
         lib_cache = read_profile.lib_cache
     
@@ -52,10 +54,19 @@ def read_profile(prof_filename, extra_libs=None, virtual_only=True,
     if extra_libs:
         libs += extra_libs
     addrspace = AddressSpace(libs)
-
+    #
+    if load_jit_symbols:
+        jitinfo_filename = prof_filename + '.jitinfo'
+        JIT_symbols = read_jit_symbols_maybe(jitinfo_filename)
+        if interp_name == 'pypy' and JIT_symbols is None:
+            print >> sys.stderr, ('WARNING: cannot read JIT symbols from %s' %
+                                  jitinfo_filename)
+        addrspace.JIT_symbols = JIT_symbols
+    #
     return profiles, interp_name, addrspace
 
 read_profile.lib_cache = {}
+
 
 def read_stats(prof_filename, extra_libs=None,
                virtual_only=True, include_extra_info=True,
@@ -98,4 +109,3 @@ class Profiler(object):
         res = read_stats(self.ctx.tmpfile.name)
         self.ctx = None
         return res
-

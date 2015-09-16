@@ -3,6 +3,8 @@ import re
 import struct
 import subprocess
 import sys
+import os
+import json
 
 
 PY3 = sys.version_info[0] >= 3
@@ -194,3 +196,25 @@ def read_prof(fileobj, virtual_ips_only=False): #
     if virtual_ips_only:
         return virtual_ips
     return period, profiles, virtual_ips, symmap, interp_name
+
+
+def read_jit_symbols_maybe(filename):
+    """
+    Load the JIT info file produced by the JIT hook installed by vmprof.enable
+    """
+    if not os.path.exists(filename):
+        return None
+    #
+    with open(filename) as f:
+        loops = map(json.loads, f)
+    symbols = []
+    for loop in loops:
+        name = 'jit:' + loop['name']
+        symbols.append((loop['asmstart'], name))
+        symbols.append((loop['asmend']+1, None))
+    #
+    symbols.sort()
+    start, _ = symbols[0]
+    end, _ = symbols[-1]
+    JIT_symbols = LibraryData('<JIT>', start, end, is_virtual=False, symbols=symbols)
+    return JIT_symbols
