@@ -2,7 +2,7 @@ import pytest
 from cStringIO import StringIO
 import textwrap
 from vmprof.callgraph import (TickCounter, SymbolicStackTrace, Frame, CallGraph,
-                              StackFrameNode)
+                              StackFrameNode, remove_jit_hack)
 from vmprof.reader import LibraryData
 from vmprof.addrspace import AddressSpace
 
@@ -286,3 +286,15 @@ class TestCallGraph:
                     py:func: self{} cumulative{C: 2} virtual{C: 2}
                       three: self{C: 2} cumulative{C: 2}
         """)
+
+    def test_remove_jit_hack(self):
+        START = 0x02
+        END = 0x01
+        stacktrace = [10, 20,
+                      START, 20, 30, 40, END,
+                      50, 60,
+                      START, 60, 70, 80, END,
+                      90]
+        stacktrace = remove_jit_hack(stacktrace)
+        assert stacktrace == [10, 20, 30, 40, 50, 60, 70, 80, 90]
+

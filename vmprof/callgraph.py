@@ -13,8 +13,6 @@ class TickCounter(Counter):
         return '%s{%s}' % (label, ', '.join(tags))
 
 
-JITSTACK_START = 0x01
-JITSTACK_END = 0x02
 
 class SymbolicStackTrace(object):
 
@@ -36,6 +34,65 @@ class SymbolicStackTrace(object):
         return len(self.frames)
 
 
+def remove_jit_hack(stacktrace):
+    # The current version of vmprof uses an evil hack to mark virtual JIT
+    # frames, surrounding them with two dummy addresses (JITSTACK_START and
+    # JITSTACK_END). Suppose to have a function "a" containing a loop, and
+    # inside the loop we call "b" which calls "c"; the stacktraces look like
+    # this (bottom-to-top):
+    #
+    #     py:a
+    #     call_assembler
+    #     JITSTACK_START  # sentinel
+    #     py:a            # duplicate
+    #     py:b
+    #     py:c
+    #     JITSTACK_END
+    #     jit:loop#1
+    #
+    # Note that py:a is specified twice: this is because the JIT codemap
+    # correctly maps jit:loop#1 to "a->b->c", but this is wrong because there
+    # should be only ONE python-level frame corresponding to "a"; entering the
+    # JIT does not create a new python-level frame, it just "reuses" the
+    # existing one.
+    #
+    # Note also that _vmprof emits stacktraces top-to-bottom, which means that
+    # JITSTACK_START and JITSTACK_END are reversed (that's why START==0x02 and
+    # END==0x01)
+    #
+    # This function removes the sentinels and the spurious, duplicate virtual
+    # frame; the stacktrace above is translated to this:
+    #
+    #    py:a
+    #    call_assembler
+    #    py:b
+    #    py:c
+    #    jit:loop#1
+    #
+    # I claim that this hack is completely unnecessary, as we have better ways
+    # to determine whether a particular address is JITted or not. I think that
+    # we should just get rid of it at the _vmprof level, and directly
+    # generated "non-hacked" stacktraces like the one above. In the meantime,
+    # we manually remove the hack using this function.
+    #
+    JITSTACK_START = 0x02
+    JITSTACK_END = 0x01
+    #
+    new_stacktrace = []
+    remove_next = False
+    for addr in stacktrace:
+        if addr == JITSTACK_START:
+            remove_next = True
+            continue
+        elif addr == JITSTACK_END:
+            continue
+        elif remove_next:
+            remove_next = False
+        else:
+            new_stacktrace.append(addr)
+    return new_stacktrace
+
+
 class CallGraph(object):
 
     def __init__(self):
@@ -50,7 +107,7 @@ class CallGraph(object):
             # frame to the bottom. add_stacktrace expects them in the opposite
             # order, so we need to reverse it first
             stacktrace.reverse()
-            #stacktrace = remove_jit_hack_2(stacktrace)
+            stacktrace = remove_jit_hack(stacktrace)
             stacktrace = SymbolicStackTrace(stacktrace, addrspace)
             callgraph.add_stacktrace(stacktrace, count)
         return callgraph
