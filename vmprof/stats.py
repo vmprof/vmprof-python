@@ -98,11 +98,19 @@ class Stats(object):
                 if i > 1 and isinstance(profile[0][i - 1], JitAddr):
                     jit_addr = profile[0][i - 1].addr
                     cur.jitcodes[jit_addr] = cur.jitcodes.get(jit_addr, 0) + 1
+            warmup = False
             for k in range(last_virtual_pos + 1, len(profile[0])):
                 addr = profile[0][k]
                 if isinstance(addr, BaseMetaFrame):
+                    # don't count tracing twice and only count it at the bottom
+                    if addr.name in ('tracing', 'blackhole'):
+                        if warmup:
+                            continue
+                        warmup = True
                     addr.add_to_meta(cur)
-            if isinstance(last_virtual, JittedVirtual):
+            # count if we're jitted - if we're warming up, we don't
+            # count this frame as jitted (to avoid > 100% claims)
+            if isinstance(last_virtual, JittedVirtual) and not warmup:
                 cur.meta['jit'] = cur.meta.get('jit', 0) + 1
         # get the first "interesting" node, that is after vmprof and pypy
         # mess
