@@ -10,9 +10,14 @@ import vmprof
 if sys.version_info.major == 3:
     xrange = range
 
+if '__pypy__' in sys.builtin_module_names:
+    COUNT = 100000
+else:
+    COUNT = 10000
+    
 def function_foo():
     for k in range(1000):
-        l = [a for a in xrange(100000)]
+        l = [a for a in xrange(COUNT)]
     return l
 
 
@@ -63,9 +68,8 @@ def test_nested_call():
 
     if '__pypy__' in sys.builtin_module_names:
         names.sort()
-        assert names[1] == foo_full_name
-        assert names[0].startswith('jit:')
-
+        assert len([x for x in names if str(x).startswith('jit:')]) > 0
+        assert len([x for x in names if x == foo_full_name]) == 1
     else:
         if sys.version_info.major == 2:
             assert names == [foo_full_name]
@@ -81,7 +85,7 @@ def test_multithreaded():
 
     def f():
         for k in range(1000):
-            l = [a for a in xrange(100000)]
+            l = [a for a in xrange(COUNT)]
         finished.append("foo")
 
     threads = [threading.Thread(target=f), threading.Thread(target=f)]
