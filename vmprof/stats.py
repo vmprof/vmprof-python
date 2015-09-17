@@ -61,10 +61,9 @@ class Stats(object):
         result = sorted(result.items(), key=lambda a: a[1])
         return result, total
 
-    def get_tree(self):
-        # fine the first non-empty profile
+    def get_top(self, profiles):
         top_addr = 0
-        for prof in self.profiles:
+        for prof in profiles:
             for x in prof[0]:
                 if isinstance(x, VirtualFrame):
                     top_addr = x
@@ -75,8 +74,13 @@ class Stats(object):
             raise EmptyProfileFile()
         top = Node(top_addr.addr, self._get_name(top_addr))
         top.count = len(self.profiles)
+        return top
+
+    def get_tree(self):
+        # fine the first non-empty profile
+
+        top = self.get_top(self.profiles)
         addr = None
-        
         for profile in self.profiles:
             cur = top
             last_virtual = None
@@ -95,6 +99,7 @@ class Stats(object):
                 if i > 1 and isinstance(profile[0][i - 1], JitAddr):
                     jit_addr = profile[0][i - 1].addr
                     cur.jitcodes[jit_addr] = cur.jitcodes.get(jit_addr, 0) + 1
+
             warmup = False
             for k in range(last_virtual_pos + 1, len(profile[0])):
                 addr = profile[0][k]
