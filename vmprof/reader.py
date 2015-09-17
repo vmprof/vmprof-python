@@ -200,7 +200,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
 
 def read_jit_symbols_maybe(filename):
     """
-    Load the JIT info file produced by the JIT hook installed by vmprof.enable
+    Load the JIT info file produced by vmprof.pypyhook.JITInfoWriter
     """
     if not os.path.exists(filename):
         return None

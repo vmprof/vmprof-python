@@ -51,7 +51,8 @@ def main():
     else:
         prof_file = tempfile.NamedTemporaryFile()
 
-    vmprof.enable(prof_file.fileno(), args.period)
+    vmprof.enable(prof_file.fileno(), args.period,
+                  filename=prof_file.name)
 
     try:
         sys.argv = [args.program] + args.args

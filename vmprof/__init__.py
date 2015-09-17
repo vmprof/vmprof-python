@@ -25,7 +25,7 @@ if not IS_PYPY:
     _virtual_ips_so_far = None
     _prof_fileno = -1
 
-    def enable(fileno, period=DEFAULT_PERIOD):
+    def enable(fileno, period=DEFAULT_PERIOD, filename=None):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         global _prof_fileno
@@ -61,7 +61,11 @@ if not IS_PYPY:
         _prof_fileno = -1
 
 else:
-    def enable(fileno, period=DEFAULT_PERIOD, warn=True):
+    from vmprof.pypyhook import JITInfoWriter
+    _jit_info_writer = None
+    
+    def enable(fileno, period=DEFAULT_PERIOD, warn=True, filename=None):
+        global _jit_info_writer
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         if warn and sys.pypy_version_info[:3] <= (2, 6, 0):
@@ -71,7 +75,18 @@ else:
             raise Exception("PyPy 2.6.0 and below has a bug in vmprof where "
                             "fork() would disable your profiling. "
                             "Pass warn=False if you know what you're doing")
+        #
+        # ideally, we would like to record JIT info directly inside the vmprof
+        # logfile, but to do so we need support from _vmprof which we don't
+        # have right now. Even more ideally, the JIT hook to record JIT
+        # boundaries should be written in RPython and built-in in _vmprof. In
+        # the meantime, we do it at app-level and by writing info to an
+        # external file. Ugly but effective.
+        jit_info_filename = filename + '.jitinfo'
+        _jit_info_writer = JITInfoWriter(jit_info_filename)
+        _jit_info_writer.enable()
         _vmprof.enable(fileno, period)
 
     def disable():
         _vmprof.disable()
+        _jit_info_writer.disable()
