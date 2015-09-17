@@ -39,8 +39,8 @@ class VirtualFrame(Hashable):
     pass
 
 class BaseMetaFrame(Hashable):
-    def add_to_meta(self, node):
-        node.meta[self.name] = node.meta.get(self.name, 0) + 1
+    def add_to_meta(self, meta):
+        meta[self.name] = meta.get(self.name, 0) + 1
 
 class GCFrame(BaseMetaFrame):
     pass
