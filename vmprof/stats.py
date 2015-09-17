@@ -117,7 +117,7 @@ class Stats(object):
 
             meta = self.get_meta_from_tail(profile[0], last_virtual_pos + 1,
                                            last_virtual)
-            for k, v in meta.iteritems():
+            for k, v in meta.items():
                 cur.meta[k] = cur.meta.get(k, 0) + v
         # get the first "interesting" node, that is after vmprof and pypy
         # mess
