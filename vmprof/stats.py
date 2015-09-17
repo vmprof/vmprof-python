@@ -76,9 +76,6 @@ class Stats(object):
         top = Node(top_addr.addr, self._get_name(top_addr))
         top.count = len(self.profiles)
         addr = None
-
-        def x(i):
-            return [self._get_name(xx) for xx in self.profiles[i][0]]
         
         for profile in self.profiles:
             cur = top
