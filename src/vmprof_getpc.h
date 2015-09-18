@@ -111,7 +111,7 @@ struct CallUnrollInfo {
 
 // -- Special case 1: linux x86, for which we have CallUnrollInfo
 #if defined(__linux) && defined(__i386) && defined(__GNUC__)
-static const CallUnrollInfo callunrollinfo[] = {
+static const struct CallUnrollInfo callunrollinfo[] = {
   // Entry to a function:  push %ebp;  mov  %esp,%ebp
   // Top-of-stack contains the caller IP.
   { 0,
@@ -139,8 +139,9 @@ void* GetPC(ucontext_t *signal_ucontext) {
   const int esp = signal_ucontext->uc_mcontext.gregs[REG_ESP];
   if ((eip & 0xffff0000) != 0 && (~eip & 0xffff0000) != 0 &&
       (esp & 0xffff0000) != 0) {
-    char* eip_char = reinterpret_cast<char*>(eip);
-    for (int i = 0; i < sizeof(callunrollinfo)/sizeof(*callunrollinfo); ++i) {
+    char* eip_char = (char*)(eip);
+    int i;
+    for (i = 0; i < sizeof(callunrollinfo)/sizeof(*callunrollinfo); ++i) {
       if (!memcmp(eip_char + callunrollinfo[i].pc_offset,
                   callunrollinfo[i].ins, callunrollinfo[i].ins_size)) {
         // We have a match.
