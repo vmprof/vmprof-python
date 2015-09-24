@@ -54,7 +54,7 @@ def read_and_upload_v2(filename, web_url, web_auth):
     profiles, interp_name, addrspace = vmprof.read_profile(filename, virtual_only=False,
                                                            include_extra_info=False,
                                                            load_jit_symbols=True)
-    callgraph = CallGraph.from_profiles(addrspace, profiles)
+    callgraph = CallGraph.from_profiles(interp_name, addrspace, profiles)
     res = upload_v2(interp_name, callgraph, filename, [], web_url, web_auth)
     return res
 

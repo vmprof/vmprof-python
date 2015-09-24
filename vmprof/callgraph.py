@@ -1,7 +1,8 @@
 import sys
 from collections import namedtuple, Counter
+from vmprof.tagger import rpython_tagger, cpython_tagger, tagger_for_tests
 
-Frame = namedtuple('Frame', ['name', 'is_virtual'])
+Frame = namedtuple('Frame', ['name', 'addr', 'lib', 'is_virtual'])
 
 class TickCounter(Counter):
 
@@ -20,7 +21,7 @@ class SymbolicStackTrace(object):
         self.frames = []
         for addr in stacktrace:
             name, addr, is_virtual, lib = addrspace.lookup(addr)
-            frame = Frame(name, is_virtual)
+            frame = Frame(name, addr, lib, is_virtual)
             self.frames.append(frame)
 
     def __repr__(self):
@@ -95,12 +96,18 @@ def remove_jit_hack(stacktrace):
 
 class CallGraph(object):
 
-    def __init__(self):
-        self.root = StackFrameNode(Frame('<all>', False))
+    def __init__(self, interp_name):
+        if interp_name == 'pypy':
+            self.tagger = rpython_tagger
+        elif interp_name == 'test':
+            self.tagger = tagger_for_tests
+        else:
+            self.tagger = cpython_tagger
+        self.root = StackFrameNode(Frame('<all>', 0, None, is_virtual=False))
 
     @classmethod
-    def from_profiles(cls, addrspace, profiles):
-        callgraph = cls()
+    def from_profiles(cls, interp_name, addrspace, profiles):
+        callgraph = cls(interp_name)
         for profile in profiles:
             stacktrace, count, _ = profile
             # _vmprof produces stacktraces which are ordered from the top-most
@@ -113,7 +120,7 @@ class CallGraph(object):
         return callgraph
 
     def add_stacktrace(self, stacktrace, count):
-        tag = get_tag(stacktrace[-1])
+        tag = self.tagger(stacktrace)
         #
         topmost_virtual_node = None
         node = self.root
@@ -126,6 +133,7 @@ class CallGraph(object):
         # now node is the topmost node, fix its values
         node.self_ticks[tag] += count
         node.cumulative_ticks[tag] += count
+        node.tag = tag
         if topmost_virtual_node:
             topmost_virtual_node.virtual_ticks[tag] += count
 
@@ -137,15 +145,6 @@ class CallGraph(object):
         for vchild in self.root.get_virtuals():
             vroot.children[vchild.frame] = vchild
         return vroot
-
-def get_tag(frame):
-    # XXX this is a hack only for tests
-    if frame.is_virtual:
-        return 'Python'
-    elif frame.name.startswith('jit:'):
-        return 'JIT'
-    else:
-        return 'C'
 
 
 class StackFrameNode(object):
@@ -206,7 +205,7 @@ class StackFrameNode(object):
     def __init__(self, frame):
         self.frame = frame
         self.children = {}
-        self.tag = get_tag(frame)
+        self.tag = None
         #
         self.self_ticks = TickCounter()
         self.cumulative_ticks = TickCounter()
