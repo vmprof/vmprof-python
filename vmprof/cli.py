@@ -40,7 +40,7 @@ def build_argparser():
     parser.add_argument(
         '--web-url',
         metavar='url',
-        default='vmprof.baroquesoftware.com',
+        default='http://vmprof.com',
         help='Provide URL instead of the default vmprof.baroquesoftware.com)'
     )
 
@@ -69,7 +69,6 @@ def build_argparser():
 def parse_args(argv):
     parser = build_argparser()
     args = parser.parse_args(argv)
-
     if args.config:
         ini_options = [
             ('period', float),

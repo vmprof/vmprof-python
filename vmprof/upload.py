@@ -5,6 +5,7 @@ import click
 
 import vmprof
 
+
 def upload(stats, name, argv, host, auth):
 
     data = {
@@ -34,10 +35,9 @@ def upload(stats, name, argv, host, auth):
     return "http://" + host + "/#/" + val[1:-1]
 
 
-
 @click.command()
 @click.argument('profile', type=str)
-@click.option('--web-url', type=str, default='vmprof.baroquesoftware.com',
+@click.option('--web-url', type=str, default='http://vmprof.com',
               help='Target host')
 @click.option('--web-auth', type=str, default=None,
               help='Authtoken for your acount on the server')
