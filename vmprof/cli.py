@@ -41,7 +41,7 @@ def build_argparser():
         '--web-url',
         metavar='url',
         default='http://vmprof.com',
-        help='Provide URL instead of the default vmprof.baroquesoftware.com)'
+        help='Provide URL instead of the default vmprof.com)'
     )
 
     parser.add_argument(
@@ -54,7 +54,7 @@ def build_argparser():
     output_mode_args.add_argument(
         '--web',
         action='store_true',
-        help='Upload profiling stats to a remote server (defaults to vmprof.baroquesoftware.com)'
+        help='Upload profiling stats to a remote server (defaults to vmprof.com)'
     )
     output_mode_args.add_argument(
         '--output', '-o',

@@ -104,7 +104,7 @@ to profile an example ``x.py`` program::
 .. _`PyPy`: http://pypy.org
 
 We stronly suggest using the ``--web`` option that will display you a much
-nicer web interface hosted on ``vmprof.baroquesoftware.com``.
+nicer web interface hosted on ``vmprof.com``.
 
 If you prefer to host your own vmprof visualization server, you need the
 `vmprof-server`_ package.
@@ -115,7 +115,7 @@ After ``-m vmprof`` you can specify some options:
   viewed on our `server`_.
 
 * ``--web-url`` - the URL to upload the profiling info as JSON. The default is
-  ``vmprof.baroquesoftware.com``
+  ``vmprof.com``
 
 * ``--web-auth`` - auth token for user name support in the server.
 
@@ -133,12 +133,12 @@ After ``-m vmprof`` you can specify some options:
 
 Example `config.ini` file::
 
-  web-url = vmprof.baroquesoftware.com
+  web-url = vmprof.com
   web-auth = ffb7d4bee2d6436bbe97e4d191bf7d23f85dfeb2
   period = 0.1
 
 .. _`vmprof-server`: https://github.com/vmprof/vmprof-server
-.. _`server`: http://vmprof.baroquesoftware.com
+.. _`server`: http://vmprof.com
 
 
 API
