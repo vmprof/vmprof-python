@@ -32,7 +32,7 @@ def upload_stats(stats, args):
     auth = args.web_auth
     #
     sys.stderr.write("Compiling and uploading to %s...\n" % (args.web_url,))
-    res = vmprof.upload.upload(stats, name, argv, host, auth)
+    res = vmprof.upload.upload_v1(stats, name, argv, host, auth)
     sys.stderr.write("Available at:\n%s\n" % res)
     
 
