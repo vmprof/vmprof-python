@@ -13,7 +13,7 @@ class ProfilerContext(object):
     done = False
 
     def __init__(self):
-        self.tmpfile = tempfile.NamedTemporaryFile(dir=".")
+        self.tmpfile = tempfile.NamedTemporaryFile()
 
     def __enter__(self):
         vmprof.enable(self.tmpfile.fileno(), 0.001)

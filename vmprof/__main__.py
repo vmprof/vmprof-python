@@ -24,6 +24,7 @@ def show_stats(filename, output_mode, args):
     elif output_mode == OUTPUT_WEB:
         upload_stats(stats, args)
 
+
 def upload_stats(stats, args):
     import vmprof.upload
     name = args.program
@@ -34,7 +35,7 @@ def upload_stats(stats, args):
     sys.stderr.write("Compiling and uploading to %s...\n" % (args.web_url,))
     res = vmprof.upload.upload(stats, name, argv, host, auth)
     sys.stderr.write("Available at:\n%s\n" % res)
-    
+
 
 def main():
     args = vmprof.cli.parse_args(sys.argv[1:])
@@ -49,7 +50,7 @@ def main():
     if output_mode == OUTPUT_FILE:
         prof_file = args.output
     else:
-        prof_file = tempfile.NamedTemporaryFile(dir=".")
+        prof_file = tempfile.NamedTemporaryFile()
 
     vmprof.enable(prof_file.fileno(), args.period)
 
