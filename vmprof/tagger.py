@@ -48,11 +48,10 @@ def rpython_tagger(stacktrace):
     tag = 'C'
     for frame in stacktrace:
         newtag = tag_frame(frame)
-        if newtag == 'WARMUP':
-            # as soon as we encounter a WARMUP frame, start the propagation
-            tag = newtag
-        elif frame.is_virtual or newtag == 'JIT':
-            # stop the propagation
+        if frame.is_virtual or newtag in ('JIT', 'WARMUP'):
+            # these three cases "win" over whatever tag we were possibly
+            # propagating. Note that GC is not listed (because WARMUP "win"
+            # over GC).
             tag = newtag
         elif is_warmup(tag) or is_gc(tag):
             # propagate the previous tag
