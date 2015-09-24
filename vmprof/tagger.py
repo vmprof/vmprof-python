@@ -1,3 +1,7 @@
+import re
+
+RE_PART = re.compile(r'\.part\.[0-9]+$') # matches things like .part.1 in function names
+
 RPYTHON_TAGS = {
     'pypy_g_resume_in_blackhole': 'WARMUP',
     'pypy_g_MetaInterp__compile_and_run_once': 'WARMUP',
@@ -10,7 +14,15 @@ RPYTHON_TAGS = {
 def tag_frame(frame):
     if frame.lib and frame.lib.name == '<JIT>':
         return 'JIT'
-    return RPYTHON_TAGS.get(frame.name, 'C')
+    name = frame.name
+    name = RE_PART.sub('', name) # remove the .part.* suffix
+    return RPYTHON_TAGS.get(name, 'C')
+
+def is_gc(tag):
+    return tag.startswith('GC:')
+
+def is_warmup(tag):
+    return tag == 'WARMUP'
 
 def rpython_tagger(stacktrace):
     # the logic to determine the tag for a specific stacktrace is as follow:
@@ -22,27 +34,31 @@ def rpython_tagger(stacktrace):
     #   - if the frame is one of the special funcs listed in RPYTHON_TAGS, it
     #     uses the corresponding tag
     #
-    #   - "WARMUP" frames propagates towards the top: i.e., the stacktrace
+    #   - GC and WARMUP frames propagates towards the top: i.e., the stacktrace
     #     [pypy_g_resume_in_blackhole, f, g] it is tagged as "WARMUP" because
     #     "g" is above pypy_g_resume_in_blackhole
     #
-    #   - "WARMUP" frames stop to propagate as soon as we encounter a new JIT
+    #   - propagation stops as soon as we encounter a new JIT
     #     or virtual frame; i.e., [pypy_g_resume_in_blackhole, f, jit:loop1] -
     #     is tagged as "JIT", even if there is a "WARMUP" frame below
     #
-    # Although this logic might seem complicate, it is needed to count GC
-    # collections triggered by blackhole to be counted as WARMUP instead of GC
+    #   - WARMUP tags "win" over GC tags: i.e., if there is a GC frame above a
+    #     WARMUP frame, the stacktrace is still tagged as WARMUP
     #
     tag = 'C'
     for frame in stacktrace:
         newtag = tag_frame(frame)
-        if frame.is_virtual or newtag == 'JIT':
-            # reset the potential "WARMUP" status
+        if newtag == 'WARMUP':
+            # as soon as we encounter a WARMUP frame, start the propagation
             tag = newtag
-        elif tag == 'WARMUP':
-            # all the frames below a WARMUP frame count as warmup as well
+        elif frame.is_virtual or newtag == 'JIT':
+            # stop the propagation
+            tag = newtag
+        elif is_warmup(tag) or is_gc(tag):
+            # propagate the previous tag
             pass
         else:
+            # normal case
             tag = newtag
     return tag
 

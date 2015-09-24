@@ -44,7 +44,7 @@ class TestRPythonTagger:
         assert tag == 'GC:MAJOR'
         #
         stacktrace = self.stack('main', 'f',
-                                'pypy_g_IncrementalMiniMarkGC_minor_collection')
+                                'pypy_g_IncrementalMiniMarkGC_minor_collection.part.1')
         tag = rpython_tagger(stacktrace)
         assert tag == 'GC:MINOR'
 
@@ -52,6 +52,13 @@ class TestRPythonTagger:
         stacktrace = self.stack('main', 'f', 'pypy_g_resume_in_blackhole')
         tag = rpython_tagger(stacktrace)
         assert tag == 'WARMUP'
+
+    def test_gc_propagate(self):
+        stacktrace = self.stack('main', 'f',
+                                'pypy_g_IncrementalMiniMarkGC_major_collection_step',
+                                'brk')
+        tag = rpython_tagger(stacktrace)
+        assert tag == 'GC:MAJOR'
 
     def test_warmup_propagate(self):
         # the frames g and h still counts as warmup, as they are above a warmup frame
@@ -63,6 +70,13 @@ class TestRPythonTagger:
         stacktrace = self.stack('main', 'f',
                                 'pypy_g_resume_in_blackhole',
                                 'pypy_g_IncrementalMiniMarkGC_minor_collection')
+        tag = rpython_tagger(stacktrace)
+        assert tag == 'WARMUP'
+        #
+        # a WARMUP on top of GC counts as WARMUP ("WARMUP wins")
+        stacktrace = self.stack('main', 'f',
+                                'pypy_g_IncrementalMiniMarkGC_minor_collection',
+                                'pypy_g_resume_in_blackhole')
         tag = rpython_tagger(stacktrace)
         assert tag == 'WARMUP'
 
