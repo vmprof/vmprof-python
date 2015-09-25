@@ -108,13 +108,17 @@ class RPythonTagger(Tagger):
 
     def tag_single_frame(self, curtag, frame):
         newtag = self._tag_frame(frame)
-        if frame.is_virtual or newtag in ('JIT', 'WARMUP'):
-            # reset the tag, stopping the propagation of oldtag. Note that GC is
-            # not listed (because WARMUP "win" over GC).
+        if frame.is_virtual or newtag == 'JIT':
+            # reset the tag, stopping the propagation of oldtag
             return newtag
-        elif self.is_warmup(curtag) or self.is_gc(curtag):
-            # propagate the current tag
-            return curtag
+        elif self.is_warmup(curtag):
+            return 'WARMUP'
+        elif self.is_gc(curtag):
+            # GC frames during blackholing count as WARMUP (WARMUP "wins" over GC)
+            if self.is_warmup(newtag):
+                return 'WARMUP'
+            else:
+                return curtag
         else:
             # normal case
             return newtag
