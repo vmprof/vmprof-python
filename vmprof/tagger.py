@@ -24,10 +24,8 @@ def is_gc(tag):
 def is_warmup(tag):
     return tag == 'WARMUP'
 
-def rpython_tagger(stacktrace):
+def rpython_tagger(curtag, frame):
     # the logic to determine the tag for a specific stacktrace is as follow:
-    #
-    #   - by default, the tag is "C"
     #
     #   - if the frame is inside the special <JIT> lib, the tag is "JIT"
     #
@@ -45,32 +43,27 @@ def rpython_tagger(stacktrace):
     #   - WARMUP tags "win" over GC tags: i.e., if there is a GC frame above a
     #     WARMUP frame, the stacktrace is still tagged as WARMUP
     #
-    tag = 'C'
-    for frame in stacktrace:
-        newtag = tag_frame(frame)
-        if frame.is_virtual or newtag in ('JIT', 'WARMUP'):
-            # these three cases "win" over whatever tag we were possibly
-            # propagating. Note that GC is not listed (because WARMUP "win"
-            # over GC).
-            tag = newtag
-        elif is_warmup(tag) or is_gc(tag):
-            # propagate the previous tag
-            pass
-        else:
-            # normal case
-            tag = newtag
-    return tag
+    newtag = tag_frame(frame)
+    if frame.is_virtual or newtag in ('JIT', 'WARMUP'):
+        # reset the tag, stopping the propagation of oldtag. Note that GC is
+        # not listed (because WARMUP "win" over GC).
+        return newtag
+    elif is_warmup(curtag) or is_gc(curtag):
+        # propagate the current tag
+        return curtag
+    else:
+        # normal case
+        return newtag
 
 
-def cpython_tagger(stacktrace):
+def cpython_tagger(curtag, frame):
     return 'C'
 
 
-def tagger_for_tests(stacktrace):
+def tagger_for_tests(curtag, frame):
     """
     Tag frames whose name starts with jit: as "JIT"
     """
-    topmost = stacktrace[-1]
-    if topmost.name.startswith('jit:'):
+    if frame.name.startswith('jit:'):
         return 'JIT'
     return 'C'

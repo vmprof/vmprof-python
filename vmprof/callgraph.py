@@ -119,8 +119,14 @@ class CallGraph(object):
             callgraph.add_stacktrace(stacktrace, count)
         return callgraph
 
+    def tag_stacktrace(self, stacktrace):
+        tag = 'C'
+        for frame in stacktrace:
+            tag = self.tagger(tag, frame)
+        return tag
+
     def add_stacktrace(self, stacktrace, count):
-        tag = self.tagger(stacktrace)
+        tag = self.tag_stacktrace(stacktrace)
         #
         topmost_virtual_node = None
         node = self.root
