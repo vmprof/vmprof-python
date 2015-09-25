@@ -76,21 +76,29 @@ def remove_jit_hack(stacktrace):
     # generated "non-hacked" stacktraces like the one above. In the meantime,
     # we manually remove the hack using this function.
     #
+    def is_virtual(addr):
+        return addr & 0x7000000000000000
+    
     JITSTACK_START = 0x02
     JITSTACK_END = 0x01
     #
     new_stacktrace = []
     remove_next = False
+    last_virtual = None
     for addr in stacktrace:
         if addr == JITSTACK_START:
             remove_next = True
             continue
         elif addr == JITSTACK_END:
             continue
-        elif remove_next:
+        elif remove_next and addr == last_virtual:
+            # remove this frame
             remove_next = False
         else:
             new_stacktrace.append(addr)
+            remove_next = False
+            if is_virtual(addr):
+                last_virtual = addr
     return new_stacktrace
 
 

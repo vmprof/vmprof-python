@@ -300,11 +300,24 @@ class TestCallGraph:
     def test_remove_jit_hack(self):
         START = 0x02
         END = 0x01
-        stacktrace = [10, 20,
-                      START, 20, 30, 40, END,
-                      50, 60,
-                      START, 60, 70, 80, END,
+        py_main = 0x7000000000000001
+        py_foo = 0x7000000000000002
+        stacktrace = [10,
+                      py_main,
+                      20,
+                      START,
+                      py_main, # this is removed
+                      30,
+                      40,
+                      END,
+                      50,
+                      py_main,
+                      60,
+                      START,
+                      py_foo,  # this is not removed
+                      70,
+                      80,
+                      END,
                       90]
         stacktrace = remove_jit_hack(stacktrace)
-        assert stacktrace == [10, 20, 30, 40, 50, 60, 70, 80, 90]
-
+        assert stacktrace == [10, py_main, 20, 30, 40, 50, py_main, 60, py_foo, 70, 80, 90]
