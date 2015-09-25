@@ -88,9 +88,10 @@ class RPythonTagger(Tagger):
         'pypy_g_resume_in_blackhole': 'WARMUP',
         'pypy_g_MetaInterp__compile_and_run_once': 'WARMUP',
         'pypy_g_ResumeGuardDescr__trace_and_compile_from_bridge': 'WARMUP',
+        #
+        'pypy_g_IncrementalMiniMarkGC_gc_step_until': 'GC:MAJOR',
         'pypy_g_IncrementalMiniMarkGC_major_collection_step': 'GC:MAJOR',
         'pypy_g_IncrementalMiniMarkGC_minor_collection': 'GC:MINOR',
-
     }
 
     def is_gc(self, tag):
