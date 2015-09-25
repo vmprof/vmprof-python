@@ -1,5 +1,5 @@
 from vmprof.callgraph import Frame
-from vmprof.tagger import rpython_tagger
+from vmprof.tagger import RPythonTagger
 
 class FakeLib(object):
     def __init__(self, name):
@@ -10,9 +10,9 @@ FakeLib.JIT = FakeLib('<JIT>')
 
 class TestRPythonTagger:
 
-    tagger = staticmethod(rpython_tagger)
+    tagger = RPythonTagger()
 
-    def get_stacktrace(self, args):
+    def get_stacktrace(self, *args):
         stacktrace = []
         for arg in args:
             is_virtual = False
@@ -26,11 +26,9 @@ class TestRPythonTagger:
         return stacktrace
 
     def tag(self, *args):
-        stacktrace = self.get_stacktrace(args)
-        tag = 'C'
-        for frame in stacktrace:
-            tag = self.tagger(tag, frame)
-        return tag
+        stacktrace = self.get_stacktrace(*args)
+        tags, topmost_tag = self.tagger.tag(stacktrace)
+        return topmost_tag
 
     def test_basic(self):
         tag = self.tag('main', 'f', 'g')
@@ -93,3 +91,18 @@ class TestRPythonTagger:
                        'pypy_g_resume_in_blackhole',
                        'jit:loop')
         assert tag == 'JIT'
+
+    def test_taglist(self):
+        stacktrace = self.get_stacktrace(
+            'main',                                            # C
+            'pypy_g_resume_in_blackhole',                      # WARMUP
+            'f',                                               # WARMUP
+            'pypy_g_IncrementalMiniMarkGC_minor_collection',   # WARMUP
+            'g',                                               # WARMUP
+            'py:main',                                         # C
+            'h',                                               # C
+            'pypy_g_IncrementalMiniMarkGC_minor_collection',   # GC:MINOR
+            'k')                                               # GC:MINOR
+        tags, topmost_tag = self.tagger.tag(stacktrace)
+        assert tags == ['C', 'WARMUP', 'WARMUP', 'WARMUP', 'WARMUP',
+                        'C', 'C', 'GC:MINOR', 'GC:MINOR']

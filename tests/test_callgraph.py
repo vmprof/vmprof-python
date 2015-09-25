@@ -177,14 +177,14 @@ class TestCallGraph:
             'virtual_ticks': None,
             'children': [
                 {'frame': 'main',
-                 'tag': None,
+                 'tag': 'C',
                  'is_virtual': False,
                  'self_ticks': {},
                  'cumulative_ticks': {'JIT': 10, 'C': 3},
                  'virtual_ticks': None,
                  'children': [
                      {'frame': 'py:foo',
-                      'tag': None,
+                      'tag': 'C',
                       'is_virtual': True,
                       'self_ticks': {},
                       'cumulative_ticks': {'JIT': 10, 'C': 3},

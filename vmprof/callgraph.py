@@ -1,6 +1,6 @@
 import sys
 from collections import namedtuple, Counter
-from vmprof.tagger import rpython_tagger, cpython_tagger, tagger_for_tests
+from vmprof.tagger import Tagger
 
 Frame = namedtuple('Frame', ['name', 'addr', 'lib', 'is_virtual'])
 
@@ -97,12 +97,7 @@ def remove_jit_hack(stacktrace):
 class CallGraph(object):
 
     def __init__(self, interp_name):
-        if interp_name == 'pypy':
-            self.tagger = rpython_tagger
-        elif interp_name == 'test':
-            self.tagger = tagger_for_tests
-        else:
-            self.tagger = cpython_tagger
+        self.tagger = Tagger.get(interp_name)
         self.root = StackFrameNode(Frame('<all>', 0, None, is_virtual=False))
 
     @classmethod
@@ -119,27 +114,21 @@ class CallGraph(object):
             callgraph.add_stacktrace(stacktrace, count)
         return callgraph
 
-    def tag_stacktrace(self, stacktrace):
-        tag = 'C'
-        for frame in stacktrace:
-            tag = self.tagger(tag, frame)
-        return tag
-
     def add_stacktrace(self, stacktrace, count):
-        tag = self.tag_stacktrace(stacktrace)
+        tags, topmost_tag = self.tagger.tag(stacktrace)
         #
         topmost_virtual_node = None
         node = self.root
-        for frame in stacktrace:
-            node.cumulative_ticks[tag] += count
+        for frame, tag in zip(stacktrace, tags):
+            node.cumulative_ticks[topmost_tag] += count
             node = node[frame]
+            node.tag = tag
             if frame.is_virtual:
                 topmost_virtual_node = node
         #
         # now node is the topmost node, fix its values
         node.self_ticks[tag] += count
         node.cumulative_ticks[tag] += count
-        node.tag = tag
         if topmost_virtual_node:
             topmost_virtual_node.virtual_ticks[tag] += count
 
