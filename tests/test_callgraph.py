@@ -147,9 +147,9 @@ class TestCallGraph:
                   execute_frame: self{C: 3} cumulative{C: 8, JIT: 17}
                     py:baz: self{} cumulative{JIT: 7} virtual{JIT: 7}
                       jit:loop#2: self{JIT: 7} cumulative{JIT: 7}
-                    jit:loop#1: self{JIT: 10} cumulative{JIT: 10}
                     py:bar: self{} cumulative{C: 5} virtual{C: 5}
                       execute_frame: self{C: 5} cumulative{C: 5}
+                    jit:loop#1: self{JIT: 10} cumulative{JIT: 10}
                 init: self{C: 1} cumulative{C: 1}
         """)
 

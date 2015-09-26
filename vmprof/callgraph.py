@@ -268,18 +268,7 @@ class StackFrameNode(object):
             res += ' ' + self.virtual_ticks._shortrepr('virtual')
         return res
 
-    def pprint(self, indent=0, stream=None):
-        if stream is None:
-            stream = sys.stdout
-        #
-        print >> stream, '%s%s' % (' '*indent, self._shortrepr())
-        for child in self.children.values():
-            child.pprint(indent=indent+2, stream=stream)
-
-    def serialize(self):
-        """
-        Turn the Python object into a dict which can be json-serialized
-        """
+    def _get_children(self):
         def key(node):
             # virtual frames first, then order by total cumulative ticks, then
             # by name
@@ -287,6 +276,21 @@ class StackFrameNode(object):
             return (-node.is_virtual, -total_ticks, node.frame.name)
         children = self.children.values()
         children.sort(key=key)
+        return children
+
+    def pprint(self, indent=0, stream=None):
+        if stream is None:
+            stream = sys.stdout
+        #
+        print >> stream, '%s%s' % (' '*indent, self._shortrepr())
+        for child in self._get_children():
+            child.pprint(indent=indent+2, stream=stream)
+
+    def serialize(self):
+        """
+        Turn the Python object into a dict which can be json-serialized
+        """
+        children = self._get_children()
         children = [child.serialize() for child in children]
         #
         return dict(frame = self.frame.name,
