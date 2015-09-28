@@ -1,6 +1,2 @@
-recursive-include src/hotpatch *.h
-include src/vmprof.h
-include src/getpc.h
-include src/config.h
-include src/get_custom_offset.c
+recursive-include src *.h *.c
 include src/hotpatch/libdwarf.a
