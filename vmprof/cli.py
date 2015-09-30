@@ -45,6 +45,12 @@ def build_argparser():
     )
 
     parser.add_argument(
+        '--web-uid',
+        metavar='uid',
+        help='Assing unique id to payload. It can be used to re-upload'
+    )
+
+    parser.add_argument(
         '--enable-nonvirtual', '-n',
         action='store_true',
         help='Report native calls'

@@ -31,9 +31,10 @@ def upload_stats(stats, args):
     argv = " ".join(args.args)
     host = args.web_url
     auth = args.web_auth
+    uid = args.web_uid
     #
     sys.stderr.write("Compiling and uploading to %s...\n" % (args.web_url,))
-    res = vmprof.upload.upload(stats, name, argv, host, auth)
+    res = vmprof.upload.upload(stats, name, argv, host, auth, uid)
     sys.stderr.write("Available at:\n%s\n" % res)
 
 

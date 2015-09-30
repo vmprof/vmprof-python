@@ -6,12 +6,13 @@ import click
 import vmprof
 
 
-def upload(stats, name, argv, host, auth):
+def upload(stats, name, argv, host, auth, uid):
 
     data = {
         "VM": stats.interp,
         "profiles": stats.get_tree()._serialize(),
         "argv": "%s %s" % (name, argv),
+        "uid": uid,
         "version": 1,
     }
 
@@ -41,10 +42,12 @@ def upload(stats, name, argv, host, auth):
               help='Target host')
 @click.option('--web-auth', type=str, default=None,
               help='Authtoken for your acount on the server')
-def main(profile, web_url, web_auth):
+@click.option('--web-uid', type=str, default=None,
+              help='Assing unique id to payload. It can be used to re-upload')
+def main(profile, web_url, web_auth, web_uid):
     stats = vmprof.read_profile(profile, virtual_only=True)
     sys.stderr.write("Compiling and uploading to %s...\n" % (web_url,))
-    res = upload(stats, profile, [], web_url, web_auth)
+    res = upload(stats, profile, [], web_url, web_auth, web_uid)
     sys.stderr.write("Available at:\n%s\n" % res)
 
 if __name__ == '__main__':
