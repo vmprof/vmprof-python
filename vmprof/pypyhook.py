@@ -10,7 +10,7 @@ class JITInfoWriter(object):
 
     def enable(self):
         self.f = open(self.fname, 'w')
-        pypyjit.set_compile_hook(self.on_compile)
+        pypyjit.set_compile_hook(self.on_compile, operations=False)
 
     def disable(self):
         pypyjit.set_compile_hook(None)
