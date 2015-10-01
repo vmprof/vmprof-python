@@ -21,6 +21,20 @@ class Minus(Node):
 	def eval(self):
 		return self.left.eval() - self.right.eval()
 
+def iteration_eval(expr):
+	stack = []
+	for item in expr:
+		if ord('0') <= ord(item) <= ord('9'):
+			stack.append(ord(item) - ord('0'))
+		elif item == '+':
+			stack.append(stack.pop() + stack.pop())
+		elif item == '-':
+			right = stack.pop()
+			left = stack.pop()
+			stack.append(left - right)
+	assert len(stack) == 1
+	return stack[0]
+
 def parse_pn(text):
 	stack = []
 	for c in text:
@@ -92,4 +106,6 @@ if __name__ == '__main__':
 		count = 10000
 	if len(sys.argv) > 2:
 		random.seed(int(sys.argv[2]))
+	else:
+		random.seed(13)
 	fuzzer(count)
