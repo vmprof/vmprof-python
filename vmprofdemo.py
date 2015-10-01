@@ -22,13 +22,15 @@ class Minus(Node):
 		return self.left.eval() - self.right.eval()
 
 def parse_pn(text):
+	digits = [chr(ord('0') + i) for i in range(10)]
+
 	stack = []
 	for c in text:
 		if c == '+':
 			stack.append(Plus(stack.pop(), stack.pop()))
 		elif c == '-':
 			stack.append(Minus(stack.pop(), stack.pop()))
-		elif ord('0') <= ord(c) <= ord('9'):
+		elif c in digits:
 			stack.append(Digit(c))
 		else:
 			assert False
@@ -53,11 +55,10 @@ def find(expr):
 		cur = -cur + 1
 	return cur
 
-DIGITS = [chr(ord('0') + i) for i in range(10)]
-
 def gen_exp(lgt):
 	stack_depth = 0
 	exp = ''
+	DIGITS = [chr(ord('0') + i) for i in range(10)]
 	for i in range(lgt):
 		if stack_depth > 1:
 			c = random.choice(DIGITS + ['-', '+'] * 4)
@@ -81,10 +82,15 @@ def fuzzer(count):
 if __name__ == '__main__':
 	if len(sys.argv) == 2 and sys.argv[1] == 'demo':
 		import time
+		random.seed(42)
+		l = []
 		for k in range(100):
 			t0 = time.time()
 			fuzzer(100)
+			l.append(time.time() - t0)
 			print "%.1f ms" % ((time.time() - t0) * 1000)
+		print "min: %.1fms max: %.1fms avg: %.1fms %.1fms" % (min(l) * 1000, max(l) * 1000,
+			sum(l) / len(l) * 1000, sum(l[30:]) / (len(l) - 30) * 1000)
 		sys.exit(0)
 	if len(sys.argv) > 1:
 		count = int(sys.argv[1])
