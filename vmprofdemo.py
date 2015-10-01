@@ -21,20 +21,6 @@ class Minus(Node):
 	def eval(self):
 		return self.left.eval() - self.right.eval()
 
-def iteration_eval(expr):
-	stack = []
-	for item in expr:
-		if ord('0') <= ord(item) <= ord('9'):
-			stack.append(ord(item) - ord('0'))
-		elif item == '+':
-			stack.append(stack.pop() + stack.pop())
-		elif item == '-':
-			right = stack.pop()
-			left = stack.pop()
-			stack.append(left - right)
-	assert len(stack) == 1
-	return stack[0]
-
 def parse_pn(text):
 	stack = []
 	for c in text:
@@ -95,7 +81,7 @@ def fuzzer(count):
 if __name__ == '__main__':
 	if len(sys.argv) == 2 and sys.argv[1] == 'demo':
 		import time
-		for k in range(30):
+		for k in range(100):
 			t0 = time.time()
 			fuzzer(100)
 			print "%.1f ms" % ((time.time() - t0) * 1000)
