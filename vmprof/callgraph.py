@@ -35,6 +35,23 @@ class SymbolicStackTrace(object):
         return len(self.frames)
 
 
+def unpack_frame_name(frame):
+    name = frame.name
+    filename = None
+    line = None
+    if frame.is_virtual:
+        parts = frame.name.split(':')
+        if len(parts) == 4:
+            assert parts[0] == 'py'
+            name = parts[1]
+            line = parts[2]
+            filename = parts[3]
+    elif frame.lib:
+        filename = frame.lib.name
+    return name, filename, line
+
+
+
 def remove_jit_hack(stacktrace):
     # The current version of vmprof uses an evil hack to mark virtual JIT
     # frames, surrounding them with two dummy addresses (JITSTACK_START and
@@ -293,7 +310,10 @@ class StackFrameNode(object):
         children = self._get_children()
         children = [child.serialize() for child in children]
         #
-        return dict(frame = self.frame.name,
+        name, filename, line = unpack_frame_name(self.frame)
+        return dict(name = name,
+                    filename = filename,
+                    line = line,
                     is_virtual = self.is_virtual,
                     tag = self.tag,
                     self_ticks = self.self_ticks,

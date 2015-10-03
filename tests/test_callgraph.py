@@ -2,7 +2,7 @@ import pytest
 from cStringIO import StringIO
 import textwrap
 from vmprof.callgraph import (TickCounter, SymbolicStackTrace, Frame, CallGraph,
-                              StackFrameNode, remove_jit_hack)
+                              StackFrameNode, remove_jit_hack, unpack_frame_name)
 from vmprof.reader import LibraryData
 from vmprof.addrspace import AddressSpace
 
@@ -46,6 +46,21 @@ def test_SymbolicStackTrace(addrspace, libfoo, libvirt):
     # XXX: why do addrspace.lookup return addr+1? Is it a feature or a bug? We
     # should document it
     assert repr(stacktrace) == '[0x0000000000000124, one, three, py:main]'
+
+
+def test_unpack_frame_name():
+    class FakeLib(object):
+        def __init__(self, name):
+            self.name = name
+    def unpack(name, addr=0x00, lib=None, is_virtual=False):
+        frame = Frame(name, addr, lib, is_virtual)
+        return unpack_frame_name(frame)
+
+    assert unpack('py:foo:42:/tmp/a.py') == ('py:foo:42:/tmp/a.py', None, None)
+    assert unpack('py:foo:42:/tmp/a.py', is_virtual=True) == ('foo', '/tmp/a.py', '42')
+    assert unpack('py:foo', is_virtual=True) == ('py:foo', None, None)
+    assert unpack('qsort', lib=FakeLib('libc')) == ('qsort', 'libc', None)
+    assert unpack('qsort') == ('qsort', None, None)
 
 class TestStackFrameNode:
 
@@ -91,9 +106,9 @@ class TestStackFrameNode:
         root[c2] # create child
         #
         data = root.serialize()
-        frames = [child['frame'] for child in data['children']]
+        frames = [child['name'] for child in data['children']]
         assert frames == ['a', 'b1', 'b2', 'c1', 'c2']
-
+        
 
 class TestCallGraph:
 
@@ -169,35 +184,45 @@ class TestCallGraph:
         #
         obj = graph.root.serialize()
         assert obj == {
-            'frame': '<all>',
+            'name': '<all>',
+            'filename': None,
+            'line': None,
             'tag': None,
             'is_virtual': False,
             'self_ticks': {},
             'cumulative_ticks': {'JIT': 10, 'C': 3},
             'virtual_ticks': None,
             'children': [
-                {'frame': 'main',
+                {'name': 'main',
+                 'filename': None,
+                 'line': None,
                  'tag': 'C',
                  'is_virtual': False,
                  'self_ticks': {},
                  'cumulative_ticks': {'JIT': 10, 'C': 3},
                  'virtual_ticks': None,
                  'children': [
-                     {'frame': 'py:foo',
+                     {'name': 'py:foo',
+                      'filename': None,
+                      'line': None,
                       'tag': 'C',
                       'is_virtual': True,
                       'self_ticks': {},
                       'cumulative_ticks': {'JIT': 10, 'C': 3},
                       'virtual_ticks': {'JIT': 10, 'C': 3},
                       'children': [
-                          {'frame': 'execute_frame',
+                          {'name': 'execute_frame',
+                           'filename': None,
+                           'line': None,
                            'tag': 'C',
                            'is_virtual': False,
                            'self_ticks': {'C': 3},
                            'cumulative_ticks': {'JIT': 10, 'C': 3},
                            'virtual_ticks': None,
                            'children': [
-                               {'frame': 'jit:loop#1',
+                               {'name': 'jit:loop#1',
+                                'filename': None,
+                                'line': None,
                                 'tag': 'JIT',
                                 'is_virtual': False,
                                 'self_ticks': {'JIT': 10},
