@@ -19,6 +19,23 @@ class LibraryData(object):
         if symbols is None:
             symbols = []
         self.symbols = symbols
+        self.is_external = self._compute_is_external()
+
+    def _compute_is_external(self):
+        """
+        Very rough heuristic to distinguish between "internal libs"
+        (libpython/libpypy-c and libc) and "external" ones
+        """
+        _, filename = os.path.split(self.name)
+        if filename in ('python2.7', 'pypy', 'libpypy-c.so'):
+            return False
+        if filename.startswith('libc-'):
+            return False
+        if filename.startswith('['): # things like '[heap]' and so
+            return False
+        if filename.startswith('<'): # things like <virtual> and <JIT>
+            return False
+        return True
 
     def read_object_data(self, executable=False, reader=None):
         if self.is_virtual:

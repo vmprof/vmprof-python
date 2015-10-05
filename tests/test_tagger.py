@@ -2,11 +2,13 @@ from vmprof.callgraph import Frame
 from vmprof.tagger import RPythonTagger
 
 class FakeLib(object):
-    def __init__(self, name):
+    def __init__(self, name, is_external=False):
         self.name = name
+        self.is_external = is_external
 
 FakeLib.libc = FakeLib('libc')
 FakeLib.JIT = FakeLib('<JIT>')
+FakeLib.libz = FakeLib('libz', is_external=True)
 
 class TestRPythonTagger:
 
@@ -21,6 +23,8 @@ class TestRPythonTagger:
                 is_virtual = True
             elif arg.startswith('jit:'):
                 lib = FakeLib.JIT
+            elif arg.startswith('z:'):
+                lib = FakeLib.libz
             frame = Frame(arg, 0x00, lib, is_virtual)
             stacktrace.append(frame)
         return stacktrace
@@ -106,3 +110,7 @@ class TestRPythonTagger:
         tags, topmost_tag = self.tagger.tag(stacktrace)
         assert tags == ['C', 'WARMUP', 'WARMUP', 'WARMUP', 'WARMUP',
                         'C', 'C', 'GC:MINOR', 'GC:MINOR']
+
+    def test_tag_external(self):
+        tag = self.tag('a', 'z:foo')
+        assert tag == 'EXT'
