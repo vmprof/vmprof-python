@@ -2,11 +2,12 @@ from vmprof.callgraph import Frame
 from vmprof.tagger import RPythonTagger
 
 class FakeLib(object):
-    def __init__(self, name, is_external=False):
+    def __init__(self, name, is_external=False, is_libc=False):
         self.name = name
+        self.is_libc = is_libc
         self.is_external = is_external
 
-FakeLib.libc = FakeLib('libc')
+FakeLib.libc = FakeLib('libc', is_libc=True)
 FakeLib.JIT = FakeLib('<JIT>')
 FakeLib.libz = FakeLib('libz', is_external=True)
 
@@ -58,6 +59,13 @@ class TestRPythonTagger:
 
     def test_external(self):
         tag = self.tag('a', 'z:foo')
+        assert tag == 'EXT'
+
+    def test_external_calling_libc(self):
+        # libc functions called from an EXT lib count as EXT as well. Else, we
+        # risk to miscount things like malloc and qsort, which are part of the
+        # EXT
+        tag = self.tag('a', 'z:foo', 'malloc')
         assert tag == 'EXT'
 
     def test_gc_propagate(self):

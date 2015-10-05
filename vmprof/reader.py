@@ -19,7 +19,14 @@ class LibraryData(object):
         if symbols is None:
             symbols = []
         self.symbols = symbols
+        self.is_libc = self._compute_is_libc()
         self.is_external = self._compute_is_external()
+
+    def _compute_is_libc(self):
+        _, filename = os.path.split(self.name)
+        if filename.startswith('libc-'):
+            return True
+        return False
 
     def _compute_is_external(self):
         """
@@ -29,7 +36,7 @@ class LibraryData(object):
         _, filename = os.path.split(self.name)
         if filename in ('python2.7', 'pypy', 'libpypy-c.so'):
             return False
-        if filename.startswith('libc-'):
+        elif self.is_libc:
             return False
         if filename.startswith('['): # things like '[heap]' and so
             return False

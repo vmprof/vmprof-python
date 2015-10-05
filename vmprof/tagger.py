@@ -38,8 +38,10 @@ class Tagger(object):
         raise NotImplementedError
 
 
-    def _tag_C_frame(self, frame):
+    def _tag_C_frame(self, curtag, frame):
         if frame.lib and frame.lib.is_external:
+            return 'EXT'
+        elif curtag == 'EXT' and frame.lib and frame.lib.is_libc:
             return 'EXT'
         else:
             return 'C'
@@ -50,7 +52,7 @@ class CPythonTagger(Tagger):
     """
 
     def tag_single_frame(self, curtag, frame):
-        return self._tag_C_frame(frame)
+        return self._tag_C_frame(curtag, frame)
 
 
 class TaggerForTests(Tagger):
@@ -111,13 +113,14 @@ class RPythonTagger(Tagger):
             return 'JIT'
         name = frame.name
         name = self.RE_PART.sub('', name) # remove the .part.* suffix
-        try:
-            return self.RPYTHON_TAGS[name]
-        except KeyError:
-            return self._tag_C_frame(frame)
+        return self.RPYTHON_TAGS.get(name, 'C')
 
     def tag_single_frame(self, curtag, frame):
         newtag = self._tag_frame(frame)
+        if newtag == 'C':
+            # propagate EXT in case it calls libc
+            newtag = self._tag_C_frame(curtag, frame)
+        #
         if frame.is_virtual or newtag in ('JIT', 'EXT'):
             # reset the tag, stopping the propagation of oldtag
             return newtag
