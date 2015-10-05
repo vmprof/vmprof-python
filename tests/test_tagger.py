@@ -56,6 +56,10 @@ class TestRPythonTagger:
         tag = self.tag('main', 'f', 'pypy_g_resume_in_blackhole')
         assert tag == 'WARMUP'
 
+    def test_external(self):
+        tag = self.tag('a', 'z:foo')
+        assert tag == 'EXT'
+
     def test_gc_propagate(self):
         tag = self.tag('main',
                        'pypy_g_IncrementalMiniMarkGC_major_collection_step',
@@ -84,7 +88,7 @@ class TestRPythonTagger:
 
     def test_warmup_reset(self):
         # if, for any reason, during warmup we re-enter the interpreter or the
-        # JIT, the stacktrace no longer counts as warmup
+        # JIT, or call an EXT lib, the stacktrace no longer counts as warmup
         tag = self.tag('main',
                        'pypy_g_resume_in_blackhole',
                        'py:main',
@@ -95,6 +99,12 @@ class TestRPythonTagger:
                        'pypy_g_resume_in_blackhole',
                        'jit:loop')
         assert tag == 'JIT'
+        #
+        tag = self.tag('main',
+                       'pypy_g_resume_in_blackhole',
+                       'z:foo')
+        assert tag == 'EXT'
+
 
     def test_taglist(self):
         stacktrace = self.get_stacktrace(
@@ -110,7 +120,3 @@ class TestRPythonTagger:
         tags, topmost_tag = self.tagger.tag(stacktrace)
         assert tags == ['C', 'WARMUP', 'WARMUP', 'WARMUP', 'WARMUP',
                         'C', 'C', 'GC:MINOR', 'GC:MINOR']
-
-    def test_tag_external(self):
-        tag = self.tag('a', 'z:foo')
-        assert tag == 'EXT'

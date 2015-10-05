@@ -118,7 +118,7 @@ class RPythonTagger(Tagger):
 
     def tag_single_frame(self, curtag, frame):
         newtag = self._tag_frame(frame)
-        if frame.is_virtual or newtag == 'JIT':
+        if frame.is_virtual or newtag in ('JIT', 'EXT'):
             # reset the tag, stopping the propagation of oldtag
             return newtag
         elif self.is_warmup(curtag):
