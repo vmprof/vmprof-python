@@ -156,7 +156,7 @@ class AddressSpace(object):
         addr_set = set()
         skipped = 0
         for i, prof in enumerate(profiles):
-            if len(prof[0]) < 5 or prof[0][-1] == 0x3:
+            if len(prof[0]) < 5:
                 skipped += 1
                 continue # broken profile
             current = self._next_profile(prof[0], jit_frames, addr_set,
@@ -166,8 +166,8 @@ class AddressSpace(object):
                 filtered_profiles.append((current, prof[1], prof[2]))
         if len(filtered_profiles) < 10:
             warnings.warn("there are only %d profiles, data will be unreliable" % (len(filtered_profiles),))
-        if skipped > 0.05 * len(filtered_profiles):
-            warnings.warn("there are %d broken profiles out of %d, data will be unreliable" % (skipped, len(filtered_profiles)))
+        if skipped > 0.05 * len(profiles):
+            warnings.warn("there are %d broken profiles out of %d, data will be unreliable" % (skipped, len(profiles)))
         return filtered_profiles, addr_set, jit_frames
 
     def dump_stack(self, stacktrace):
