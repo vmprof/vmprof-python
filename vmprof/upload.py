@@ -32,7 +32,7 @@ def upload(stats, name, argv, host, auth):
 
     res = request.urlopen(req)
     val = res.read()
-    return "http://" + host + "/#/" + val[1:-1]
+    return host + "/#/" + val[1:-1]
 
 
 @click.command()
