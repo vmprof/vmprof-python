@@ -30,6 +30,9 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
 
     period, profiles, virtual_symbols, libs, interp_name = read_prof(prof)
 
+    if interp_name == 'pypy':
+        virtual_only = True
+
     if not virtual_only or include_extra_info:
         exe_name = libs[0].name
         for lib in libs:

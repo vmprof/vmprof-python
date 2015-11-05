@@ -38,6 +38,9 @@ class JittedVirtual(Hashable):
 class VirtualFrame(Hashable):
     pass
 
+class NativeFrame(Hashable):
+    pass
+
 class BaseMetaFrame(Hashable):
     def add_to_meta(self, meta):
         meta[self.name] = meta.get(self.name, 0) + 1
@@ -56,6 +59,16 @@ class WarmupFrame(BaseMetaFrame):
 
 class BlackholeWarmupFrame(WarmupFrame):
     name = 'blackhole'
+
+def is_python_runtime(lib):
+    lib_path = []
+    if lib and lib.name:
+        lib_path = lib.name.split('/')
+
+    if lib_path and 'libpython' in lib_path[-1]:
+        return True
+
+    return False
 
 class AddressSpace(object):
     def __init__(self, libs):
@@ -114,7 +127,7 @@ class AddressSpace(object):
                 filtered_profiles.append((current, prof[1]))
         return filtered_profiles
 
-    def _next_profile(self, lst, jit_frames, addr_set, interp_name,
+    def _filter_stack(self, lst, jit_frames, addr_set, interp_name,
                       only_virtual):
         current = []
         jitting = False
@@ -136,17 +149,28 @@ class AddressSpace(object):
                     current.append(JitAddr(jit_addr))
                     jitting = False
                     continue
+
             if addr in self.meta_data:
                 current.append(self.meta_data[addr](addr))
-            elif is_virtual or not only_virtual:
+                continue
+
+            cls = None
+            if not only_virtual:
+                if not is_python_runtime(lib):
+                    cls = NativeFrame
+
+            if is_virtual:
                 if jitting:
                     cls = JittedVirtual
                 else:
                     cls = VirtualFrame
+
+            if cls:
                 if previous_virtual != addr:
                     current.append(cls(addr))
                     previous_virtual = current[-1]
                 addr_set.add(addr)
+
         return current
 
     def filter_addr(self, profiles, only_virtual=True,
@@ -159,7 +183,7 @@ class AddressSpace(object):
             if len(prof[0]) < 5:
                 skipped += 1
                 continue # broken profile
-            current = self._next_profile(prof[0], jit_frames, addr_set,
+            current = self._filter_stack(prof[0], jit_frames, addr_set,
                                          interp_name, only_virtual)
             if current:
                 current.reverse()

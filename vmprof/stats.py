@@ -1,6 +1,6 @@
 import six
 from vmprof.addrspace import JittedVirtual, JitAddr, VirtualFrame,\
-     BaseMetaFrame
+     BaseMetaFrame, NativeFrame
 
 class EmptyProfileFile(Exception):
     pass
@@ -106,7 +106,7 @@ class Stats(object):
             for i in range(1, len(profile[0])):
                 addr = profile[0][i]
                 name = self._get_name(addr)
-                if not isinstance(addr, (VirtualFrame, JittedVirtual)):
+                if not isinstance(addr, (VirtualFrame, JittedVirtual, NativeFrame)):
                     continue
                 last_virtual = addr
                 last_virtual_pos = i
