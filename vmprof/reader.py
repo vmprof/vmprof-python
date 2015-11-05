@@ -76,12 +76,16 @@ def read_ranges(data):
         data = data.decode('latin1')
     ranges = []
     lines = data.splitlines()
+    for i, line in enumerate(lines):
+        if 'Virtual Memory Map' in line:
+            lines = lines[i:]
+            break
     if 'Virtual Memory Map' in lines[0]:
         mode = 'vmmap'
-        end = 3
+        end = 5
         while lines[end]:
             end += 1
-        lines = lines[4:end]
+        lines = lines[6:end]
     elif lines[0].endswith('PATH'):
         lines = lines[1:]
         mode = 'procstat'
@@ -96,7 +100,6 @@ def read_ranges(data):
             k = 1
             while not parts[k].startswith('000'):
                 k += 1
-                continue
             start, end = parts[k].split('-')
         else:
             start, end = parts[0].split('-')
