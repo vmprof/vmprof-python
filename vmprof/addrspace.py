@@ -156,6 +156,9 @@ class AddressSpace(object):
         addr_set = set()
         skipped = 0
         for i, prof in enumerate(profiles):
+            if len(prof[0]) < 5:
+                skipped += 1
+                continue # broken profile
             current = self._next_profile(prof[0], jit_frames, addr_set,
                                          interp_name, only_virtual)
             if current:

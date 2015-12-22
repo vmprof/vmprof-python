@@ -44,12 +44,6 @@
 #ifndef BASE_GETPC_H_
 #define BASE_GETPC_H_
 
-#if ((ULONG_MAX) == (UINT_MAX))
-# define IS32BIT
-#else
-# define IS64BIT
-#endif
-
 #include "vmprof_config.h"
 
 // On many linux systems, we may need _GNU_SOURCE to get access to
@@ -59,9 +53,7 @@
 // If #define _GNU_SOURCE causes problems, this might work instead.
 // It will cause problems for FreeBSD though!, because it turns off
 // the needed __BSD_VISIBLE.
-#ifdef __APPLE__
-#define _XOPEN_SOURCE 500
-#endif // __APPLE__
+//#define _XOPEN_SOURCE 500
 
 #include <string.h>         // for memcmp
 #if defined(HAVE_SYS_UCONTEXT_H)
@@ -188,15 +180,7 @@ void* GetPC(ucontext_t *signal_ucontext) {
 // configure.ac (or set it manually in your config.h).
 #else
 void* GetPC(ucontext_t *signal_ucontext) {
-#ifdef __APPLE__
- #ifdef IS32BIT
-  return (void*)(signal_ucontext->uc_mcontext->__ss.__eip);
- #else
-  return (void*)(signal_ucontext->uc_mcontext->__ss.__rip);
- #endif
-#else
   return (void*)signal_ucontext->PC_FROM_UCONTEXT;   // defined in config.h
-#endif
 }
 
 #endif

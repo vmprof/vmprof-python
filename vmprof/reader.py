@@ -126,14 +126,11 @@ MARKER_HEADER = b'\x05'
 
 VERSION_BASE = 0
 VERSION_THREAD_ID = 1
-VERSION_TAG = 2
-
-TAG_CODE = 1
 
 def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count
     assert read_word(fileobj) == 3 # header size
-    assert read_word(fileobj) == 0
+    assert read_word(fileobj) == 0 # version?
     period = read_word(fileobj)
     assert read_word(fileobj) == 0
 
@@ -162,13 +159,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
             if virtual_ips_only:
                 fileobj.read(8 * depth)
             else:
-                if version >= VERSION_TAG:
-                    assert depth & 1 == 0
-                    depth = depth // 2
                 for j in range(depth):
-                    if version >= VERSION_TAG:
-                        kind = read_word(fileobj)
-                        assert kind == TAG_CODE
                     pc = read_word(fileobj)
                     if j > 0 and pc > 0:
                         pc -= 1
@@ -193,13 +184,14 @@ def read_prof(fileobj, virtual_ips_only=False): #
                 name = name.decode()
             virtual_ips.append((unique_id, name))
         elif marker == MARKER_TRAILER:
-            #if not virtual_ips_only:
-            #    symmap = read_ranges(fileobj.read())
+            if not virtual_ips_only:
+                symmap = read_ranges(fileobj.read())
             break
         else:
             assert not marker
+            symmap = []
             break
     virtual_ips.sort() # I think it's sorted, but who knows
     if virtual_ips_only:
         return virtual_ips
-    return period, profiles, virtual_ips, interp_name
+    return period, profiles, virtual_ips, symmap, interp_name

@@ -28,19 +28,17 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
                  virtual_only=True, include_extra_info=True):
     prof = open(str(prof_filename), 'rb')
 
-    period, profiles, virtual_symbols, interp_name = read_prof(prof)
+    period, profiles, virtual_symbols, libs, interp_name = read_prof(prof)
 
-    #if not virtual_only or include_extra_info:
-    #    exe_name = libs[0].name
-    #    for lib in libs:
-    #        executable = lib.name == exe_name
-    #        if lib.name in lib_cache:
-    #            lib.get_symbols_from(lib_cache[lib.name], executable)
-    #        else:
-    #            lib.read_object_data(executable)
-    #
-    #            lib_cache[lib.name] = lib
-    libs = []
+    if not virtual_only or include_extra_info:
+        exe_name = libs[0].name
+        for lib in libs:
+            executable = lib.name == exe_name
+            if lib.name in lib_cache:
+                lib.get_symbols_from(lib_cache[lib.name], executable)
+            else:
+                lib.read_object_data(executable)
+                lib_cache[lib.name] = lib
     libs.append(
         LibraryData(
             '<virtual>',
