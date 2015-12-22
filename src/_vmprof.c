@@ -2,11 +2,14 @@
 
 #include <Python.h>
 #include <frameobject.h>
+#include <signal.h>
 
 #define RPY_EXTERN static
 static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 #define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
 #define CPYTHON_GET_CUSTOM_OFFSET
+
+#define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)) | 0x7000000000000000UL)
 
 #include "vmprof_main.h"
 #include "hotpatch/tramp.h"
@@ -18,9 +21,6 @@ static PyObject *(*Original_PyEval_EvalFrameEx)(PyFrameObject *f,
                                                 int throwflag) = 0;
 static ptrdiff_t mainloop_sp_offset;
 static int is_enabled = 0;
-
-
-#define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)) | 0x7000000000000000UL)
 
 static void* get_virtual_ip(char* sp)
 {
@@ -134,18 +134,18 @@ static void cpyprof_code_dealloc(PyObject *co)
 
 static void init_cpyprof(void)
 {
-    if (!Original_PyEval_EvalFrameEx) {
+    /*if (!Original_PyEval_EvalFrameEx) {
         Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;
         // monkey-patch PyEval_EvalFrameEx
-        init_memprof_config_base();
-        bin_init();
-        create_tramp_table();
+        //init_memprof_config_base();
+        //bin_init();
+        //create_tramp_table();
         size_t tramp_size;
         tramp_start = insert_tramp("PyEval_EvalFrameEx",
                                    &cpyprof_PyEval_EvalFrameEx,
                                    &tramp_size);
         tramp_end = tramp_start + tramp_size;
-    }
+    }*/
     if (!Original_code_dealloc) {
         Original_code_dealloc = PyCode_Type.tp_dealloc;
         PyCode_Type.tp_dealloc = &cpyprof_code_dealloc;
