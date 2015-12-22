@@ -4,7 +4,7 @@ import six.moves.urllib.request as request
 import click
 
 import vmprof
-
+PY3 = sys.version_info[0] >= 3
 
 def upload(stats, name, argv, host, auth):
 
@@ -32,7 +32,11 @@ def upload(stats, name, argv, host, auth):
 
     res = request.urlopen(req)
     val = res.read()
-    return host + "/#/" + val[1:-1]
+    if PY3:
+        val = val[1:-1].decode("utf-8")
+    else:
+        val = val[1:-1]
+    return "%s/#/%s" % (host, val)
 
 
 @click.command()
