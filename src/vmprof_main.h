@@ -61,7 +61,7 @@ char *vmprof_init(int fd, double interval, char *interp_name)
     if (!unw_get_reg) {
         void *libhandle;
 
-        if (!(libhandle = dlopen("libunwind.so", RTLD_LAZY | RTLD_LOCAL)))
+        /*if (!(libhandle = dlopen("libunwind.so", RTLD_LAZY | RTLD_LOCAL)))
             goto error;
         if (!(unw_get_reg = dlsym(libhandle, "_ULx86_64_get_reg")))
             goto error;
@@ -70,7 +70,7 @@ char *vmprof_init(int fd, double interval, char *interp_name)
         if (!(unw_init_local = dlsym(libhandle, "_ULx86_64_init_local")))
             goto error;
         if (!(unw_step = dlsym(libhandle, "_ULx86_64_step")))
-            goto error;
+            goto error;*/
     }
     if (prepare_concurrent_bufs() < 0)
         return "out of memory";
@@ -194,6 +194,17 @@ static int vmprof_unw_step(unw_cursor_t *cp, int first_run)
 
 static int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext)
 {
+    if (!_PyThreadState_Current)
+        return 0;
+    PyFrameObject *frame = _PyThreadState_Current->frame;
+    int depth = 0;
+
+    while (frame && depth < max_depth) {
+        result[depth++] = CODE_ADDR_TO_UID(frame->f_code);
+        frame = frame->f_back;
+    }
+    return depth;
+
     void *ip;
     int n = 0;
     unw_cursor_t cursor;
@@ -260,6 +271,16 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
     long val = __sync_fetch_and_add(&signal_handler_value, 2L);
 
+#ifdef __APPLE__
+    // TERRIBLE HACK AHEAD
+    // on OS X, the thread local storage is sometimes uninitialized
+    // when the signal handler runs - it means it's impossible to read errno
+    // or do anything. Detect that case by reading the __gs register from
+    // context - if it's anything non-sensical, abort
+    if (((ucontext_t*)ucontext)->uc_mcontext->__ss.__gs < 1024) {
+        return;
+    }
+#endif
     if ((val & 1) == 0) {
         int saved_errno = errno;
         int fd = profile_file;
@@ -274,9 +295,10 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             struct prof_stacktrace_s *st = (struct prof_stacktrace_s *)p->data;
             st->marker = MARKER_STACKTRACE;
             st->count = 1;
-            st->stack[0] = GetPC((ucontext_t*)ucontext);
-            depth = get_stack_trace(st->stack+1, MAX_STACK_DEPTH-2, ucontext);
-            depth++;  // To account for pc value in stack[0];
+            depth = get_stack_trace(st->stack, MAX_STACK_DEPTH-1, ucontext);
+            //st->stack[0] = GetPC((ucontext_t*)ucontext);
+            //depth = get_stack_trace(st->stack+1, MAX_STACK_DEPTH-2, ucontext);
+            //depth++;  // To account for pc value in stack[0];
             st->depth = depth;
             st->stack[depth++] = get_current_thread_id();
             p->data_offset = offsetof(struct prof_stacktrace_s, marker);
@@ -436,35 +458,6 @@ static int close_profile(void)
 
     if (_write_all(&marker, 1) < 0)
         return -1;
-
-#ifdef __linux__
-    // copy /proc/self/maps to the end of the profile file
-    int srcfd = open("/proc/self/maps", O_RDONLY);
-    if (srcfd < 0)
-        return -1;
-
-    while ((size = read(srcfd, buf, sizeof buf)) > 0) {
-        if (_write_all(buf, size) < 0) {
-            close(srcfd);
-            return -1;
-        }
-    }
-    close(srcfd);
-#else
-    // freebsd and mac
-    sprintf(buf, "procstat -v %d", getpid());
-    FILE *srcf = popen(buf, "r");
-    if (!srcf)
-        return -1;
-
-    while ((size = fread(buf, 1, sizeof buf, src))) {
-        if (_write_all(buf, size) < 0) {
-            pclose(srcf);
-            return -1;
-        }
-    }
-    pclose(srcf);
-#endif
 
     /* don't close() the file descriptor from here */
     profile_file = -1;

@@ -13,15 +13,9 @@ else:
     ext_modules = [Extension('_vmprof',
                            sources=[
                                'src/_vmprof.c',
-                               'src/hotpatch/tramp.c',
-                               'src/hotpatch/elf.c',
-                               'src/hotpatch/x86_gen.c',
-                               'src/hotpatch/util.c',
                                ],
-                            extra_compile_args=['-Wno-unused',
-                                                '-I/usr/include/elf',
-                                                '-I/usr/include/libdwarf'],
-                            libraries=['elf', 'unwind', 'rt'],
+                            extra_compile_args=['-Wno-unused'],
+                            libraries=[],
                             extra_link_args=['%s' % libdwarf])]
 
 
