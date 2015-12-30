@@ -9,34 +9,30 @@ static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 #define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
 #define CPYTHON_GET_CUSTOM_OFFSET
 
+/* This returns the address of the code object plus 0x7000000000000000
+   as the identifier.  The mapping from identifiers to string
+   representations of the code object is done elsewhere, namely:
+
+   * If the code object dies while vmprof is enabled,
+     PyCode_Type.tp_dealloc will emit it.  (We don't handle nicely
+     for now the case where several code objects are created and die
+     at the same memory address.)
+
+   * When _vmprof.disable() is called, then we look around the
+     process for code objects and emit all the ones that we can
+     find (which we hope is very close to 100% of them).
+*/
 #define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)) | 0x7000000000000000UL)
 
 #include "vmprof_main.h"
-#include "hotpatch/tramp.h"
-#include "hotpatch/bin_api.h"
 
 
 static destructor Original_code_dealloc = 0;
-static PyObject *(*Original_PyEval_EvalFrameEx)(PyFrameObject *f,
-                                                int throwflag) = 0;
 static ptrdiff_t mainloop_sp_offset;
 static int is_enabled = 0;
 
 static void* get_virtual_ip(char* sp)
 {
-    /* This returns the address of the code object plus 0x7000000000000000
-       as the identifier.  The mapping from identifiers to string
-       representations of the code object is done elsewhere, namely:
-
-       * If the code object dies while vmprof is enabled,
-         PyCode_Type.tp_dealloc will emit it.  (We don't handle nicely
-         for now the case where several code objects are created and die
-         at the same memory address.)
-
-       * When _vmprof.disable() is called, then we look around the
-         process for code objects and emit all the ones that we can
-         find (which we hope is very close to 100% of them).
-    */
     PyFrameObject *f = *(PyFrameObject **)(sp + mainloop_sp_offset);
     return (void *)CODE_ADDR_TO_UID(f->f_code);
 }
@@ -110,19 +106,6 @@ static void emit_all_code_objects(void)
     Py_XDECREF(gc_module);
 }
 
-__attribute__((optimize("O2")))
-static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
-{
-    register void* _rsp asm("rsp");
-    volatile PyFrameObject *f2 = f;    /* this prevents the call below from
-                                          turning into a tail call */
-    if (!mainloop_get_virtual_ip) {
-        mainloop_sp_offset = (char*)&f2 - (char*)_rsp;
-        mainloop_get_virtual_ip = &get_virtual_ip;
-    }
-    return Original_PyEval_EvalFrameEx(f, throwflag);
-}
-
 static void cpyprof_code_dealloc(PyObject *co)
 {
     if (is_enabled) {
@@ -134,18 +117,6 @@ static void cpyprof_code_dealloc(PyObject *co)
 
 static void init_cpyprof(void)
 {
-    /*if (!Original_PyEval_EvalFrameEx) {
-        Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;
-        // monkey-patch PyEval_EvalFrameEx
-        //init_memprof_config_base();
-        //bin_init();
-        //create_tramp_table();
-        size_t tramp_size;
-        tramp_start = insert_tramp("PyEval_EvalFrameEx",
-                                   &cpyprof_PyEval_EvalFrameEx,
-                                   &tramp_size);
-        tramp_end = tramp_start + tramp_size;
-    }*/
     if (!Original_code_dealloc) {
         Original_code_dealloc = PyCode_Type.tp_dealloc;
         PyCode_Type.tp_dealloc = &cpyprof_code_dealloc;

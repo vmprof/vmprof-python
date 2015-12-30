@@ -1,12 +1,6 @@
 from setuptools import setup, find_packages, Extension
 import os, sys
 
-j = os.path.join
-
-libdwarf = j(j(j(os.path.dirname(os.path.abspath(__file__)), 'src'),
-             'hotpatch'), 'libdwarf.a')
-
-
 if '__pypy__' in sys.builtin_module_names:
     ext_modules = [] # built-in
 else:
@@ -15,9 +9,8 @@ else:
                                'src/_vmprof.c',
                                ],
                             extra_compile_args=['-Wno-unused'],
-                            libraries=[],
-                            extra_link_args=['%s' % libdwarf])]
-
+                            libraries=[])]
+   
 
 setup(
     name='vmprof',
