@@ -122,11 +122,22 @@ static char atfork_hook_installed = 0;
  * *************************************************************
  */
 
+PyThreadState* get_current_thread_state(void)
+{
+#ifdef _Py_atomic_load_relaxed
+    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+#else
+    return _PyThreadState_Current;
+#endif    
+}
+
 static int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext)
 {
-    if (!_PyThreadState_Current)
+    PyThreadState* current = get_current_thread_state();
+
+    if (!current)
         return 0;
-    PyFrameObject *frame = _PyThreadState_Current->frame;
+    PyFrameObject *frame = current->frame;
     int depth = 0;
 
     while (frame && depth < max_depth) {
@@ -151,7 +162,7 @@ static void *get_current_thread_id(void)
        available in the ucontext_t in the caller.
     */
 #ifdef __APPLE__
-    return (void *)_PyThreadState_Current;
+    return (void *)get_current_thread_state();
 #else
     return (void *)pthread_self();
 #endif
@@ -178,7 +189,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     sigaddset(&set, SIGSEGV);
     sigprocmask(SIG_BLOCK, &set, &oldset);
     pthread_self();
-    _PyThreadState_Current;
+    get_current_thread_state();
     sigemptyset(&set);
     sigpending(&set);
     if (sigismember(&set, SIGSEGV)) {
