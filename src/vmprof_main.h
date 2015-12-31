@@ -150,7 +150,11 @@ static void *get_current_thread_id(void)
        An alternative would be to try to look if the information is
        available in the ucontext_t in the caller.
     */
+#ifdef __APPLE__
+    return (void *)_PyThreadState_Current;
+#else
     return (void *)pthread_self();
+#endif
 }
 
 
@@ -174,6 +178,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     sigaddset(&set, SIGSEGV);
     sigprocmask(SIG_BLOCK, &set, &oldset);
     pthread_self();
+    _PyThreadState_Current;
     sigemptyset(&set);
     sigpending(&set);
     if (sigismember(&set, SIGSEGV)) {
