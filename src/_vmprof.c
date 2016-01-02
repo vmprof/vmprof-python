@@ -9,7 +9,7 @@ static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 #define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
 #define CPYTHON_GET_CUSTOM_OFFSET
 
-/* This returns the address of the code object plus 0x7000000000000000
+/* This returns the address of the code object
    as the identifier.  The mapping from identifiers to string
    representations of the code object is done elsewhere, namely:
 
@@ -22,7 +22,7 @@ static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
      process for code objects and emit all the ones that we can
      find (which we hope is very close to 100% of them).
 */
-#define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)) | 0x7000000000000000UL)
+#define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)))
 
 #include "vmprof_main.h"
 

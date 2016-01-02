@@ -14,10 +14,7 @@ def show_stats(filename, output_mode, args):
     if output_mode == OUTPUT_FILE:
         return
 
-    stats = vmprof.read_profile(
-        filename,
-        virtual_only=not args.enable_nonvirtual
-    )
+    stats = vmprof.read_profile(filename)
 
     if output_mode == OUTPUT_CLI:
         vmprof.cli.show(stats)

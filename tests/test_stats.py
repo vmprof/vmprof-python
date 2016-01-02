@@ -5,7 +5,6 @@ import py
 import six
 
 import vmprof
-from vmprof.reader import LibraryData
 from vmprof.stats import Node, Stats
 from vmprof.addrspace import VirtualFrame, MinorGCFrame
 

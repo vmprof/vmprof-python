@@ -1,9 +1,9 @@
 import vmprof
 import tempfile
 
-from vmprof.addrspace import AddressSpace
+#from vmprof.addrspace import AddressSpace
 from vmprof.stats import Stats
-from vmprof.reader import read_prof, LibraryData
+from vmprof.reader import read_prof
 
 
 class VMProfError(Exception):
@@ -37,39 +37,22 @@ def read_profile(prof_filename, lib_cache={}, extra_libs=None,
 
     period, profiles, virtual_symbols, interp_name = read_prof(prof)
 
-    #if not virtual_only or include_extra_info:
-    #    exe_name = libs[0].name
-    #    for lib in libs:
-    #        executable = lib.name == exe_name
-    #        if lib.name in lib_cache:
-    #            lib.get_symbols_from(lib_cache[lib.name], executable)
-    #        else:
-    #            lib.read_object_data(executable)
-    #
-    #            lib_cache[lib.name] = lib
-    libs = []
-    libs.append(
-        LibraryData(
-            '<virtual>',
-            0x7000000000000000,
-            0x7fffffffffffffff,
-            True,
-            symbols=virtual_symbols)
-    )
-    if extra_libs:
-        libs += extra_libs
-    addrspace = AddressSpace(libs)
-    filtered_profiles, addr_set, jit_frames = addrspace.filter_addr(profiles,
-        virtual_only, interp_name)
-    d = {}
-    for addr in addr_set:
-        name, _, _, lib = addrspace.lookup(addr)
-        if lib is None:
-            name = 'jit:' + name
-        d[addr] = name
-    if include_extra_info:
-        d.update(addrspace.meta_data)
-    s = Stats(filtered_profiles, d, jit_frames, interp_name)
+    #addrspace = AddressSpace(libs)
+    #filtered_profiles, addr_set, jit_frames = addrspace.filter_addr(profiles,
+    #    virtual_only, interp_name)
+    #d = {}
+    #for addr in addr_set:
+    #    name, _, _, lib = addrspace.lookup(addr)
+    #    if lib is None:
+    #        name = 'jit:' + name
+    #    d[addr] = name
+    #if include_extra_info:
+    #    d.update(addrspace.meta_data)
+    for prof in profiles:
+        prof[0].reverse()
+    jit_frames = {}
+    d = dict(virtual_symbols)
+    s = Stats(profiles, d, jit_frames, interp_name)
     return s
 
 

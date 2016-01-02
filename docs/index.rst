@@ -52,8 +52,7 @@ vmprof 0.1 works only on x86_64 linux, with upcoming support of Mac OS X and
 Free BSD. MacOS X and Free BSD should work with PyPy trunk (but not 2.6)
 It supports  `CPython`_ 2.7, `CPython`_ 3 and `PyPy`_ >= 2.6.
 
-Currently it does not work on Windows and 32bit machines, although support for
-those is planned in the future.
+XXXX
 
 Installation
 ------------
@@ -62,10 +61,9 @@ Installation of ``vmprof`` is performed with a simple command::
 
     pip install vmprof
 
-Since it depends on some C code and external libraries, you need a compiler
-and some packages. On ubuntu those are::
+Since it depends on some C code for CPython, you need a compiler.
 
-    sudo apt-get install python-dev libdwarf-dev libelfg0-dev libunwind8-dev
+    sudo apt-get install python-dev
 
 Usage
 -----

@@ -1,4 +1,7 @@
 import py
+
+py.test.skip("not needed any more")
+
 from vmprof.reader import LibraryData
 from vmprof.addrspace import AddressSpace, JittedVirtual, JitAddr,\
      BlackholeWarmupFrame, VirtualFrame
