@@ -66,7 +66,6 @@ int vmprof_snapshot_thread(DWORD thread_id, PyThreadState *tstate, prof_stacktra
     if(result == 0xffffffff)
         return -1; // possible, e.g. attached debugger or thread alread suspended
     // find the correct thread
-    //printf("%d %d\n", thread_id, tstate->gilstate_counter);
     depth = read_trace_from_cpy_frame(tstate->frame, stack->stack,
         MAX_STACK_DEPTH);
     stack->depth = depth;
