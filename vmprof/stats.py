@@ -62,21 +62,13 @@ class Stats(object):
         return result, total
 
     def get_top(self, profiles):
-        top_addr = 0
-        for prof in profiles:
-            for x in prof[0]:
-                if isinstance(x, VirtualFrame):
-                    top_addr = x
-                    break
-            if top_addr:
-                break
-        if not top_addr:
-            raise EmptyProfileFile()
-        top = Node(top_addr.addr, self._get_name(top_addr))
+        top_addr = profiles[0][0][0]
+        top = Node(top_addr, self._get_name(top_addr))
         top.count = len(self.profiles)
         return top
 
     def get_meta_from_tail(self, profile, tail_start, last_virtual):
+        xxx
         meta = {}
         warmup = False
         for k in range(tail_start, len(profile)):
@@ -101,22 +93,11 @@ class Stats(object):
         addr = None
         for profile in self.profiles:
             cur = top
-            last_virtual = None
-            last_virtual_pos = -1
             for i in range(1, len(profile[0])):
                 addr = profile[0][i]
                 name = self._get_name(addr)
-                if not isinstance(addr, (VirtualFrame, JittedVirtual)):
-                    continue
-                last_virtual = addr
-                last_virtual_pos = i
-                cur = cur.add_child(addr.addr, name)
-                if i > 1 and isinstance(profile[0][i - 1], JitAddr):
-                    jit_addr = profile[0][i - 1].addr
-                    cur.jitcodes[jit_addr] = cur.jitcodes.get(jit_addr, 0) + 1
-
-            meta = self.get_meta_from_tail(profile[0], last_virtual_pos + 1,
-                                           last_virtual)
+                cur = cur.add_child(addr, name)
+            meta = {}
             for k, v in meta.items():
                 cur.meta[k] = cur.meta.get(k, 0) + v
         # get the first "interesting" node, that is after vmprof and pypy

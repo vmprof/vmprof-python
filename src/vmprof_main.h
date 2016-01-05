@@ -20,57 +20,48 @@
 #define _GNU_SOURCE 1
 
 #include <dlfcn.h>
-#include <assert.h>
 #include <pthread.h>
 #include <sys/time.h>
-#include <errno.h>
 #include <unistd.h>
+#include "vmprof_getpc.h"
+#include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "vmprof_getpc.h"
-#include "vmprof_unwind.h"
+
 #include "vmprof_mt.h"
+#include "vmprof_common.h"
 
 
 /************************************************************/
 
-static int profile_file = -1;
-static long prepare_interval_usec;
-static struct profbuf_s *volatile current_codes;
 static void *(*mainloop_get_virtual_ip)(char *) = 0;
 
 static int opened_profile(char *interp_name);
 static void flush_codes(void);
-
-RPY_EXTERN
-char *vmprof_init(int fd, double interval, char *interp_name)
-{
-    if (interval < 1e-6 || interval >= 1.0)
-        return "bad value for 'interval'";
-    prepare_interval_usec = (int)(interval * 1000000.0);
-
-    if (prepare_concurrent_bufs() < 0)
-        return "out of memory";
-
-    assert(fd >= 0);
-    profile_file = fd;
-    if (opened_profile(interp_name) < 0) {
-        profile_file = -1;
-        return strerror(errno);
-    }
-    return NULL;
-
- error:
-    return dlerror();
-}
 
 /************************************************************/
 
 /* value: last bit is 1 if signals must be ignored; all other bits
    are a counter for how many threads are currently in a signal handler */
 static long volatile signal_handler_value = 1;
+
+static int _write_all(const char *buf, size_t bufsize)
+{
+    if (profile_file == -1) {
+        return -1;
+    }
+    while (bufsize > 0) {
+        ssize_t count = write(profile_file, buf, bufsize);
+        if (count <= 0)
+            return -1;   /* failed */
+        buf += count;
+        bufsize -= count;
+    }
+    return 0;
+}
 
 RPY_EXTERN
 void vmprof_ignore_signals(int ignored)
@@ -93,27 +84,7 @@ void vmprof_ignore_signals(int ignored)
  * *************************************************************
  */
 
-#define MAX_FUNC_NAME 128
-#define MAX_STACK_DEPTH   \
-    ((SINGLE_BUF_SIZE - sizeof(struct prof_stacktrace_s)) / sizeof(void *))
 
-#define MARKER_STACKTRACE '\x01'
-#define MARKER_VIRTUAL_IP '\x02'
-#define MARKER_TRAILER '\x03'
-#define MARKER_INTERP_NAME '\x04'   /* deprecated */
-#define MARKER_HEADER '\x05'
-
-#define VERSION_BASE '\x00'
-#define VERSION_THREAD_ID '\x01'
-
-struct prof_stacktrace_s {
-    char padding[sizeof(long) - 1];
-    char marker;
-    long count, depth;
-    void *stack[];
-};
-
-static long profile_interval_usec = 0;
 static char atfork_hook_installed = 0;
 
 
@@ -138,13 +109,7 @@ static int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext)
     if (!current)
         return 0;
     PyFrameObject *frame = current->frame;
-    int depth = 0;
-
-    while (frame && depth < max_depth) {
-        result[depth++] = (void*)CODE_ADDR_TO_UID(frame->f_code);
-        frame = frame->f_back;
-    }
-    return depth;
+    return read_trace_from_cpy_frame(current->frame, result, max_depth);
 }
 
 static void *get_current_thread_id(void)
@@ -333,46 +298,12 @@ int vmprof_enable(void)
     return -1;
 }
 
-static int _write_all(const void *buf, size_t bufsize)
-{
-    while (bufsize > 0) {
-        ssize_t count = write(profile_file, buf, bufsize);
-        if (count <= 0)
-            return -1;   /* failed */
-        buf += count;
-        bufsize -= count;
-    }
-    return 0;
-}
-
-static int opened_profile(char *interp_name)
-{
-    struct {
-        long hdr[5];
-        char interp_name[259];
-    } header;
-
-    size_t namelen = strnlen(interp_name, 255);
-    current_codes = NULL;
-
-    header.hdr[0] = 0;
-    header.hdr[1] = 3;
-    header.hdr[2] = 0;
-    header.hdr[3] = prepare_interval_usec;
-    header.hdr[4] = 0;
-    header.interp_name[0] = MARKER_HEADER;
-    header.interp_name[1] = '\x00';
-    header.interp_name[2] = VERSION_THREAD_ID;
-    header.interp_name[3] = namelen;
-    memcpy(&header.interp_name[4], interp_name, namelen);
-    return _write_all(&header, 5 * sizeof(long) + 4 + namelen);
-}
 
 static int close_profile(void)
 {
     char buf[4096];
     ssize_t size;
-    unsigned char marker = MARKER_TRAILER;
+    char marker = MARKER_TRAILER;
 
     if (_write_all(&marker, 1) < 0)
         return -1;

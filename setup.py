@@ -4,11 +4,21 @@ import os, sys
 if '__pypy__' in sys.builtin_module_names:
     ext_modules = [] # built-in
 else:
+    if sys.platform != 'win32':
+        extra_compile_args = ['-Wno-unused']
+    else:
+        extra_compile_args = []
     ext_modules = [Extension('_vmprof',
                            sources=[
                                'src/_vmprof.c',
                                ],
-                            extra_compile_args=['-Wno-unused'],
+                           depends=[
+                               'src/vmprof_main.h',
+                               'src/vmprof_main_32.h',
+                               'src/vmprof_mt.h',
+                               'src/vmprof_common.h',
+                           ],
+                            extra_compile_args=extra_compile_args,
                             libraries=[])]
    
 

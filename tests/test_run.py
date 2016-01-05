@@ -78,6 +78,8 @@ def test_nested_call():
             assert names == [foo_full_name]
         else:
             assert foo_full_name in names
+    t = stats.get_tree()
+    xxx # xxx write some asserts
 
 
 def test_multithreaded():

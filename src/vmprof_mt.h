@@ -1,7 +1,7 @@
 /* Support for multithreaded write() operations */
 
-#include <sys/mman.h>
 #include <string.h>
+#include <sys/mman.h>
 
 /* The idea is that we have MAX_NUM_BUFFERS available, all of size
    SINGLE_BUF_SIZE.  Threads and signal handlers can ask to reserve a
@@ -25,7 +25,6 @@
    and too low (risk that there is none left).
 */
 #define MAX_NUM_BUFFERS  20
-#define SINGLE_BUF_SIZE  (8192 - 2 * sizeof(unsigned int))
 
 #if defined(__i386__) || defined(__amd64__)
   static inline void write_fence(void) { asm("" : : : "memory"); }

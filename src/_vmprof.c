@@ -24,8 +24,12 @@ static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 */
 #define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)))
 
+#define SINGLE_BUF_SIZE (8192 - 2 * sizeof(unsigned int))
+#if defined(__unix__) || defined(__APPLE__)
 #include "vmprof_main.h"
-
+#else
+#include "vmprof_main_win32.h"
+#endif
 
 static destructor Original_code_dealloc = 0;
 static ptrdiff_t mainloop_sp_offset;
@@ -78,6 +82,7 @@ static int _look_for_code_object(PyObject *o, void *all_codes)
 static void emit_all_code_objects(void)
 {
     PyObject *gc_module = NULL, *lst = NULL, *all_codes = NULL;
+    Py_ssize_t i, size;
 
     gc_module = PyImport_ImportModuleNoBlock("gc");
     if (gc_module == NULL)
@@ -91,7 +96,7 @@ static void emit_all_code_objects(void)
     if (all_codes == NULL)
         goto error;
 
-    Py_ssize_t i, size = PyList_GET_SIZE(lst);
+    size = PyList_GET_SIZE(lst);
     for (i = 0; i < size; i++) {
         PyObject *o = PyList_GET_ITEM(lst, i);
         if (o->ob_type->tp_traverse &&
@@ -125,7 +130,7 @@ static void init_cpyprof(void)
 
 static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
-    int fd, period_usec;
+    int fd;
     double interval;
     char *p_error;
 

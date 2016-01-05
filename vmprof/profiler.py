@@ -17,7 +17,7 @@ class ProfilerContext(object):
         if name is None:
             self.tmpfile = tempfile.NamedTemporaryFile()
         else:
-            self.tmpfile = open(name, "w")
+            self.tmpfile = open(name, "wb")
             self._close = True
 
     def __enter__(self):
