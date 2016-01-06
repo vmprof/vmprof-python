@@ -11,22 +11,19 @@ class VMProfError(Exception):
 
 class ProfilerContext(object):
     done = False
-    _close = False
 
     def __init__(self, name):
         if name is None:
-            self.tmpfile = tempfile.NamedTemporaryFile()
+            self.tmpfile = tempfile.NamedTemporaryFile(delete=False)
         else:
             self.tmpfile = open(name, "wb")
-            self._close = True
 
     def __enter__(self):
         vmprof.enable(self.tmpfile.fileno(), 0.001)
 
     def __exit__(self, type, value, traceback):
         vmprof.disable()
-        if self._close:
-            self.tmpfile.close()
+        self.tmpfile.close()
         self.done = True
 
 
