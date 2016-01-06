@@ -35,15 +35,15 @@ def get_or_write_libcache(filename):
     return lib_cache
 
 def test_tree_basic():
-    profiles = [([VirtualFrame(1), VirtualFrame(2)], 1, 1),
-                ([VirtualFrame(1), VirtualFrame(2)], 1, 1)]
+    profiles = [([1, 2], 1, 1),
+                ([1, 2], 1, 1)]
     stats = Stats(profiles, adr_dict={1: 'foo', 2: 'bar'})
     tree = stats.get_tree()
     assert tree == Node(1, 'foo', 2, {2: Node(2, 'bar', 2)})
     assert repr(tree) == '<Node: foo (2) [(2, bar)]>'
 
-    profiles = [([VirtualFrame(1), VirtualFrame(2)], 1, 1),
-                ([VirtualFrame(1), VirtualFrame(3)], 1, 1)]
+    profiles = [([1, 2], 1, 1),
+                ([1, 3], 1, 1)]
     stats = Stats(profiles, adr_dict={1: 'foo', 2: 'bar', 3: 'baz'})
     tree = stats.get_tree()
     assert tree == Node(1, 'foo', 2, {
@@ -51,6 +51,7 @@ def test_tree_basic():
         3: Node(3, 'baz', 1)})
 
 def test_tree_gc():
+    py.test.skip("for pypy, write once we have support")
     profiles = [([VirtualFrame(1)], 1, 1),
                 ([VirtualFrame(1), MinorGCFrame(100)], 1, 1)]
     stats = Stats(profiles, adr_dict={1: 'foo', 100: 'gc_collect'})

@@ -79,8 +79,11 @@ def test_nested_call():
         else:
             assert foo_full_name in names
     t = stats.get_tree()
-    xxx # xxx write some asserts
-
+    while 'function_bar' not in t.name:
+        t = t['']
+    assert len(t.children) == 1
+    assert 'function_foo' in t[''].name
+    assert len(t[''].children) == 0
 
 def test_multithreaded():
     if '__pypy__' in sys.builtin_module_names or PY3K:
