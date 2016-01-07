@@ -71,10 +71,25 @@ static int emit_code_object(PyCodeObject *co)
 static int _look_for_code_object(PyObject *o, void *all_codes)
 {
     if (PyCode_Check(o) && !PySet_Contains((PyObject *)all_codes, o)) {
-        if (emit_code_object((PyCodeObject *)o) < 0)
+        Py_ssize_t i;
+        PyCodeObject *co = (PyCodeObject *)o;
+        if (emit_code_object(co) < 0)
             return -1;
         if (PySet_Add((PyObject *)all_codes, o) < 0)
             return -1;
+
+        /* as a special case, recursively look for and add code
+           objects found in the co_consts.  The problem is that code
+           objects are not created as GC-aware in CPython, so we need
+           to hack like this to hope to find most of them. 
+        */
+        i = PyTuple_Size(co->co_consts);
+        while (i > 0) {
+            --i;
+            if (_look_for_code_object(PyTuple_GET_ITEM(co->co_consts, i),
+                                      all_codes) < 0)
+                return -1;
+        }
     }
     return 0;
 }
