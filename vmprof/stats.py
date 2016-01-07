@@ -35,7 +35,7 @@ class Stats(object):
 
     def _get_name(self, addr):
         if self.adr_dict is not None:
-            return self.adr_dict[addr]
+            return self.adr_dict.get(addr, '<unknown code>')
 
         return addr
 
