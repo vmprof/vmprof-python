@@ -84,7 +84,11 @@ def test_nested_call():
         t = t['']
     assert len(t.children) == 1
     assert 'function_foo' in t[''].name
-    assert len(t[''].children) == 0
+    if PY3K:
+        assert len(t[''].children) == 1
+        assert '<listcomp>' in t[''][''].name
+    else:
+        assert len(t[''].children) == 0
 
 def test_multithreaded():
     if '__pypy__' in sys.builtin_module_names or PY3K:
