@@ -140,7 +140,6 @@ class Node(object):
             children = {}
         self.children = children
         self.name = name
-        assert isinstance(addr, int)
         self.addr = addr
         self.count = count # starts at 1
         self.jitcodes = {}

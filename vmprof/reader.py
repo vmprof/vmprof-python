@@ -11,11 +11,11 @@ WORD_SIZE = struct.calcsize('L')
 
 def read_word(fileobj):
     b = fileobj.read(WORD_SIZE)
-    r = int(struct.unpack('L', b)[0])
+    r = int(struct.unpack('l', b)[0])
     return r
 
 def read_string(fileobj):
-    lgt = int(struct.unpack('L', fileobj.read(WORD_SIZE))[0])
+    lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])
     return fileobj.read(lgt)
 
 MARKER_STACKTRACE = b'\x01'
