@@ -28,7 +28,25 @@ VERSION_BASE = 0
 VERSION_THREAD_ID = 1
 VERSION_TAG = 2
 
-TAG_CODE = 1
+VMPROF_CODE_TAG = 1
+VMPROF_BLACKHOLE_TAG = 2
+VMPROF_JITTED_TAG = 3
+VMPROF_JITTING_TAG = 4
+VMPROF_GC_TAG = 5
+VMPROF_ASSEMBLER_TAG = 6
+
+class AssemblerCode(int):
+    pass
+
+class JittedCode(int):
+    pass
+
+def wrap_kind(kind, pc):
+    if kind == VMPROF_ASSEMBLER_TAG:
+        return AssemblerCode(pc)
+    elif kind == VMPROF_JITTED_TAG:
+        return JittedCode(pc)
+    return pc
 
 def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count
@@ -68,9 +86,10 @@ def read_prof(fileobj, virtual_ips_only=False): #
                 for j in range(depth):
                     if version >= VERSION_TAG:
                         kind = read_word(fileobj)
-                        assert kind == TAG_CODE
+                    else:
+                        kind = VMPROF_CODE_TAG
                     pc = read_word(fileobj)
-                    trace.append(pc)
+                    trace.append(wrap_kind(kind, pc))
             if version >= VERSION_THREAD_ID:
                 thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:

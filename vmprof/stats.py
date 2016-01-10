@@ -62,7 +62,10 @@ class Stats(object):
         return result, total
 
     def get_top(self, profiles):
-        top_addr = profiles[0][0][0]
+        for prof in profiles:
+            if prof[0]:
+                break
+        top_addr = prof[0][0]
         top = Node(top_addr, self._get_name(top_addr))
         top.count = len(self.profiles)
         return top
