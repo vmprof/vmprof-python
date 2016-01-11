@@ -1,6 +1,5 @@
 import six
-from vmprof.addrspace import JittedVirtual, JitAddr, VirtualFrame,\
-     BaseMetaFrame
+from vmprof.reader import AssemblerCode, JittedCode
 
 class EmptyProfileFile(Exception):
     pass
@@ -70,39 +69,25 @@ class Stats(object):
         top.count = len(self.profiles)
         return top
 
-    def get_meta_from_tail(self, profile, tail_start, last_virtual):
-        xxx
-        meta = {}
-        warmup = False
-        for k in range(tail_start, len(profile)):
-            addr = profile[k]
-            if isinstance(addr, BaseMetaFrame):
-                # don't count tracing twice and only count it at the bottom
-                if addr.name in ('tracing', 'blackhole'):
-                    if warmup:
-                        continue
-                    warmup = True
-                addr.add_to_meta(meta)
-        # count if we're jitted - if we're warming up, we don't
-        # count this frame as jitted (to avoid > 100% claims)
-        if isinstance(last_virtual, JittedVirtual) and not warmup:
-            meta['jit'] = meta.get('jit', 0) + 1
-        return meta
-
     def get_tree(self):
         # fine the first non-empty profile
 
         top = self.get_top(self.profiles)
         addr = None
         for profile in self.profiles:
+            last_addr = top.addr
             cur = top
             for i in range(1, len(profile[0])):
                 addr = profile[0][i]
+                if addr == last_addr:
+                    continue # ignore duplicates
+                if isinstance(addr, AssemblerCode):
+                    continue # just ignore it for now
+                last_addr = addr
                 name = self._get_name(addr)
                 cur = cur.add_child(addr, name)
-            meta = {}
-            for k, v in meta.items():
-                cur.meta[k] = cur.meta.get(k, 0) + v
+            if isinstance(addr, JittedCode):
+                cur.meta['jit'] = cur.meta.get('jit', 0) + 1
         # get the first "interesting" node, that is after vmprof and pypy
         # mess
 

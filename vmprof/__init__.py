@@ -6,7 +6,6 @@ from . import cli
 import _vmprof
 
 from vmprof.reader import read_prof
-from vmprof.addrspace import AddressSpace
 from vmprof.stats import Stats
 from vmprof.profiler import Profiler, read_profile
 
