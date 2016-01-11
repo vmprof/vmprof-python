@@ -46,6 +46,7 @@ def wrap_kind(kind, pc):
         return AssemblerCode(pc)
     elif kind == VMPROF_JITTED_TAG:
         return JittedCode(pc)
+    assert kind == VMPROF_CODE_TAG
     return pc
 
 def read_prof(fileobj, virtual_ips_only=False): #

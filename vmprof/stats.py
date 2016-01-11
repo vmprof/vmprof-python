@@ -78,11 +78,11 @@ class Stats(object):
             last_addr = top.addr
             cur = top
             for i in range(1, len(profile[0])):
+                if isinstance(profile[0][i], AssemblerCode):
+                    continue # just ignore it for now
                 addr = profile[0][i]
                 if addr == last_addr:
                     continue # ignore duplicates
-                if isinstance(addr, AssemblerCode):
-                    continue # just ignore it for now
                 last_addr = addr
                 name = self._get_name(addr)
                 cur = cur.add_child(addr, name)
