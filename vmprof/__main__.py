@@ -62,7 +62,8 @@ def main():
     vmprof.disable()
     prof_file.close()
     show_stats(prof_name, output_mode, args)
-    os.unlink(prof_name)
+    if output_mode != OUTPUT_FILE:
+        os.unlink(prof_name)
 
 
 main()
