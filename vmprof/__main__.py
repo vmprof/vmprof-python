@@ -1,5 +1,5 @@
 import runpy
-import sys
+import sys, os
 import tempfile
 
 import vmprof
@@ -14,10 +14,7 @@ def show_stats(filename, output_mode, args):
     if output_mode == OUTPUT_FILE:
         return
 
-    stats = vmprof.read_profile(
-        filename,
-        virtual_only=not args.enable_nonvirtual
-    )
+    stats = vmprof.read_profile(filename)
 
     if output_mode == OUTPUT_CLI:
         vmprof.cli.show(stats)
@@ -49,8 +46,10 @@ def main():
 
     if output_mode == OUTPUT_FILE:
         prof_file = args.output
+        prof_name = prof_file.name
     else:
-        prof_file = tempfile.NamedTemporaryFile()
+        prof_file = tempfile.NamedTemporaryFile(delete=False)
+        prof_name = prof_file.name
 
     vmprof.enable(prof_file.fileno(), args.period)
 
@@ -61,7 +60,10 @@ def main():
         if not isinstance(e, (KeyboardInterrupt, SystemExit)):
             raise
     vmprof.disable()
-    show_stats(prof_file.name, output_mode, args)
+    prof_file.close()
+    show_stats(prof_name, output_mode, args)
+    if output_mode != OUTPUT_FILE:
+        os.unlink(prof_name)
 
 
 main()

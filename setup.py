@@ -1,29 +1,26 @@
 from setuptools import setup, find_packages, Extension
 import os, sys
 
-j = os.path.join
-
-libdwarf = j(j(j(os.path.dirname(os.path.abspath(__file__)), 'src'),
-             'hotpatch'), 'libdwarf.a')
-
-
 if '__pypy__' in sys.builtin_module_names:
     ext_modules = [] # built-in
 else:
+    if sys.platform != 'win32':
+        extra_compile_args = ['-Wno-unused']
+    else:
+        extra_compile_args = []
     ext_modules = [Extension('_vmprof',
                            sources=[
                                'src/_vmprof.c',
-                               'src/hotpatch/tramp.c',
-                               'src/hotpatch/elf.c',
-                               'src/hotpatch/x86_gen.c',
-                               'src/hotpatch/util.c',
                                ],
-                            extra_compile_args=['-Wno-unused',
-                                                '-I/usr/include/elf',
-                                                '-I/usr/include/libdwarf'],
-                            libraries=['elf', 'unwind', 'rt'],
-                            extra_link_args=['%s' % libdwarf])]
-
+                           depends=[
+                               'src/vmprof_main.h',
+                               'src/vmprof_main_32.h',
+                               'src/vmprof_mt.h',
+                               'src/vmprof_common.h',
+                           ],
+                            extra_compile_args=extra_compile_args,
+                            libraries=[])]
+   
 
 setup(
     name='vmprof',

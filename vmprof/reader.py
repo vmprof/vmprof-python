@@ -7,115 +7,15 @@ import sys
 
 PY3 = sys.version_info[0] >= 3
 
-
-class LibraryData(object):
-    def __init__(self, name, start, end, is_virtual=False, symbols=None):
-        self.name = name
-        self.start = start
-        self.end = end
-        self.is_virtual = is_virtual
-        if symbols is None:
-            symbols = []
-        self.symbols = symbols
-
-    def read_object_data(self, executable=False, reader=None):
-        if self.is_virtual:
-            return
-        offset = 0 if executable else self.start
-        self.symbols = read_object(reader, self.name, offset)
-        if not self.symbols and not self.name.startswith('['):
-            print('WARNING: cannot read symbols for', self.name, file=sys.stderr)
-        return self.symbols
-
-    def get_symbols_from(self, cached_lib, executable=False):
-        if executable:
-            self.symbols = cached_lib.symbols[:]
-            return self.symbols
-
-        self.symbols = symbols = []
-        for (addr, name) in cached_lib.symbols:
-            symbols.append((addr - cached_lib.start + self.start, name))
-        return symbols
-
-    def __repr__(self):
-        return '<Library data for %s, ranges %x-%x>' % (self.name, self.start,
-                                                        self.end)
-
-
-def read_object(reader, name, lib_start_addr, repeat=True):
-    if PY3 and isinstance(name, bytes):
-        name = name.decode('utf-8')
-    if reader is None:
-        try:
-            out = subprocess.check_output('nm -n "%s" 2>/dev/null' % name, shell=True)
-            if PY3:
-                out = out.decode('latin1')
-        except subprocess.CalledProcessError:
-            out = ''
-    else:
-        out = reader(name)
-    lines = out.splitlines()
-    symbols = []
-    for line in lines:
-        parts = line.split()
-        if len(parts) != 3:
-            continue
-        start_addr, tp, name = parts
-        if tp in ('t', 'T') and not name.startswith('__gcmap'):
-            start_addr = int(start_addr, 16) + lib_start_addr
-            symbols.append((start_addr, name))
-    symbols.sort()
-    if repeat and not symbols:
-        return read_object(reader, '/usr/lib/debug' + name, lib_start_addr,
-                           False)
-    return symbols
-
-
-def read_ranges(data):
-    if PY3 and isinstance(data, bytes):
-        data = data.decode('latin1')
-    ranges = []
-    lines = data.splitlines()
-    for i, line in enumerate(lines):
-        if 'Virtual Memory Map' in line:
-            lines = lines[i:]
-            break
-    if 'Virtual Memory Map' in lines[0]:
-        mode = 'vmmap'
-        end = 5
-        while lines[end]:
-            end += 1
-        lines = lines[6:end]
-    elif lines[0].endswith('PATH'):
-        lines = lines[1:]
-        mode = 'procstat'
-    else:
-        mode = 'proc'                           
-    for line in lines:
-        parts = re.split("\s+", line)
-        name = parts[-1]
-        if mode == 'procstat':
-            start, end = parts[1], parts[2]
-        elif mode == 'vmmap':
-            k = 1
-            while not parts[k].startswith('000'):
-                k += 1
-            start, end = parts[k].split('-')
-        else:
-            start, end = parts[0].split('-')
-        start = int(start, 16)
-        end = int(end, 16)
-        if name: # don't map anonymous memory, JIT code will be there
-            ranges.append(LibraryData(name, start, end))
-    return ranges
+WORD_SIZE = struct.calcsize('L')
 
 def read_word(fileobj):
-    b = fileobj.read(8)
-    r = int(struct.unpack('Q', b)[0])
+    b = fileobj.read(WORD_SIZE)
+    r = int(struct.unpack('l', b)[0])
     return r
 
 def read_string(fileobj):
-    lgt = int(struct.unpack('Q', fileobj.read(8))[0])
+    lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])
     return fileobj.read(lgt)
 
 MARKER_STACKTRACE = b'\x01'
@@ -126,11 +26,33 @@ MARKER_HEADER = b'\x05'
 
 VERSION_BASE = 0
 VERSION_THREAD_ID = 1
+VERSION_TAG = 2
+
+VMPROF_CODE_TAG = 1
+VMPROF_BLACKHOLE_TAG = 2
+VMPROF_JITTED_TAG = 3
+VMPROF_JITTING_TAG = 4
+VMPROF_GC_TAG = 5
+VMPROF_ASSEMBLER_TAG = 6
+
+class AssemblerCode(int):
+    pass
+
+class JittedCode(int):
+    pass
+
+def wrap_kind(kind, pc):
+    if kind == VMPROF_ASSEMBLER_TAG:
+        return AssemblerCode(pc)
+    elif kind == VMPROF_JITTED_TAG:
+        return JittedCode(pc)
+    assert kind == VMPROF_CODE_TAG
+    return pc
 
 def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count
     assert read_word(fileobj) == 3 # header size
-    assert read_word(fileobj) == 0 # version?
+    assert read_word(fileobj) == 0
     period = read_word(fileobj)
     assert read_word(fileobj) == 0
 
@@ -157,15 +79,20 @@ def read_prof(fileobj, virtual_ips_only=False): #
             assert depth <= 2**16, 'stack strace depth too high'
             trace = []
             if virtual_ips_only:
-                fileobj.read(8 * depth)
+                fileobj.read(WORD_SIZE * depth)
             else:
+                if version >= VERSION_TAG:
+                    assert depth & 1 == 0
+                    depth = depth // 2
                 for j in range(depth):
+                    if version >= VERSION_TAG:
+                        kind = read_word(fileobj)
+                    else:
+                        kind = VMPROF_CODE_TAG
                     pc = read_word(fileobj)
-                    if j > 0 and pc > 0:
-                        pc -= 1
-                    trace.append(pc)
+                    trace.append(wrap_kind(kind, pc))
             if version >= VERSION_THREAD_ID:
-                thread_id, = struct.unpack('l', fileobj.read(8))
+                thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:
                 thread_id = 0
             profiles.append((trace, 1, thread_id))
@@ -184,14 +111,13 @@ def read_prof(fileobj, virtual_ips_only=False): #
                 name = name.decode()
             virtual_ips.append((unique_id, name))
         elif marker == MARKER_TRAILER:
-            if not virtual_ips_only:
-                symmap = read_ranges(fileobj.read())
+            #if not virtual_ips_only:
+            #    symmap = read_ranges(fileobj.read())
             break
         else:
             assert not marker
-            symmap = []
             break
     virtual_ips.sort() # I think it's sorted, but who knows
     if virtual_ips_only:
         return virtual_ips
-    return period, profiles, virtual_ips, symmap, interp_name
+    return period, profiles, virtual_ips, interp_name

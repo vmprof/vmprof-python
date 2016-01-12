@@ -20,78 +20,48 @@
 #define _GNU_SOURCE 1
 
 #include <dlfcn.h>
-#include <assert.h>
 #include <pthread.h>
 #include <sys/time.h>
-#include <errno.h>
 #include <unistd.h>
+#include "vmprof_getpc.h"
+#include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "vmprof_getpc.h"
-#include "vmprof_unwind.h"
+
 #include "vmprof_mt.h"
+#include "vmprof_common.h"
 
 
 /************************************************************/
 
-// functions copied from libunwind using dlopen
-
-static int (*unw_get_reg)(unw_cursor_t*, int, unw_word_t*) = NULL;
-static int (*unw_step)(unw_cursor_t*) = NULL;
-static int (*unw_init_local)(unw_cursor_t *, unw_context_t *) = NULL;
-static int (*unw_get_proc_info)(unw_cursor_t *, unw_proc_info_t *) = NULL;
-
-static int profile_file = -1;
-static long prepare_interval_usec;
-static struct profbuf_s *volatile current_codes;
 static void *(*mainloop_get_virtual_ip)(char *) = 0;
 
 static int opened_profile(char *interp_name);
 static void flush_codes(void);
-
-RPY_EXTERN
-char *vmprof_init(int fd, double interval, char *interp_name)
-{
-    if (interval < 1e-6 || interval >= 1.0)
-        return "bad value for 'interval'";
-    prepare_interval_usec = (int)(interval * 1000000.0);
-
-    if (!unw_get_reg) {
-        void *libhandle;
-
-        if (!(libhandle = dlopen("libunwind.so", RTLD_LAZY | RTLD_LOCAL)))
-            goto error;
-        if (!(unw_get_reg = dlsym(libhandle, "_ULx86_64_get_reg")))
-            goto error;
-        if (!(unw_get_proc_info = dlsym(libhandle, "_ULx86_64_get_proc_info")))
-            goto error;
-        if (!(unw_init_local = dlsym(libhandle, "_ULx86_64_init_local")))
-            goto error;
-        if (!(unw_step = dlsym(libhandle, "_ULx86_64_step")))
-            goto error;
-    }
-    if (prepare_concurrent_bufs() < 0)
-        return "out of memory";
-
-    assert(fd >= 0);
-    profile_file = fd;
-    if (opened_profile(interp_name) < 0) {
-        profile_file = -1;
-        return strerror(errno);
-    }
-    return NULL;
-
- error:
-    return dlerror();
-}
 
 /************************************************************/
 
 /* value: last bit is 1 if signals must be ignored; all other bits
    are a counter for how many threads are currently in a signal handler */
 static long volatile signal_handler_value = 1;
+
+static int _write_all(const char *buf, size_t bufsize)
+{
+    if (profile_file == -1) {
+        return -1;
+    }
+    while (bufsize > 0) {
+        ssize_t count = write(profile_file, buf, bufsize);
+        if (count <= 0)
+            return -1;   /* failed */
+        buf += count;
+        bufsize -= count;
+    }
+    return 0;
+}
 
 RPY_EXTERN
 void vmprof_ignore_signals(int ignored)
@@ -114,77 +84,8 @@ void vmprof_ignore_signals(int ignored)
  * *************************************************************
  */
 
-#define MAX_FUNC_NAME 128
-#define MAX_STACK_DEPTH   \
-    ((SINGLE_BUF_SIZE - sizeof(struct prof_stacktrace_s)) / sizeof(void *))
 
-#define MARKER_STACKTRACE '\x01'
-#define MARKER_VIRTUAL_IP '\x02'
-#define MARKER_TRAILER '\x03'
-#define MARKER_INTERP_NAME '\x04'   /* deprecated */
-#define MARKER_HEADER '\x05'
-
-#define VERSION_BASE '\x00'
-#define VERSION_THREAD_ID '\x01'
-
-struct prof_stacktrace_s {
-    char padding[sizeof(long) - 1];
-    char marker;
-    long count, depth;
-    void *stack[];
-};
-
-static long profile_interval_usec = 0;
 static char atfork_hook_installed = 0;
-
-
-/* ******************************************************
- * libunwind workaround for process JIT frames correctly
- * ******************************************************
- */
-
-#include "vmprof_get_custom_offset.h"
-
-typedef struct {
-    void* _unused1;
-    void* _unused2;
-    void* sp;
-    void* ip;
-    void* _unused3[sizeof(unw_cursor_t)/sizeof(void*) - 4];
-} vmprof_hacked_unw_cursor_t;
-
-static int vmprof_unw_step(unw_cursor_t *cp, int first_run)
-{
-    void* ip;
-    void* sp;
-    ptrdiff_t sp_offset;
-    unw_get_reg (cp, UNW_REG_IP, (unw_word_t*)&ip);
-    unw_get_reg (cp, UNW_REG_SP, (unw_word_t*)&sp);
-    if (!first_run) {
-        // make sure we're pointing to the CALL and not to the first
-        // instruction after. If the callee adjusts the stack for us
-        // it's not safe to be at the instruction after
-        ip -= 1;
-    }
-    sp_offset = vmprof_unw_get_custom_offset(ip, cp);
-
-    if (sp_offset == -1) {
-        // it means that the ip is NOT in JITted code, so we can use the
-        // stardard unw_step
-        return unw_step(cp);
-    }
-    else {
-        // this is a horrible hack to manually walk the stack frame, by
-        // setting the IP and SP in the cursor
-        vmprof_hacked_unw_cursor_t *cp2 = (vmprof_hacked_unw_cursor_t*)cp;
-        void* bp = (void*)sp + sp_offset;
-        cp2->sp = bp;
-        bp -= sizeof(void*);
-        cp2->ip = ((void**)bp)[0];
-        // the ret is on the top of the stack minus WORD
-        return 1;
-    }
-}
 
 
 /* *************************************************************
@@ -192,45 +93,23 @@ static int vmprof_unw_step(unw_cursor_t *cp, int first_run)
  * *************************************************************
  */
 
+PyThreadState* get_current_thread_state(void)
+{
+#ifdef _Py_atomic_load_relaxed
+    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+#else
+    return _PyThreadState_Current;
+#endif    
+}
+
 static int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext)
 {
-    void *ip;
-    int n = 0;
-    unw_cursor_t cursor;
-    unw_context_t uc = *ucontext;
+    PyThreadState* current = get_current_thread_state();
 
-    int ret = unw_init_local(&cursor, &uc);
-    assert(ret >= 0);
-    (void)ret;
-
-    while (n < max_depth) {
-        if (unw_get_reg(&cursor, UNW_REG_IP, (unw_word_t *) &ip) < 0) {
-            break;
-        }
-
-        unw_proc_info_t pip;
-        unw_get_proc_info(&cursor, &pip);
-
-        /* if n==0, it means that the signal handler interrupted us while we
-           were in the trampoline, so we are not executing (yet) the real main
-           loop function; just skip it */
-        if (VMPROF_ADDR_OF_TRAMPOLINE((void*)pip.start_ip) && n > 0) {
-            // found main loop stack frame
-            void* sp;
-            unw_get_reg(&cursor, UNW_REG_SP, (unw_word_t *) &sp);
-            if (mainloop_get_virtual_ip)
-                ip = mainloop_get_virtual_ip((char *)sp);
-            else
-                ip = *(void **)sp;
-        }
-
-        int first_run = (n == 0);
-        result[n++] = ip;
-        n = vmprof_write_header_for_jit_addr(result, n, ip, max_depth);
-        if (vmprof_unw_step(&cursor, first_run) <= 0)
-            break;
-    }
-    return n;
+    if (!current)
+        return 0;
+    PyFrameObject *frame = current->frame;
+    return read_trace_from_cpy_frame(current->frame, result, max_depth);
 }
 
 static void *get_current_thread_id(void)
@@ -238,7 +117,7 @@ static void *get_current_thread_id(void)
     /* xxx This function is a hack on two fronts:
 
        - It assumes that pthread_self() is async-signal-safe.  This
-         should be true on Linux.  I hope it is also true elsewhere.
+         should be true on Linux and OS X.  I hope it is also true elsewhere.
 
        - It abuses pthread_self() by assuming it just returns an
          integer.  According to comments in CPython's source code, the
@@ -247,7 +126,11 @@ static void *get_current_thread_id(void)
        An alternative would be to try to look if the information is
        available in the ucontext_t in the caller.
     */
+#ifdef __APPLE__
+    return (void *)get_current_thread_state();
+#else
     return (void *)pthread_self();
+#endif
 }
 
 
@@ -258,6 +141,28 @@ static void *get_current_thread_id(void)
 
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
+#ifdef __APPLE__
+    // TERRIBLE HACK AHEAD
+    // on OS X, the thread local storage is sometimes uninitialized
+    // when the signal handler runs - it means it's impossible to read errno
+    // or call any syscall or read PyThread_Current or pthread_self. Additionally,
+    // it seems impossible to read the register gs. Here we mask the segfault, call pthread_self
+    // (that would potentially access the NULL page) and check if it occured
+    sigset_t set, oldset;
+    sigemptyset(&set);
+    sigemptyset(&oldset);
+    sigaddset(&set, SIGSEGV);
+    sigprocmask(SIG_BLOCK, &set, &oldset);
+    pthread_self();
+    get_current_thread_state();
+    sigemptyset(&set);
+    sigpending(&set);
+    if (sigismember(&set, SIGSEGV)) {
+        sigprocmask(SIG_SETMASK, &oldset, NULL);
+        return;
+    }
+    sigprocmask(SIG_SETMASK, &oldset, NULL);
+#endif
     long val = __sync_fetch_and_add(&signal_handler_value, 2L);
 
     if ((val & 1) == 0) {
@@ -274,9 +179,9 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             struct prof_stacktrace_s *st = (struct prof_stacktrace_s *)p->data;
             st->marker = MARKER_STACKTRACE;
             st->count = 1;
-            st->stack[0] = GetPC((ucontext_t*)ucontext);
-            depth = get_stack_trace(st->stack+1, MAX_STACK_DEPTH-2, ucontext);
-            depth++;  // To account for pc value in stack[0];
+            depth = get_stack_trace(st->stack, MAX_STACK_DEPTH-1, ucontext);
+            //st->stack[0] = GetPC((ucontext_t*)ucontext);
+            // we gonna need that for pypy
             st->depth = depth;
             st->stack[depth++] = get_current_thread_id();
             p->data_offset = offsetof(struct prof_stacktrace_s, marker);
@@ -393,78 +298,15 @@ int vmprof_enable(void)
     return -1;
 }
 
-static int _write_all(const void *buf, size_t bufsize)
-{
-    while (bufsize > 0) {
-        ssize_t count = write(profile_file, buf, bufsize);
-        if (count <= 0)
-            return -1;   /* failed */
-        buf += count;
-        bufsize -= count;
-    }
-    return 0;
-}
-
-static int opened_profile(char *interp_name)
-{
-    struct {
-        long hdr[5];
-        char interp_name[259];
-    } header;
-
-    size_t namelen = strnlen(interp_name, 255);
-    current_codes = NULL;
-
-    header.hdr[0] = 0;
-    header.hdr[1] = 3;
-    header.hdr[2] = 0;
-    header.hdr[3] = prepare_interval_usec;
-    header.hdr[4] = 0;
-    header.interp_name[0] = MARKER_HEADER;
-    header.interp_name[1] = '\x00';
-    header.interp_name[2] = VERSION_THREAD_ID;
-    header.interp_name[3] = namelen;
-    memcpy(&header.interp_name[4], interp_name, namelen);
-    return _write_all(&header, 5 * sizeof(long) + 4 + namelen);
-}
 
 static int close_profile(void)
 {
     char buf[4096];
     ssize_t size;
-    unsigned char marker = MARKER_TRAILER;
+    char marker = MARKER_TRAILER;
 
     if (_write_all(&marker, 1) < 0)
         return -1;
-
-#ifdef __linux__
-    // copy /proc/self/maps to the end of the profile file
-    int srcfd = open("/proc/self/maps", O_RDONLY);
-    if (srcfd < 0)
-        return -1;
-
-    while ((size = read(srcfd, buf, sizeof buf)) > 0) {
-        if (_write_all(buf, size) < 0) {
-            close(srcfd);
-            return -1;
-        }
-    }
-    close(srcfd);
-#else
-    // freebsd and mac
-    sprintf(buf, "procstat -v %d", getpid());
-    FILE *srcf = popen(buf, "r");
-    if (!srcf)
-        return -1;
-
-    while ((size = fread(buf, 1, sizeof buf, src))) {
-        if (_write_all(buf, size) < 0) {
-            pclose(srcf);
-            return -1;
-        }
-    }
-    pclose(srcf);
-#endif
 
     /* don't close() the file descriptor from here */
     profile_file = -1;

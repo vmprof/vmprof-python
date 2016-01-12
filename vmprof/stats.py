@@ -1,6 +1,5 @@
 import six
-from vmprof.addrspace import JittedVirtual, JitAddr, VirtualFrame,\
-     BaseMetaFrame
+from vmprof.reader import AssemblerCode, JittedCode
 
 class EmptyProfileFile(Exception):
     pass
@@ -35,7 +34,7 @@ class Stats(object):
 
     def _get_name(self, addr):
         if self.adr_dict is not None:
-            return self.adr_dict[addr]
+            return self.adr_dict.get(addr, '<unknown code>')
 
         return addr
 
@@ -62,37 +61,13 @@ class Stats(object):
         return result, total
 
     def get_top(self, profiles):
-        top_addr = 0
         for prof in profiles:
-            for x in prof[0]:
-                if isinstance(x, VirtualFrame):
-                    top_addr = x
-                    break
-            if top_addr:
+            if prof[0]:
                 break
-        if not top_addr:
-            raise EmptyProfileFile()
-        top = Node(top_addr.addr, self._get_name(top_addr))
+        top_addr = prof[0][0]
+        top = Node(top_addr, self._get_name(top_addr))
         top.count = len(self.profiles)
         return top
-
-    def get_meta_from_tail(self, profile, tail_start, last_virtual):
-        meta = {}
-        warmup = False
-        for k in range(tail_start, len(profile)):
-            addr = profile[k]
-            if isinstance(addr, BaseMetaFrame):
-                # don't count tracing twice and only count it at the bottom
-                if addr.name in ('tracing', 'blackhole'):
-                    if warmup:
-                        continue
-                    warmup = True
-                addr.add_to_meta(meta)
-        # count if we're jitted - if we're warming up, we don't
-        # count this frame as jitted (to avoid > 100% claims)
-        if isinstance(last_virtual, JittedVirtual) and not warmup:
-            meta['jit'] = meta.get('jit', 0) + 1
-        return meta
 
     def get_tree(self):
         # fine the first non-empty profile
@@ -100,25 +75,19 @@ class Stats(object):
         top = self.get_top(self.profiles)
         addr = None
         for profile in self.profiles:
+            last_addr = top.addr
             cur = top
-            last_virtual = None
-            last_virtual_pos = -1
             for i in range(1, len(profile[0])):
+                if isinstance(profile[0][i], AssemblerCode):
+                    continue # just ignore it for now
                 addr = profile[0][i]
+                if addr == last_addr:
+                    continue # ignore duplicates
+                last_addr = addr
                 name = self._get_name(addr)
-                if not isinstance(addr, (VirtualFrame, JittedVirtual)):
-                    continue
-                last_virtual = addr
-                last_virtual_pos = i
-                cur = cur.add_child(addr.addr, name)
-                if i > 1 and isinstance(profile[0][i - 1], JitAddr):
-                    jit_addr = profile[0][i - 1].addr
-                    cur.jitcodes[jit_addr] = cur.jitcodes.get(jit_addr, 0) + 1
-
-            meta = self.get_meta_from_tail(profile[0], last_virtual_pos + 1,
-                                           last_virtual)
-            for k, v in meta.items():
-                cur.meta[k] = cur.meta.get(k, 0) + v
+                cur = cur.add_child(addr, name)
+            if isinstance(addr, JittedCode):
+                cur.meta['jit'] = cur.meta.get('jit', 0) + 1
         # get the first "interesting" node, that is after vmprof and pypy
         # mess
 
@@ -159,7 +128,6 @@ class Node(object):
             children = {}
         self.children = children
         self.name = name
-        assert isinstance(addr, int)
         self.addr = addr
         self.count = count # starts at 1
         self.jitcodes = {}

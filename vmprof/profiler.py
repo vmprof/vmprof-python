@@ -1,9 +1,8 @@
 import vmprof
 import tempfile
 
-from vmprof.addrspace import AddressSpace
 from vmprof.stats import Stats
-from vmprof.reader import read_prof, LibraryData
+from vmprof.reader import read_prof
 
 
 class VMProfError(Exception):
@@ -12,55 +11,31 @@ class VMProfError(Exception):
 class ProfilerContext(object):
     done = False
 
-    def __init__(self):
-        self.tmpfile = tempfile.NamedTemporaryFile()
+    def __init__(self, name):
+        if name is None:
+            self.tmpfile = tempfile.NamedTemporaryFile(delete=False)
+        else:
+            self.tmpfile = open(name, "wb")
 
     def __enter__(self):
         vmprof.enable(self.tmpfile.fileno(), 0.001)
 
     def __exit__(self, type, value, traceback):
         vmprof.disable()
+        self.tmpfile.close()
         self.done = True
 
 
-# lib_cache is global on purpose
-def read_profile(prof_filename, lib_cache={}, extra_libs=None,
-                 virtual_only=True, include_extra_info=True):
+def read_profile(prof_filename):
     prof = open(str(prof_filename), 'rb')
 
-    period, profiles, virtual_symbols, libs, interp_name = read_prof(prof)
+    period, profiles, virtual_symbols, interp_name = read_prof(prof)
 
-    if not virtual_only or include_extra_info:
-        exe_name = libs[0].name
-        for lib in libs:
-            executable = lib.name == exe_name
-            if lib.name in lib_cache:
-                lib.get_symbols_from(lib_cache[lib.name], executable)
-            else:
-                lib.read_object_data(executable)
-                lib_cache[lib.name] = lib
-    libs.append(
-        LibraryData(
-            '<virtual>',
-            0x7000000000000000,
-            0x7fffffffffffffff,
-            True,
-            symbols=virtual_symbols)
-    )
-    if extra_libs:
-        libs += extra_libs
-    addrspace = AddressSpace(libs)
-    filtered_profiles, addr_set, jit_frames = addrspace.filter_addr(profiles,
-        virtual_only, interp_name)
-    d = {}
-    for addr in addr_set:
-        name, _, _, lib = addrspace.lookup(addr)
-        if lib is None:
-            name = 'jit:' + name
-        d[addr] = name
-    if include_extra_info:
-        d.update(addrspace.meta_data)
-    s = Stats(filtered_profiles, d, jit_frames, interp_name)
+    for prof in profiles:
+        prof[0].reverse()
+    jit_frames = {}
+    d = dict(virtual_symbols)
+    s = Stats(profiles, d, jit_frames, interp_name)
     return s
 
 
@@ -70,8 +45,8 @@ class Profiler(object):
     def __init__(self):
         self._lib_cache = {}
 
-    def measure(self):
-        self.ctx = ProfilerContext()
+    def measure(self, name=None):
+        self.ctx = ProfilerContext(name)
         return self.ctx
 
     def get_stats(self):

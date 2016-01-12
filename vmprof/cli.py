@@ -44,12 +44,6 @@ def build_argparser():
         help='Provide URL instead of the default vmprof.com)'
     )
 
-    parser.add_argument(
-        '--enable-nonvirtual', '-n',
-        action='store_true',
-        help='Report native calls'
-    )
-
     output_mode_args = parser.add_mutually_exclusive_group()
     output_mode_args.add_argument(
         '--web',
