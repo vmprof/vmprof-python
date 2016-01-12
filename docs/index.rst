@@ -6,12 +6,11 @@ vmprof documentation
 Introduction
 ============
 
-`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, `CPython`_ 3, `PyPy`_,
-and possibly even other non-Python virtual machines in the future. It helps
-you to find and understand the performance bottlenecks in your code.
+`vmprof`_ is a lightweight profiler for `CPython`_ 2.7, `CPython`_ 3 and `PyPy`_.
+It helps you to find and understand the performance bottlenecks in your code.
 
 vmprof is a `statistical profiler`_: it gathers information about your code by
-continuously taking samples of the C call stack of the running program, at a
+continuously taking samples of the call stack of the running program, at a
 given frequency. This is similar to tools like `vtune`_ or `gperftools`_: the
 main difference is that those tools target C and C-like languages and are not
 very helpful to profile higher-level languages which run on top of a virtual
@@ -48,11 +47,10 @@ the program using the given API.
 Requirements
 ------------
 
-vmprof 0.1 works only on x86_64 linux, with upcoming support of Mac OS X and
-Free BSD. MacOS X and Free BSD should work with PyPy trunk (but not 2.6)
-It supports  `CPython`_ 2.7, `CPython`_ 3 and `PyPy`_ >= 2.6.
-
-XXXX
+vmprof 0.2 works only on x86_64 and x86 linux, Mac OS X and x86 windows.
+It works on CPython 2.7, 3.4 and 3.5.
+PyPy support is already on a branch, but you will need to wait for PyPy
+4.1 release to have it officially supported.
 
 Installation
 ------------
@@ -156,11 +154,8 @@ Module level functions
 
 * ``vmprof.disable()`` - finish writing vmprof data, disable the signal handler
 
-* ``vmprof.read_profile(filename, virtual_only=True)`` - read vmprof data from
-  ``filename`` and return ``Stats`` instance. If ``virtual_only`` is set to
-  ``False`` also report the C level stack (use it only if you know what you're
-  doing. Right now it will report the PyPy JIT code without aligning it
-  properly, you've been warned)
+* ``vmprof.read_profile(filename)`` - read vmprof data from
+  ``filename`` and return ``Stats`` instance.
 
 ``Stats`` object
 ----------------
@@ -216,7 +211,7 @@ How does it work?
 =================
 
 As most statistical profilers, the core idea is to have a signal handler which
-periodically inspects and dumps the C stack of the running program: the most
+periodically inspects and dumps the stack of the running program: the most
 frequently executed parts of the code will be dumped more often, and the
 post-processing and visualization tools have the chance to show the end user
 usueful info about the behavior of the profiled program. This is the very same
@@ -228,10 +223,7 @@ dispatching loop of the virtual machine (e.g., ``PyEval_EvalFrameEx`` in case
 of CPython).  To be able to display useful information, we need to know which
 Python-level function correspond to each C-level ``PyEval_EvalFrameEx``.
 
-This is done by using a special trampoline: vmprof's signal handler recognizes
-the C-level stack frames of this trampoline, and fishes the corresponding
-``PyFrame*`` object from the C stack, which is then used to gather all the
-Python-level info it needs, such as the code object which is being executed.
+This is done by reading the stack of Python frames instead of C stack.
 
 Additionally, when on top of PyPy the C stack contains also stack frames which
 belong to the JITted code: the vmprof signal handler is able to recognize and
