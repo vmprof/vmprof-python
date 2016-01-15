@@ -358,7 +358,7 @@ int vmprof_register_virtual_function(char *code_name, long code_uid,
             /* grabbed 'current_codes': we will append the current block
                to it if it contains enough room */
             size_t freesize = SINGLE_BUF_SIZE - p->data_size;
-            if (freesize < blocklen) {
+            if (freesize < (size_t)blocklen) {
                 /* full: flush it */
                 commit_buffer(profile_file, p);
                 p = NULL;
