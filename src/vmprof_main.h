@@ -148,6 +148,12 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     // or call any syscall or read PyThread_Current or pthread_self. Additionally,
     // it seems impossible to read the register gs. Here we mask the segfault, call pthread_self
     // (that would potentially access the NULL page) and check if it occured
+
+    /* XXX (arigo) What is that?  On Linux at least, this approach does
+       not work at all.  If an instruction generates a segfault, execution
+       cannot continue.  The kernels of Linux and OS/X might do different
+       things, but there is no way they'd let execution continue. */
+
     sigset_t set, oldset;
     sigemptyset(&set);
     sigemptyset(&oldset);
