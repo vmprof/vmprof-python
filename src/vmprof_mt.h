@@ -32,6 +32,9 @@
   static inline void write_fence(void) { __sync_synchronize(); }
 #endif
 
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
 
 #define PROFBUF_UNUSED   0
 #define PROFBUF_FILLING  1
