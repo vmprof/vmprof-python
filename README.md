@@ -1,7 +1,7 @@
 # VMprof Python client
 
 [![Build Status on TravisCI](https://travis-ci.org/vmprof/vmprof-python.svg?branch=master)](https://travis-ci.org/vmprof/vmprof-python)
-[![Build Status on TeamCity](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:VMprofPython_TestsPy27Win)/statusIcon)](https://travis-ci.org/vmprof/vmprof-python)
+[![Build Status on TeamCity](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:VMprofPython_TestsPy27Win)/statusIcon)](https://teamcity.jetbrains.com/viewType.html?buildTypeId=VMprofPython_TestsPy27Win)
 [![Read The Docs](https://readthedocs.org/projects/vmprof/badge/?version=latest)](https://vmprof.readthedocs.org/en/latest/)
 
 
