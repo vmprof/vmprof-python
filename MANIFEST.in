@@ -1,2 +1,2 @@
 recursive-include src *.h *.c
-include src/hotpatch/libdwarf.a
+include LICENSE
