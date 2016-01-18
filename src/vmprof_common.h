@@ -1,6 +1,6 @@
 #include <stddef.h>
 
-#define MAX_FUNC_NAME 128
+#define MAX_FUNC_NAME 1024
 
 static int profile_file = -1;
 static long prepare_interval_usec = 0;
