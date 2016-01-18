@@ -39,7 +39,7 @@ class PrettyPrinter(object):
         :type profile: str
         """
         try:
-            stats = vmprof.read_profile(profile, virtual_only=True, include_extra_info=True)
+            stats = vmprof.read_profile(profile)
         except Exception as e:
             print("Fatal: could not read vmprof profile file '{}': {}".format(profile, e))
             return
