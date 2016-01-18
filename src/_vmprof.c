@@ -1,5 +1,6 @@
 #define _GNU_SOURCE 1
 
+#define Py_BUILD_CORE // lie to python
 #include <Python.h>
 #include <frameobject.h>
 #include <signal.h>
@@ -23,6 +24,7 @@ static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
      find (which we hope is very close to 100% of them).
 */
 #define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)))
+
 
 #define SINGLE_BUF_SIZE (8192 - 2 * sizeof(unsigned int))
 #if defined(__unix__) || defined(__APPLE__)
