@@ -84,7 +84,7 @@ long __stdcall vmprof_mainloop(void *arg)
     PyThreadState *tstate;
 
     while (1) {
-        Sleep(10); //profile_interval_usec * 1000);
+        Sleep(profile_interval_usec * 1000);
         if (!enabled) {
             continue; // XXX race condition, mutex in _write_all
         }
