@@ -139,6 +139,16 @@ static void *get_current_thread_id(void)
  * *************************************************************
  */
 
+#include <setjmp.h>
+
+volatile int spinlock;
+jmp_buf restore_point;
+
+static void segfault_handler(int arg)
+{
+    longjmp(restore_point, SIGSEGV);
+}
+
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
 #ifdef __APPLE__
@@ -146,22 +156,25 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     // on OS X, the thread local storage is sometimes uninitialized
     // when the signal handler runs - it means it's impossible to read errno
     // or call any syscall or read PyThread_Current or pthread_self. Additionally,
-    // it seems impossible to read the register gs. Here we mask the segfault, call pthread_self
-    // (that would potentially access the NULL page) and check if it occured
-    sigset_t set, oldset;
-    sigemptyset(&set);
-    sigemptyset(&oldset);
-    sigaddset(&set, SIGSEGV);
-    sigprocmask(SIG_BLOCK, &set, &oldset);
-    pthread_self();
-    get_current_thread_state();
-    sigemptyset(&set);
-    sigpending(&set);
-    if (sigismember(&set, SIGSEGV)) {
-        sigprocmask(SIG_SETMASK, &oldset, NULL);
-        return;
+    // it seems impossible to read the register gs.
+    // here we register segfault handler (all guarded by a spinlock) and call
+    // longjmp in case segfault happens while reading a thread local
+    while (__sync_lock_test_and_set(&spinlock, 1)) {
     }
-    sigprocmask(SIG_SETMASK, &oldset, NULL);
+    signal(SIGSEGV, &segfault_handler);
+    int fault_code = setjmp(restore_point);
+    if (fault_code == 0) {
+        pthread_self();
+        get_current_thread_state();
+    } else {
+        signal(SIGSEGV, SIG_DFL);
+        __sync_synchronize();
+        spinlock = 0;
+        return;    
+    }
+    signal(SIGSEGV, SIG_DFL);
+    __sync_synchronize();
+    spinlock = 0;
 #endif
     long val = __sync_fetch_and_add(&signal_handler_value, 2L);
 

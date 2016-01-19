@@ -119,5 +119,5 @@ def test_multithreaded():
     # between 33-10% and 33+10% is within one profile
     # this is too close of a call - thread scheduling can leave us
     # unlucky, especially on badly behaved systems
-    #assert (0.23 * total) <= lgt1 <= (0.43 * total)
+    # assert (0.23 * total) <= lgt1 <= (0.43 * total)
     assert len(finished) == 3
