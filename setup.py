@@ -29,6 +29,8 @@ setup(
     version="0.2.3.1",
     packages=find_packages(),
     description="Python's vmprof client",
+    long_description='See https://vmprof.readthedocs.org/',
+    url='https://github.com/vmprof/vmprof-python',
     install_requires=[
         'six',
         'click'
