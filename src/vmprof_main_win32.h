@@ -86,7 +86,7 @@ long __stdcall vmprof_mainloop(void *arg)
     while (1) {
         Sleep(profile_interval_usec * 1000);
         if (!enabled) {
-            continue; // XXX race condition, mutex in _write_all
+            continue;
         }
         tstate = PyInterpreterState_Head()->tstate_head;
         while (tstate) {
