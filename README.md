@@ -9,12 +9,11 @@ See https://vmprof.readthedocs.org for up to date info
 
 basic usage:
 
-sudo apt-get install python-dev libdwarf-dev libelfg0-dev libunwind8-dev
-
+```console
+sudo apt-get install python-dev
 pip install vmprof
-
 python -m vmprof <your program> <your program args>
-
+```
 
 ## vmprofshow
 
@@ -22,10 +21,17 @@ python -m vmprof <your program> <your program args>
 
 Here is an example of how to use:
 
-Run a smallish program which burns CPU cycles (with vmprof enabled):
+Clone the vmprof repo first to use a minimalistic cpuburn.py:
 
 ```console
-pypy test/cpuburn.py
+git clone https://github.com/vmprof/vmprof-python
+cd vmprof-python
+```
+
+Run that smallish program which burns CPU cycles (with vmprof enabled):
+
+```console
+python tests/cpuburn.py
 ```
 
 This will produce a profile file `vmprof_cpuburn.dat`.
