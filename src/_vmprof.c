@@ -33,6 +33,7 @@ static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 */
 #define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)))
 
+static volatile int is_enabled = 0;
 
 #define SINGLE_BUF_SIZE (8192 - 2 * sizeof(unsigned int))
 #if defined(__unix__) || defined(__APPLE__)
@@ -43,7 +44,6 @@ static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 
 static destructor Original_code_dealloc = 0;
 static ptrdiff_t mainloop_sp_offset;
-static int is_enabled = 0;
 
 static void* get_virtual_ip(char* sp)
 {

@@ -260,12 +260,14 @@ static int remove_sigprof_timer(void) {
 static void atfork_disable_timer(void) {
     if (profile_interval_usec > 0) {
         remove_sigprof_timer();
+        is_enabled = 0;
     }
 }
 
 static void atfork_enable_timer(void) {
     if (profile_interval_usec > 0) {
         install_sigprof_timer();
+        is_enabled = 1;
     }
 }
 
