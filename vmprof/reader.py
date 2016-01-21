@@ -61,15 +61,9 @@ def read_prof(fileobj, virtual_ips_only=False): #
     all = 0
     interp_name = None
     version = 0
-    c = False
 
     while True:
         marker = fileobj.read(1)
-        #print (fileobj.tell(), marker)
-        if fileobj.tell() > 226264155 - 100:
-            c = True
-            #import pdb
-            #pdb.set_trace()
         if marker == MARKER_HEADER:
             assert not version, "multiple headers"
             version, = struct.unpack("!h", fileobj.read(2))
@@ -112,8 +106,6 @@ def read_prof(fileobj, virtual_ips_only=False): #
         elif marker == MARKER_VIRTUAL_IP:
             unique_id = read_word(fileobj)
             name = read_string(fileobj)
-            if c:
-                print (unique_id, name, len(name), fileobj.tell())
             all += len(name)
             if PY3:
                 name = name.decode()
