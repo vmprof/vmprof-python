@@ -23,9 +23,9 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include "vmprof_getpc.h"
 #include <assert.h>
 #include <errno.h>
+#include "vmprof_getpc.h"
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -316,8 +316,6 @@ int vmprof_enable(void)
 
 static int close_profile(void)
 {
-    char buf[4096];
-    ssize_t size;
     char marker = MARKER_TRAILER;
 
     if (_write_all(&marker, 1) < 0)
