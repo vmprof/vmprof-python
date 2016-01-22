@@ -157,14 +157,14 @@ def read_prof_bit_by_bit(fileobj):
         try:
             status = read_header(fileobj, buf)
             break
-        except BufferTooSmallError, e:
+        except BufferTooSmallError as e:
             buf = e.get_buf()
     finished = False
     buf = None
     while not finished:
         try:
             finished = read_one_marker(fileobj, status, buf)
-        except BufferTooSmallError, e:
+        except BufferTooSmallError as e:
             buf = e.get_buf()
     return status.period, status.profiles, status.virtual_ips, status.interp_name
 
