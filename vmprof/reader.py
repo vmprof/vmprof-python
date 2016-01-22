@@ -49,6 +49,125 @@ def wrap_kind(kind, pc):
     assert kind == VMPROF_CODE_TAG
     return pc
 
+class BufferTooSmallError(Exception):
+    def get_buf(self):
+        return "".join(self.args[0])
+
+class FileObjWrapper(object):
+    def __init__(self, fileobj, buffer_so_far=None):
+        self._fileobj = fileobj
+        self._buf = []
+        self._buffer_so_far = buffer_so_far
+        self._buffer_pos = 0
+
+    def read(self, count):
+        if self._buffer_so_far is not None:
+            if self._buffer_pos + count >= len(self._buffer_so_far):
+                s = self._buffer_so_far[self._buffer_pos:]
+                s += self._fileobj.read(count - len(s))
+                self._buffer_so_far = None
+            else:
+                s = self._buffer_so_far[self._buffer_pos:self._buffer_pos + count]
+                self._buffer_pos += count
+        else:
+            s = self._fileobj.read(count)
+        self._buf.append(s)
+        if len(s) < count:
+            raise BufferTooSmallError(self._buf)
+        return s
+
+class ReaderStatus(object):
+    def __init__(self, interp_name, period, version, previous_virtual_ips=None):
+        if previous_virtual_ips is not None:
+            self.virtual_ips = previous_virtual_ips
+        else:
+            self.virtual_ips = {}
+        self.profiles = []
+        self.interp_name = interp_name
+        self.period = period
+        self.version = version
+
+class FileReadError(Exception):
+    pass
+
+def assert_error(condition, error="malformed file"):
+    if not condition:
+        raise FileReadError(error)
+
+def read_header(fileobj, buffer_so_far=None):
+    fileobj = FileObjWrapper(fileobj, buffer_so_far)
+    assert_error(read_word(fileobj) == 0)
+    assert_error(read_word(fileobj) == 3)
+    assert_error(read_word(fileobj) == 0)
+    period = read_word(fileobj)
+    assert_error(read_word(fileobj) == 0)
+    marker = fileobj.read(1)
+    assert_error(marker == MARKER_HEADER, "expected header")
+    version, = struct.unpack("!h", fileobj.read(2))
+    lgt = ord(fileobj.read(1))
+    interp_name = fileobj.read(lgt)
+    if PY3:
+        interp_name = interp_name.decode()
+    return ReaderStatus(interp_name, period, version)
+
+def read_one_marker(fileobj, status, buffer_so_far=None):
+    fileobj = FileObjWrapper(fileobj, buffer_so_far)
+    marker = fileobj.read(1)
+    if marker == MARKER_STACKTRACE:
+        count = read_word(fileobj)
+        # for now
+        assert count == 1
+        depth = read_word(fileobj)
+        assert depth <= 2**16, 'stack strace depth too high'
+        trace = []
+        if status.version >= VERSION_TAG:
+            assert depth & 1 == 0
+            depth = depth // 2
+        for j in range(depth):
+            if status.version >= VERSION_TAG:
+                kind = read_word(fileobj)
+            else:
+                kind = VMPROF_CODE_TAG
+            pc = read_word(fileobj)
+            trace.append(wrap_kind(kind, pc))
+        if status.version >= VERSION_THREAD_ID:
+            thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
+        else:
+            thread_id = 0
+        trace.reverse()
+        status.profiles.append((trace, 1, thread_id))
+    elif marker == MARKER_VIRTUAL_IP:
+        unique_id = read_word(fileobj)
+        name = read_string(fileobj)
+        if PY3:
+            name = name.decode()
+        status.virtual_ips[unique_id] = name
+    elif marker == MARKER_TRAILER:
+        return True # finished
+    else:
+        raise FileReadError("unexpected marker: %d" % ord(marker))
+    return False
+
+def read_prof_bit_by_bit(fileobj):
+    # note that we don't want to use all of this on normal files, since it'll
+    # cost us quite a bit in memory and performance and parsing 200M files in
+    # CPython is slow (pypy does better, use pypy)
+    buf = None
+    while True:
+        try:
+            status = read_header(fileobj, buf)
+            break
+        except BufferTooSmallError, e:
+            buf = e.get_buf()
+    finished = False
+    buf = None
+    while not finished:
+        try:
+            finished = read_one_marker(fileobj, status, buf)
+        except BufferTooSmallError, e:
+            buf = e.get_buf()
+    return status.period, status.profiles, status.virtual_ips, status.interp_name
+
 def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count
     assert read_word(fileobj) == 3 # header size
@@ -58,7 +177,6 @@ def read_prof(fileobj, virtual_ips_only=False): #
 
     virtual_ips = []
     profiles = []
-    all = 0
     interp_name = None
     version = 0
 
@@ -95,6 +213,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
                 thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:
                 thread_id = 0
+            trace.reverse()
             profiles.append((trace, 1, thread_id))
         elif marker == MARKER_INTERP_NAME:
             assert not version, "multiple headers"
@@ -106,7 +225,6 @@ def read_prof(fileobj, virtual_ips_only=False): #
         elif marker == MARKER_VIRTUAL_IP:
             unique_id = read_word(fileobj)
             name = read_string(fileobj)
-            all += len(name)
             if PY3:
                 name = name.decode()
             virtual_ips.append((unique_id, name))
