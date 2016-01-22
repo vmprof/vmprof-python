@@ -51,7 +51,7 @@ def wrap_kind(kind, pc):
 
 class BufferTooSmallError(Exception):
     def get_buf(self):
-        return "".join(self.args[0])
+        return b"".join(self.args[0])
 
 class FileObjWrapper(object):
     def __init__(self, fileobj, buffer_so_far=None):

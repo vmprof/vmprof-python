@@ -50,7 +50,7 @@ def test_read_bit_by_bit():
     function_foo()
     vmprof.disable()
     tmpfile.close()
-    with open(tmpfile.name) as f:
+    with open(tmpfile.name, 'rb') as f:
         period, profiles, virtual_symbols, interp_name = read_prof_bit_by_bit(f)
         stats = Stats(profiles, virtual_symbols, interp_name)
         stats.get_tree()
