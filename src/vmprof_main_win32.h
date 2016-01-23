@@ -22,12 +22,12 @@ volatile int enabled = 0;
 static int _write_all(const char *buf, size_t bufsize)
 {
     int res;
+    res = WaitForSingleObject(write_mutex, INFINITE);
     if (profile_file == -1) {
+        ReleaseMutex(write_mutex);
         return -1;
     }
-    res = WaitForSingleObject(write_mutex, INFINITE);
     while (bufsize > 0) {
-        ssize_t pos = lseek(profile_file, 0, SEEK_CUR);
         ssize_t count = write(profile_file, buf, bufsize);
         if (count <= 0) {
             ReleaseMutex(write_mutex);

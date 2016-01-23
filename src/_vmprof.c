@@ -204,11 +204,26 @@ static PyObject *disable_vmprof(PyObject* self, PyObject *noarg)
     return Py_None;
 }
 
+static PyObject* write_all_code_objects(PyObject *self, PyObject *noarg)
+{
+    if (!is_enabled) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
+        return NULL;
+    }
+    emit_all_code_objects();
+    if (PyErr_Occurred())
+        return NULL;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef VmprofMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS,
      "Enable profiling."},
     {"disable", disable_vmprof, METH_NOARGS,
      "Disable profiling."},
+    {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
+     "Write eagerly all the IDs of code objects"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
