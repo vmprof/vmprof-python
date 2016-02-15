@@ -87,13 +87,12 @@ class PrettyPrinter(object):
                     block_type, funname, funline, filename = node.name.split(':')
 
                     p2 = color(funname, color.BLUE, bold=True)
-                    p2b = color(('.' * level * self._indent), color.BLUE, bold=True)
+                    p2b = color(('.' * level * self._indent), color.BLUE)
 
                     p3 = []
                     if os.path.dirname(filename):
                         p3.append(color(os.path.dirname(filename) + '/', color.WHITE))
-
-                    p3.append(color(os.path.basename(filename), color.WHITE) + ':')
+                    p3.append(color(os.path.basename(filename), color.WHITE, bold=True) + ":")
                     p3.append(color("{}".format(funline), color.WHITE))
                     p3 = ''.join(p3)
                     p5 = color("{:>2}".format(level), color.BLUE)
