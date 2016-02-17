@@ -4,6 +4,15 @@
 #include <frameobject.h>
 #include <signal.h>
 
+// for whatever reason python-dev decided to hide that one
+#if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
+                             /* this was abruptly un-defined in 3.5.1 */
+void *volatile _PyThreadState_Current;
+   /* XXX simple volatile access is assumed atomic */
+#  define _Py_atomic_load_relaxed(pp)  (*(pp))
+#endif
+
+
 #define RPY_EXTERN static
 static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 #define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
@@ -24,6 +33,8 @@ static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 */
 #define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)))
 
+static volatile int is_enabled = 0;
+
 #define SINGLE_BUF_SIZE (8192 - 2 * sizeof(unsigned int))
 #if defined(__unix__) || defined(__APPLE__)
 #include "vmprof_main.h"
@@ -33,7 +44,6 @@ static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 
 static destructor Original_code_dealloc = 0;
 static ptrdiff_t mainloop_sp_offset;
-static int is_enabled = 0;
 
 static void* get_virtual_ip(char* sp)
 {
@@ -194,11 +204,26 @@ static PyObject *disable_vmprof(PyObject* self, PyObject *noarg)
     return Py_None;
 }
 
+static PyObject* write_all_code_objects(PyObject *self, PyObject *noarg)
+{
+    if (!is_enabled) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
+        return NULL;
+    }
+    emit_all_code_objects();
+    if (PyErr_Occurred())
+        return NULL;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef VmprofMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS,
      "Enable profiling."},
     {"disable", disable_vmprof, METH_NOARGS,
      "Disable profiling."},
+    {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
+     "Write eagerly all the IDs of code objects"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

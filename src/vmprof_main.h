@@ -23,9 +23,9 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include "vmprof_getpc.h"
 #include <assert.h>
 #include <errno.h>
+#include "vmprof_getpc.h"
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -146,6 +146,16 @@ static void *get_current_thread_id(void)
  * *************************************************************
  */
 
+#include <setjmp.h>
+
+volatile int spinlock;
+jmp_buf restore_point;
+
+static void segfault_handler(int arg)
+{
+    longjmp(restore_point, SIGSEGV);
+}
+
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
 #ifdef __APPLE__
@@ -153,28 +163,25 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     // on OS X, the thread local storage is sometimes uninitialized
     // when the signal handler runs - it means it's impossible to read errno
     // or call any syscall or read PyThread_Current or pthread_self. Additionally,
-    // it seems impossible to read the register gs. Here we mask the segfault, call pthread_self
-    // (that would potentially access the NULL page) and check if it occured
-
-    /* XXX (arigo) What is that?  On Linux at least, this approach does
-       not work at all.  If an instruction generates a segfault, execution
-       cannot continue.  The kernels of Linux and OS/X might do different
-       things, but there is no way they'd let execution continue. */
-
-    sigset_t set, oldset;
-    sigemptyset(&set);
-    sigemptyset(&oldset);
-    sigaddset(&set, SIGSEGV);
-    sigprocmask(SIG_BLOCK, &set, &oldset);
-    pthread_self();
-    get_current_thread_state();
-    sigemptyset(&set);
-    sigpending(&set);
-    if (sigismember(&set, SIGSEGV)) {
-        sigprocmask(SIG_SETMASK, &oldset, NULL);
-        return;
+    // it seems impossible to read the register gs.
+    // here we register segfault handler (all guarded by a spinlock) and call
+    // longjmp in case segfault happens while reading a thread local
+    while (__sync_lock_test_and_set(&spinlock, 1)) {
     }
-    sigprocmask(SIG_SETMASK, &oldset, NULL);
+    signal(SIGSEGV, &segfault_handler);
+    int fault_code = setjmp(restore_point);
+    if (fault_code == 0) {
+        pthread_self();
+        get_current_thread_state();
+    } else {
+        signal(SIGSEGV, SIG_DFL);
+        __sync_synchronize();
+        spinlock = 0;
+        return;    
+    }
+    signal(SIGSEGV, SIG_DFL);
+    __sync_synchronize();
+    spinlock = 0;
 #endif
     long val = __sync_fetch_and_add(&signal_handler_value, 2L);
 
@@ -260,12 +267,14 @@ static int remove_sigprof_timer(void) {
 static void atfork_disable_timer(void) {
     if (profile_interval_usec > 0) {
         remove_sigprof_timer();
+        is_enabled = 0;
     }
 }
 
 static void atfork_enable_timer(void) {
     if (profile_interval_usec > 0) {
         install_sigprof_timer();
+        is_enabled = 1;
     }
 }
 
@@ -314,8 +323,6 @@ int vmprof_enable(void)
 
 static int close_profile(void)
 {
-    char buf[4096];
-    ssize_t size;
     char marker = MARKER_TRAILER;
 
     if (_write_all(&marker, 1) < 0)

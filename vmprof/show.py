@@ -1,10 +1,21 @@
 from __future__ import absolute_import
 
 import os
-import sys
 import six
-import click
 import vmprof
+import argparse
+
+
+class color(six.text_type):
+    RED = '\033[31m'
+    WHITE = '\033[37m'
+    BLUE = '\033[94m'
+    BOLD = '\033[1m'
+    END = '\033[0m'
+
+    def __new__(cls, content, color, bold=False):
+        return six.text_type.__new__(
+            cls, "%s%s%s%s" % (color, cls.BOLD if bold else "", content, cls.END))
 
 
 class PrettyPrinter(object):
@@ -39,7 +50,7 @@ class PrettyPrinter(object):
         :type profile: str
         """
         try:
-            stats = vmprof.read_profile(profile, virtual_only=True, include_extra_info=True)
+            stats = vmprof.read_profile(profile)
         except Exception as e:
             print("Fatal: could not read vmprof profile file '{}': {}".format(profile, e))
             return
@@ -74,43 +85,67 @@ class PrettyPrinter(object):
 
                 if parts == 3:
                     block_type, funname, funline, filename = node.name.split(':')
-                    p2 = click.style(funname, fg='blue', bold=True)
-                    p2b = click.style(('.' * level * self._indent), fg='blue', bold=False)
+
+                    p2 = color(funname, color.BLUE, bold=True)
+                    p2b = color(('.' * level * self._indent), color.BLUE)
+
                     p3 = []
                     if os.path.dirname(filename):
-                        p3.append(click.style(os.path.dirname(filename) + '/', fg='white', bold=False))
-                    p3.append(click.style(os.path.basename(filename), fg='white', bold=True) + ':')
-                    p3.append(click.style("{}".format(funline), fg='white', bold=False))
+                        p3.append(color(os.path.dirname(filename) + '/', color.WHITE))
+                    p3.append(color(os.path.basename(filename), color.WHITE, bold=True) + ":")
+                    p3.append(color("{}".format(funline), color.WHITE))
                     p3 = ''.join(p3)
-                    p5 = click.style("{:>2}".format(level), fg='blue', bold=False)
+                    p5 = color("{:>2}".format(level), color.BLUE)
 
                 elif parts == 1:
                     block_type, funname = node.name.split(':')
-                    p2 = click.style("JIT code", fg='red', bold=True)
-                    p2b = click.style(('.' * level * self._indent), fg='red', bold=False)
-                    p3 = click.style(funname, fg='white', bold=False)
-                    p5 = click.style("{:>2}".format(level), fg='red', bold=False)
+                    p2 = color("JIT code", color.RED, bold=True)
+                    p2b = color('.' * level * self._indent, color.RED, bold=False)
+                    p3 = color(funname, color.WHITE, bold=False)
+                    p5 = color("{:>2}".format(level), color.RED, bold=False)
 
                 else:
                     raise Exception("fail!")
 
-                p1 = click.style("{:>5}%".format(perc), fg='white', bold=True)
-                p4 = click.style("{}%".format(perc_of_parent), fg='white', bold=True)
+                p1 = color("{:>5}%".format(perc), color.WHITE, bold=True)
+                p4 = color("{}%".format(perc_of_parent), color.WHITE, bold=True)
 
                 print("{} {} {}  {}  {}".format(p1, p2b, p2, p4, p3))
 
         self._walk_tree(None, tree, 0, print_node)
 
 
-@click.command()
-#@click.argument('profile', type=click.File('rb')) # can't use, since vmprof can't consume a FD
-@click.argument('profile', type=str)
-@click.option('--prune_percent', type=float, default=0, help='The indention per level within the call graph.')
-@click.option('--prune_level', type=int, default=None, help='Prune output of a profile stats node when CPU.')
-@click.option('--indent', type=int, default=2, help='The indention per level within the call graph.')
-def main(profile, prune_percent, prune_level, indent):
-    pp = PrettyPrinter(prune_percent=prune_percent, prune_level=prune_level, indent=indent)
-    pp.show(profile)
+def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("profile")
+
+    parser.add_argument(
+        '--prune_percent',
+        type=float,
+        default=0,
+        help="The indention per level within the call graph.")
+
+    parser.add_argument(
+        '--prune_level',
+        type=int,
+        default=None,
+        help='Prune output of a profile stats node when CPU.')
+
+    parser.add_argument(
+        '--indent',
+        type=int,
+        default=2,
+        help='The indention per level within the call graph.')
+
+    args = parser.parse_args()
+
+    pp = PrettyPrinter(
+        prune_percent=args.prune_percent,
+        prune_level=args.prune_level,
+        indent=args.indent)
+
+    pp.show(args.profile)
 
 
 if __name__ == '__main__':

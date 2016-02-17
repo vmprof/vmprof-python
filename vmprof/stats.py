@@ -64,6 +64,8 @@ class Stats(object):
         for prof in profiles:
             if prof[0]:
                 break
+        else:
+            raise EmptyProfileFile()
         top_addr = prof[0][0]
         top = Node(top_addr, self._get_name(top_addr))
         top.count = len(self.profiles)

@@ -6,6 +6,8 @@ import py
 import sys
 import tempfile
 import vmprof
+from vmprof.reader import read_prof_bit_by_bit
+from vmprof.stats import Stats
 
 if sys.version_info.major == 3:
     xrange = range
@@ -42,6 +44,16 @@ def test_basic():
     tmpfile.close()
     assert b"function_foo" in open(tmpfile.name, 'rb').read()
 
+def test_read_bit_by_bit():
+    tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    vmprof.enable(tmpfile.fileno())
+    function_foo()
+    vmprof.disable()
+    tmpfile.close()
+    with open(tmpfile.name, 'rb') as f:
+        period, profiles, virtual_symbols, interp_name = read_prof_bit_by_bit(f)
+        stats = Stats(profiles, virtual_symbols, interp_name)
+        stats.get_tree()
 
 def test_enable_disable():
     prof = vmprof.Profiler()
@@ -119,5 +131,5 @@ def test_multithreaded():
     # between 33-10% and 33+10% is within one profile
     # this is too close of a call - thread scheduling can leave us
     # unlucky, especially on badly behaved systems
-    #assert (0.23 * total) <= lgt1 <= (0.43 * total)
+    # assert (0.23 * total) <= lgt1 <= (0.43 * total)
     assert len(finished) == 3

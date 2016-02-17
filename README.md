@@ -1,18 +1,19 @@
 # VMprof Python client
 
-[![Build Status](https://travis-ci.org/vmprof/vmprof-python.svg?branch=master)](https://travis-ci.org/vmprof/vmprof-python) [![Read The Docs](https://readthedocs.org/projects/vmprof/badge/?version=latest)](https://vmprof.readthedocs.org/en/latest/)
+[![Build Status on TravisCI](https://travis-ci.org/vmprof/vmprof-python.svg?branch=master)](https://travis-ci.org/vmprof/vmprof-python)
+[![Build Status on TeamCity](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:VMprofPython_TestsPy27Win)/statusIcon)](https://teamcity.jetbrains.com/project.html?projectId=VMprofPython)
+[![Read The Docs](https://readthedocs.org/projects/vmprof/badge/?version=latest)](https://vmprof.readthedocs.org/en/latest/)
 
 
 See https://vmprof.readthedocs.org for up to date info
 
 basic usage:
 
-sudo apt-get install python-dev libdwarf-dev libelfg0-dev libunwind8-dev
-
+```console
+sudo apt-get install python-dev
 pip install vmprof
-
 python -m vmprof <your program> <your program args>
-
+```
 
 ## vmprofshow
 
@@ -20,10 +21,17 @@ python -m vmprof <your program> <your program args>
 
 Here is an example of how to use:
 
-Run a smallish program which burns CPU cycles (with vmprof enabled):
+Clone the vmprof repo first to use a minimalistic cpuburn.py:
 
 ```console
-pypy test/cpuburn.py
+git clone https://github.com/vmprof/vmprof-python
+cd vmprof-python
+```
+
+Run that smallish program which burns CPU cycles (with vmprof enabled):
+
+```console
+python tests/cpuburn.py
 ```
 
 This will produce a profile file `vmprof_cpuburn.dat`.

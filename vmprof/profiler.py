@@ -31,8 +31,6 @@ def read_profile(prof_filename):
 
     period, profiles, virtual_symbols, interp_name = read_prof(prof)
 
-    for prof in profiles:
-        prof[0].reverse()
     jit_frames = {}
     d = dict(virtual_symbols)
     s = Stats(profiles, d, jit_frames, interp_name)

@@ -22,12 +22,12 @@ volatile int enabled = 0;
 static int _write_all(const char *buf, size_t bufsize)
 {
     int res;
+    res = WaitForSingleObject(write_mutex, INFINITE);
     if (profile_file == -1) {
+        ReleaseMutex(write_mutex);
         return -1;
     }
-    res = WaitForSingleObject(write_mutex, INFINITE);
     while (bufsize > 0) {
-        ssize_t pos = lseek(profile_file, 0, SEEK_CUR);
         ssize_t count = write(profile_file, buf, bufsize);
         if (count <= 0) {
             ReleaseMutex(write_mutex);
@@ -84,9 +84,9 @@ long __stdcall vmprof_mainloop(void *arg)
     PyThreadState *tstate;
 
     while (1) {
-        Sleep(10); //profile_interval_usec * 1000);
+        Sleep(profile_interval_usec * 1000);
         if (!enabled) {
-            continue; // XXX race condition, mutex in _write_all
+            continue;
         }
         tstate = PyInterpreterState_Head()->tstate_head;
         while (tstate) {
