@@ -27,6 +27,7 @@ MARKER_HEADER = b'\x05'
 VERSION_BASE = 0
 VERSION_THREAD_ID = 1
 VERSION_TAG = 2
+VERSION_MEMORY = 3
 
 VMPROF_CODE_TAG = 1
 VMPROF_BLACKHOLE_TAG = 2
@@ -120,11 +121,11 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         depth = read_word(fileobj)
         assert depth <= 2**16, 'stack strace depth too high'
         trace = []
-        if status.version >= VERSION_TAG:
+        if status.version == VERSION_TAG:
             assert depth & 1 == 0
             depth = depth // 2
         for j in range(depth):
-            if status.version >= VERSION_TAG:
+            if status.version == VERSION_TAG:
                 kind = read_word(fileobj)
             else:
                 kind = VMPROF_CODE_TAG
@@ -134,8 +135,12 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
             thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
         else:
             thread_id = 0
+        if version == VERSION_MEMORY:
+            mem_in_kb, = struct.unpack('l', fileobj.read(WORD_SIZE))
+        else:
+            mem_in_kb = 0
         trace.reverse()
-        status.profiles.append((trace, 1, thread_id))
+        status.profiles.append((trace, 1, thread_id, mem_in_kb))
     elif marker == MARKER_VIRTUAL_IP:
         unique_id = read_word(fileobj)
         name = read_string(fileobj)
@@ -199,11 +204,11 @@ def read_prof(fileobj, virtual_ips_only=False): #
             if virtual_ips_only:
                 fileobj.read(WORD_SIZE * depth)
             else:
-                if version >= VERSION_TAG:
+                if version == VERSION_TAG:
                     assert depth & 1 == 0
                     depth = depth // 2
                 for j in range(depth):
-                    if version >= VERSION_TAG:
+                    if version == VERSION_TAG:
                         kind = read_word(fileobj)
                     else:
                         kind = VMPROF_CODE_TAG
@@ -213,8 +218,12 @@ def read_prof(fileobj, virtual_ips_only=False): #
                 thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:
                 thread_id = 0
+            if version == VERSION_MEMORY:
+                mem_in_kb, = struct.unpack('l', fileobj.read(WORD_SIZE))
+            else:
+                mem_in_kb = 0
             trace.reverse()
-            profiles.append((trace, 1, thread_id))
+            profiles.append((trace, 1, thread_id, mem_in_kb))
         elif marker == MARKER_INTERP_NAME:
             assert not version, "multiple headers"
             assert not interp_name, "Dual interpreter name header"

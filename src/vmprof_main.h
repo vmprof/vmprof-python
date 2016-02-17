@@ -86,7 +86,7 @@ void vmprof_ignore_signals(int ignored)
 
 
 static char atfork_hook_installed = 0;
-
+static int proc_file = -1;
 
 /* *************************************************************
  * functions to dump the stack trace
@@ -156,6 +156,26 @@ static void segfault_handler(int arg)
     longjmp(restore_point, SIGSEGV);
 }
 
+static int get_current_proc_rss(void)
+{
+    char buf[1024];
+    int i = 0;
+    
+    if (lseek(proc_file, 0, SEEK_SET) == -1)
+	return -1;
+    if (read(proc_file, buf, 1024) == -1)
+	return -1;
+    while (i < 1020) {
+	if (strncmp(buf + i, "VmRSS:\t", 7) == 0) {
+	    i += 7;
+	    return atoi(buf + i);
+	}
+	i++;
+    }
+    printf("foo\n");
+    return -1;
+}
+
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
 #ifdef __APPLE__
@@ -204,6 +224,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             // we gonna need that for pypy
             st->depth = depth;
             st->stack[depth++] = get_current_thread_id();
+	    st->stack[depth++] = get_current_proc_rss();
             p->data_offset = offsetof(struct prof_stacktrace_s, marker);
             p->data_size = (depth * sizeof(void *) +
                             sizeof(struct prof_stacktrace_s) -
@@ -298,13 +319,23 @@ static int install_pthread_atfork_hooks(void) {
     return 0;
 }
 
+int open_proc_file(void)
+{
+    char buf[128];
+    
+    sprintf(buf, "/proc/%d/status", getpid());
+    proc_file = open(buf, O_RDONLY);
+    return proc_file;
+}
+
 RPY_EXTERN
 int vmprof_enable(void)
 {
     assert(profile_file >= 0);
     assert(prepare_interval_usec > 0);
     profile_interval_usec = prepare_interval_usec;
-
+    if (open_proc_file() == -1)
+        goto error;
     if (install_pthread_atfork_hooks() == -1)
         goto error;
     if (install_sigprof_handler() == -1)
@@ -328,6 +359,8 @@ static int close_profile(void)
     if (_write_all(&marker, 1) < 0)
         return -1;
 
+    close(proc_file);
+    proc_file = -1;
     /* don't close() the file descriptor from here */
     profile_file = -1;
     return 0;

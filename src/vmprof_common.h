@@ -22,6 +22,8 @@ static struct profbuf_s *volatile current_codes;
 
 #define VERSION_BASE '\x00'
 #define VERSION_THREAD_ID '\x01'
+#define VERSION_TAG '\x02'
+#define VERSION_MEMORY '\x03'
 
 typedef struct prof_stacktrace_s {
     char padding[sizeof(long) - 1];
@@ -82,7 +84,7 @@ static int opened_profile(char *interp_name)
     header.hdr[4] = 0;
     header.interp_name[0] = MARKER_HEADER;
     header.interp_name[1] = '\x00';
-    header.interp_name[2] = VERSION_THREAD_ID;
+    header.interp_name[2] = VERSION_MEMORY;
     header.interp_name[3] = namelen;
     memcpy(&header.interp_name[4], interp_name, namelen);
     return _write_all((char*)&header, 5 * sizeof(long) + 4 + namelen);
