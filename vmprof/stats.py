@@ -81,9 +81,9 @@ class Stats(object):
             last_addr = top.addr
             cur = top
             diff = profile[3] - heap
-            heap = profile[3]
             if diff <= 0:
                 continue
+            heap = profile[3]
             for i in range(1, len(profile[0])):
                 if isinstance(profile[0][i], AssemblerCode):
                     continue # just ignore it for now
