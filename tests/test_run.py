@@ -148,7 +148,7 @@ def test_memory_measurment():
         return function_foo()
     prof = vmprof.Profiler()
     with prof.measure(memory=True):
-        function_bar()
+        x = function_bar()
 
     s = prof.get_stats()
     assert s.profiles[-1][3] > s.profiles[len(s.profiles)//2][3] > s.profiles[0][3]
