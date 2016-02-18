@@ -151,3 +151,4 @@ def test_memory_measurment():
         function_bar()
 
     s = prof.get_stats()
+    assert s.profiles[-1][3] > s.profiles[len(s.profiles)//2][3] > s.profiles[0][3]
