@@ -103,7 +103,7 @@ long __stdcall vmprof_mainloop(void *arg)
 }
 
 RPY_EXTERN
-int vmprof_enable(void)
+int vmprof_enable(int memory)
 {
     if (!thread_started) {
         if (!CreateThread(NULL, 0, vmprof_mainloop, NULL, 0, NULL)) {

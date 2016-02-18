@@ -21,25 +21,21 @@ IS_PYPY = '__pypy__' in sys.builtin_module_names
 DEFAULT_PERIOD = 0.00099
 
 if not IS_PYPY:
-    def enable(fileno, period=DEFAULT_PERIOD):
+    def enable(fileno, period=DEFAULT_PERIOD, memory=False):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
-        _vmprof.enable(fileno, period)
+        _vmprof.enable(fileno, period, memory)
 
     def disable():
         _vmprof.disable()
 
 else:
-    def enable(fileno, period=DEFAULT_PERIOD, warn=True):
+    def enable(fileno, period=DEFAULT_PERIOD, memory=False, warn=True):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
-        if warn and sys.pypy_version_info[:3] <= (2, 6, 0):
-            print ("PyPy 2.6.0 and below has a bug in vmprof where "
-                   "fork() would disable your profiling. "
-                   "Pass warn=False if you know what you're doing")
-            raise Exception("PyPy 2.6.0 and below has a bug in vmprof where "
-                            "fork() would disable your profiling. "
-                            "Pass warn=False if you know what you're doing")
+        if warn and sys.pypy_version_info[:3] <= (4, 1, 0):
+            print ("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
+            raise Exception("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
         _vmprof.enable(fileno, period)
 
     def disable():

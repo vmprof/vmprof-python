@@ -147,10 +147,12 @@ but consider it unstable. The current API usage is as follows::
 Module level functions
 ----------------------
 
-* ``vmprof.enable(fileno, period=0.01)`` - enable writing ``vmprof`` data to a
+* ``vmprof.enable(fileno, period=0.099, memory=False)`` - enable writing ``vmprof`` data to a
   file described by a fileno file descriptor. Timeout is in float seconds. The
   minimal available resolution is 4ms, we're working on improving that
-  (note the default is 10ms)
+  (note the default is 9.9ms). Passing ``memory=True`` will provide additional
+  data in the form of total RSS of the process memory interspersed with
+  tracebacks.
 
 * ``vmprof.disable()`` - finish writing vmprof data, disable the signal handler
 

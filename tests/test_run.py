@@ -133,3 +133,21 @@ def test_multithreaded():
     # unlucky, especially on badly behaved systems
     # assert (0.23 * total) <= lgt1 <= (0.43 * total)
     assert len(finished) == 3
+
+def test_memory_measurment():
+    if not sys.platform.startswith('linux') or '__pypy__' in sys.builtin_module_names:
+        py.test.skip("unsupported platform")
+    def function_foo():
+        all = []
+        for k in range(1000):
+            all.append([a for a in xrange(COUNT)])
+        return all
+
+
+    def function_bar():
+        return function_foo()
+    prof = vmprof.Profiler()
+    with prof.measure(memory=True):
+        function_bar()
+
+    s = prof.get_stats()
