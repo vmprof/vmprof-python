@@ -76,14 +76,9 @@ class Stats(object):
 
         top = self.get_top(self.profiles)
         addr = None
-        heap = 0
         for profile in self.profiles:
             last_addr = top.addr
             cur = top
-            diff = profile[3] - heap
-            if diff <= 0:
-                continue
-            heap = profile[3]
             for i in range(1, len(profile[0])):
                 if isinstance(profile[0][i], AssemblerCode):
                     continue # just ignore it for now
@@ -92,7 +87,7 @@ class Stats(object):
                     continue # ignore duplicates
                 last_addr = addr
                 name = self._get_name(addr)
-                cur = cur.add_child(addr, name, diff)
+                cur = cur.add_child(addr, name)
             if isinstance(addr, JittedCode):
                 cur.meta['jit'] = cur.meta.get('jit', 0) + 1
         # get the first "interesting" node, that is after vmprof and pypy
@@ -197,10 +192,10 @@ class Node(object):
 
     self_count = property(get_self_count)
 
-    def add_child(self, addr, name, diff):
+    def add_child(self, addr, name):
         try:
             next = self.children[addr]
-            next.count += diff
+            next.count += 1
         except KeyError:
             next = Node(addr, name)
             self.children[addr] = next

@@ -5,7 +5,7 @@
 static int profile_file = -1;
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
-static int opened_profile(char *interp_name);
+static int opened_profile(char *interp_name, int memory);
 
 #if defined(__unix__) || defined(__APPLE__)
 static struct profbuf_s *volatile current_codes;
@@ -34,7 +34,7 @@ typedef struct prof_stacktrace_s {
 
 
 RPY_EXTERN
-char *vmprof_init(int fd, double interval, char *interp_name)
+char *vmprof_init(int fd, double interval, int memory, char *interp_name)
 {
     if (interval < 1e-6 || interval >= 1.0)
         return "bad value for 'interval'";
@@ -46,9 +46,13 @@ char *vmprof_init(int fd, double interval, char *interp_name)
     current_codes = NULL;
 #endif
 
+#if !defined(__unix__)
+    if (memory)
+        return "memory tracking not supported on non-linux";
+#endif
     assert(fd >= 0);
     profile_file = fd;
-    if (opened_profile(interp_name) < 0) {
+    if (opened_profile(interp_name, memory) < 0) {
         profile_file = -1;
         return strerror(errno);
     }
@@ -68,7 +72,7 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
 
 static int _write_all(const char *buf, size_t bufsize);
 
-static int opened_profile(char *interp_name)
+static int opened_profile(char *interp_name, int memory)
 {
     struct {
         long hdr[5];
@@ -84,7 +88,11 @@ static int opened_profile(char *interp_name)
     header.hdr[4] = 0;
     header.interp_name[0] = MARKER_HEADER;
     header.interp_name[1] = '\x00';
-    header.interp_name[2] = VERSION_MEMORY;
+    if (memory) {
+        header.interp_name[2] = VERSION_MEMORY;
+    } else {
+        header.interp_name[2] = VERSION_THREAD_ID;
+    }
     header.interp_name[3] = namelen;
     memcpy(&header.interp_name[4], interp_name, namelen);
     return _write_all((char*)&header, 5 * sizeof(long) + 4 + namelen);

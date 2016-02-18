@@ -156,10 +156,11 @@ static void init_cpyprof(void)
 static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
     int fd;
+    int memory = 0;
     double interval;
     char *p_error;
 
-    if (!PyArg_ParseTuple(args, "id", &fd, &interval))
+    if (!PyArg_ParseTuple(args, "id|i", &fd, &interval, &memory))
         return NULL;
     assert(fd >= 0);
 
@@ -169,13 +170,13 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
     }
 
     init_cpyprof();
-    p_error = vmprof_init(fd, interval, "cpython");
+    p_error = vmprof_init(fd, interval, memory, "cpython");
     if (p_error) {
         PyErr_SetString(PyExc_ValueError, p_error);
         return NULL;
     }
 
-    if (vmprof_enable() < 0) {
+    if (vmprof_enable(memory) < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
     }

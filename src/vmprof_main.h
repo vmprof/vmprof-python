@@ -39,7 +39,7 @@
 
 static void *(*mainloop_get_virtual_ip)(char *) = 0;
 
-static int opened_profile(char *interp_name);
+static int opened_profile(char *interp_name, int memory);
 static void flush_codes(void);
 
 /************************************************************/
@@ -156,7 +156,7 @@ static void segfault_handler(int arg)
     longjmp(restore_point, SIGSEGV);
 }
 
-static int get_current_proc_rss(void)
+static long get_current_proc_rss(void)
 {
     char buf[1024];
     int i = 0;
@@ -224,7 +224,8 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             // we gonna need that for pypy
             st->depth = depth;
             st->stack[depth++] = get_current_thread_id();
-	    st->stack[depth++] = get_current_proc_rss();
+            if (proc_file != -1)
+        	    st->stack[depth++] = (void*)get_current_proc_rss();
             p->data_offset = offsetof(struct prof_stacktrace_s, marker);
             p->data_size = (depth * sizeof(void *) +
                             sizeof(struct prof_stacktrace_s) -
@@ -329,12 +330,12 @@ int open_proc_file(void)
 }
 
 RPY_EXTERN
-int vmprof_enable(void)
+int vmprof_enable(int memory)
 {
     assert(profile_file >= 0);
     assert(prepare_interval_usec > 0);
     profile_interval_usec = prepare_interval_usec;
-    if (open_proc_file() == -1)
+    if (memory && open_proc_file() == -1)
         goto error;
     if (install_pthread_atfork_hooks() == -1)
         goto error;

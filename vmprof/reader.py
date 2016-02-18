@@ -135,7 +135,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
             thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
         else:
             thread_id = 0
-        if version == VERSION_MEMORY:
+        if status.version == VERSION_MEMORY:
             mem_in_kb, = struct.unpack('l', fileobj.read(WORD_SIZE))
         else:
             mem_in_kb = 0
