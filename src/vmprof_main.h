@@ -102,11 +102,29 @@ void *volatile _PyThreadState_Current;
 
 PyThreadState* get_current_thread_state(void)
 {
+    PyThreadState *current, *tstate;
+    pthread_t tid;
 #if PY_MAJOR_VERSION >= 3
-    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+    current = (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
 #else
-    return _PyThreadState_Current;
+    current = _PyThreadState_Current;
 #endif
+#ifdef __unix__
+    if (!current) {
+        // try a bit harder, at least on linux
+        tid = pthread_self();
+        if (!tid)
+            return NULL;
+        tstate = PyInterpreterState_Head()->tstate_head;
+        while (tstate) {
+            if (tstate->thread_id == tid) {
+                return tstate;
+            }
+            tstate = tstate->next;
+        }
+    }
+#endif
+    return current;
 }
 
 static int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext)

@@ -48,7 +48,7 @@ def main():
     parser.add_argument("--web-auth", default=None, help='Authtoken for your acount on the server')
     args = parser.parse_args()
 
-    stats = vmprof.read_profile(args.profile, virtual_only=True)
+    stats = vmprof.read_profile(args.profile)
     sys.stderr.write("Compiling and uploading to %s...\n" % args.web_url)
 
     res = upload(stats, args.profile, [], args.web_url, args.web_auth)
