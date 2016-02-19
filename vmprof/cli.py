@@ -12,7 +12,7 @@ def build_argparser():
     parser.add_argument(
         'program',
         help='program'
-b    )
+    )
 
     parser.add_argument(
         'args',
