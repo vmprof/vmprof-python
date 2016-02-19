@@ -12,7 +12,7 @@ def build_argparser():
     parser.add_argument(
         'program',
         help='program'
-    )
+b    )
 
     parser.add_argument(
         'args',
@@ -45,7 +45,7 @@ def build_argparser():
     )
     parser.add_argument(
         '--mem',
-        default=False,
+        action="store_true",
         help='Do memory profiling as well',
     )
 
