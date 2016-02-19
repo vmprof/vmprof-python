@@ -151,17 +151,16 @@ static long get_current_proc_rss(void)
     int i = 0;
     
     if (lseek(proc_file, 0, SEEK_SET) == -1)
-	return -1;
+	    return -1;
     if (read(proc_file, buf, 1024) == -1)
-	return -1;
+    	return -1;
     while (i < 1020) {
-	if (strncmp(buf + i, "VmRSS:\t", 7) == 0) {
-	    i += 7;
-	    return atoi(buf + i);
-	}
-	i++;
+    	if (strncmp(buf + i, "VmRSS:\t", 7) == 0) {
+	       i += 7;
+	        return atoi(buf + i);
+    	}
+	   i++;
     }
-    printf("foo\n");
     return -1;
 }
 

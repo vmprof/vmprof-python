@@ -43,6 +43,11 @@ def build_argparser():
         default='http://vmprof.com',
         help='Provide URL instead of the default vmprof.com)'
     )
+    parser.add_argument(
+        '--mem',
+        default=False,
+        help='Do memory profiling as well',
+    )
 
     output_mode_args = parser.add_mutually_exclusive_group()
     output_mode_args.add_argument(
