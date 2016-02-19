@@ -51,7 +51,7 @@ def main():
         prof_file = tempfile.NamedTemporaryFile(delete=False)
         prof_name = prof_file.name
 
-    vmprof.enable(prof_file.fileno(), args.period, args.memory)
+    vmprof.enable(prof_file.fileno(), args.period, args.mem)
 
     try:
         sys.argv = [args.program] + args.args
