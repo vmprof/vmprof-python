@@ -1,0 +1,1 @@
+On windows, we handle all the threads, not just ones that are running.

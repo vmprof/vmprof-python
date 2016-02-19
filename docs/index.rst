@@ -14,7 +14,8 @@ continuously taking samples of the call stack of the running program, at a
 given frequency. This is similar to tools like `vtune`_ or `gperftools`_: the
 main difference is that those tools target C and C-like languages and are not
 very helpful to profile higher-level languages which run on top of a virtual
-machine, while vmprof is designed specifically for them.
+machine, while vmprof is designed specifically for them. vmprof is also thread
+safe and will correctly display the information regardless of usage of threads.
 
 There are three primary modes. The recommended one is to use our server
 infrastructure for a web-based visualization of the result::
