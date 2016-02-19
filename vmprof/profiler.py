@@ -35,6 +35,7 @@ def read_profile(prof_filename):
     jit_frames = {}
     d = dict(virtual_symbols)
     s = Stats(profiles, d, jit_frames, interp_name)
+    s.period = period
     return s
 
 
