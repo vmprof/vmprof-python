@@ -93,9 +93,20 @@ static int proc_file = -1;
  * *************************************************************
  */
 
+#if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
+                                 /* this was abruptly un-defined in 3.5.1 */
+    void *volatile _PyThreadState_Current;
+       /* XXX simple volatile access is assumed atomic */
+#  define _Py_atomic_load_relaxed(pp)  (*(pp))
+#endif
+ 
 PyThreadState* get_current_thread_state(void)
 {
-    return PyGILState_GetThisThreadState();
+#if PY_MAJOR_VERSION >= 3
+    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+#else
+    return _PyThreadState_Current;
+#endif
 }
 
 static int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext)
