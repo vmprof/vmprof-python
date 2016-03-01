@@ -88,16 +88,15 @@ long __stdcall vmprof_mainloop(void *arg)
         if (!enabled) {
             continue;
         }
-        tstate = PyInterpreterState_Head()->tstate_head;
-        while (tstate) {
-            depth = vmprof_snapshot_thread(tstate->thread_id, tstate, stack);
-            if (depth > 0) {
-                _write_all((char*)stack + offsetof(prof_stacktrace_s, marker),
-                    depth * sizeof(void *) +
-                        sizeof(struct prof_stacktrace_s) -
-                        offsetof(struct prof_stacktrace_s, marker));
-            }
-            tstate = tstate->next;
+        tstate = get_current_thread_state();
+        if (!tstate)
+            continue;
+        depth = vmprof_snapshot_thread(tstate->thread_id, tstate, stack);
+        if (depth > 0) {
+            _write_all((char*)stack + offsetof(prof_stacktrace_s, marker),
+                       depth * sizeof(void *) +
+                       sizeof(struct prof_stacktrace_s) -
+                       offsetof(struct prof_stacktrace_s, marker));
         }
     }
 }

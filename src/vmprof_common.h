@@ -97,3 +97,19 @@ static int opened_profile(char *interp_name, int memory)
     memcpy(&header.interp_name[4], interp_name, namelen);
     return _write_all((char*)&header, 5 * sizeof(long) + 4 + namelen);
 }
+
+#if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
+                                 /* this was abruptly un-defined in 3.5.1 */
+    void *volatile _PyThreadState_Current;
+       /* XXX simple volatile access is assumed atomic */
+#  define _Py_atomic_load_relaxed(pp)  (*(pp))
+#endif
+ 
+PyThreadState* get_current_thread_state(void)
+{
+#if PY_MAJOR_VERSION >= 3
+    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+#else
+    return _PyThreadState_Current;
+#endif
+}
