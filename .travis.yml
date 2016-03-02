@@ -1,3 +1,5 @@
+sudo: required
+dist: trusty
 language: python
 
 python:
@@ -12,7 +14,7 @@ before_install:
   - sudo apt-get install -y python-dev
   - sudo apt-get install -y libdwarf-dev
   - sudo apt-get install -y libelfg0-dev
-  - sudo apt-get install -y libunwind7-dev
+  - sudo apt-get install -y libunwind8-dev
 
 install:
   - pip install .
