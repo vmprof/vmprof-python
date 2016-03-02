@@ -101,7 +101,7 @@ static int opened_profile(char *interp_name, int memory)
 // for whatever reason python-dev decided to hide that one
 #if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
                                  /* this was abruptly un-defined in 3.5.1 */
-    void *volatile _PyThreadState_Current;
+    extern void *volatile _PyThreadState_Current;
        /* XXX simple volatile access is assumed atomic */
 #  define _Py_atomic_load_relaxed(pp)  (*(pp))
 #endif
