@@ -4,15 +4,6 @@
 #include <frameobject.h>
 #include <signal.h>
 
-// for whatever reason python-dev decided to hide that one
-#if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
-                             /* this was abruptly un-defined in 3.5.1 */
-void *volatile _PyThreadState_Current;
-   /* XXX simple volatile access is assumed atomic */
-#  define _Py_atomic_load_relaxed(pp)  (*(pp))
-#endif
-
-
 #define RPY_EXTERN static
 static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 #define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
