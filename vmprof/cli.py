@@ -133,9 +133,14 @@ def show(stats):
         if v == '0.0%':
             v = '<0.1%'
         if k.startswith('py:'):
-            _, func_name, lineno, filename = k.split(":", 3)
-            lineno = int(lineno)
-            print(" %s %s %s:%d" % (v.ljust(7), func_name.ljust(max_len + 1), filename, lineno))
+            try:
+                _, func_name, lineno, filename = k.split(":", 3)
+                lineno = int(lineno)
+            except ValueError:
+                print(" %s %s" % (v.ljust(7), k.ljust(max_len + 1)))
+                # badly done split
+            else:
+                print(" %s %s %s:%d" % (v.ljust(7), func_name.ljust(max_len + 1), filename, lineno))
         else:
             print(" %s %s" % (v.ljust(7), k.ljust(max_len + 1)))
 
