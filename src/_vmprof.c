@@ -148,10 +148,11 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
     int fd;
     int memory = 0;
+    int use_wall_time = 0;
     double interval;
     char *p_error;
 
-    if (!PyArg_ParseTuple(args, "id|i", &fd, &interval, &memory))
+    if (!PyArg_ParseTuple(args, "id|ii", &fd, &interval, &memory, &use_wall_time))
         return NULL;
     assert(fd >= 0);
 
@@ -161,7 +162,7 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
     }
 
     init_cpyprof();
-    p_error = vmprof_init(fd, interval, memory, "cpython");
+    p_error = vmprof_init(fd, interval, memory, use_wall_time, "cpython");
     if (p_error) {
         PyErr_SetString(PyExc_ValueError, p_error);
         return NULL;

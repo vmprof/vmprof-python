@@ -11,15 +11,16 @@ class VMProfError(Exception):
 class ProfilerContext(object):
     done = False
 
-    def __init__(self, name, memory):
+    def __init__(self, name, memory, use_wall_time):
         if name is None:
             self.tmpfile = tempfile.NamedTemporaryFile(delete=False)
         else:
             self.tmpfile = open(name, "wb")
         self.memory = memory
+        self.use_wall_time = use_wall_time
 
     def __enter__(self):
-        vmprof.enable(self.tmpfile.fileno(), 0.001, self.memory)
+        vmprof.enable(self.tmpfile.fileno(), 0.001, self.memory, self.use_wall_time)
 
     def __exit__(self, type, value, traceback):
         vmprof.disable()
@@ -44,8 +45,8 @@ class Profiler(object):
     def __init__(self):
         self._lib_cache = {}
 
-    def measure(self, name=None, memory=False):
-        self.ctx = ProfilerContext(name, memory)
+    def measure(self, name=None, memory=False, use_wall_time=False):
+        self.ctx = ProfilerContext(name, memory, use_wall_time)
         return self.ctx
 
     def get_stats(self):

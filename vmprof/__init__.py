@@ -21,10 +21,10 @@ IS_PYPY = '__pypy__' in sys.builtin_module_names
 DEFAULT_PERIOD = 0.00099
 
 if not IS_PYPY:
-    def enable(fileno, period=DEFAULT_PERIOD, memory=False):
+    def enable(fileno, period=DEFAULT_PERIOD, memory=False, use_wall_time=False):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
-        _vmprof.enable(fileno, period, memory)
+        _vmprof.enable(fileno, period, memory, use_wall_time)
 
     def disable():
         _vmprof.disable()
