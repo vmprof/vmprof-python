@@ -153,6 +153,8 @@ def test_memory_measurment():
 
     s = prof.get_stats()
 
+
+@py.test.mark.skipif(sys.version_info < (3,5), reason="requires PEP 475")
 def test_wall_time():
     ticks_per_second = 1/0.001
     sleep_seconds = 1
