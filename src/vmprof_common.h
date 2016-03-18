@@ -128,13 +128,14 @@ PyThreadState* get_current_thread_state(void)
          * state by manually looking through the available thread states.
          *
          * In general we find more than one thread state there; these threads
-         * are either A) waiting for a syscall, or B) were put to rest by
-         * the CPython "thread scheduler" to let other threads run.
+         * are either waiting for a syscall or waiting for the GIL.
          *
-         * In case A) we should consider them for inclusion in the profile.
-         * In case B) they aren't actually spending any time (not in any
-         * practical definition of "spending time" anyways) and should not be
-         * included in the profile.
+         * In the syscall case we should consider them for inclusion in the
+         * profile.
+         *
+         * In the GIL case they aren't actually spending any time
+         * (not in any practical definition of "spending time" anyways) and
+         * should not be included in the profile.
          *
          * The problem is that we can't distinguish between the two cases.
          * Therefore, if we find more than one thread here, we include none in
@@ -144,7 +145,7 @@ PyThreadState* get_current_thread_state(void)
          *
          * In the future this could be worked around by unwinding the C call
          * stack to look for a call to "take_gil", which is an indicator for
-         * the thread being in B) state.
+         * the thread waiting for the GIL.
          */
         PyInterpreterState *interp = PyInterpreterState_Head();
         while (interp != NULL) {
