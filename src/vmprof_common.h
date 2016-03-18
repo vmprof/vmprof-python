@@ -6,6 +6,8 @@ static int profile_file = -1;
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
 static int opened_profile(char *interp_name, int memory);
+/** Whether to use ITIMER_REAL instead of ITIMER_PROF */
+static int use_wall_time = 0;
 
 #if defined(__unix__) || defined(__APPLE__)
 static struct profbuf_s *volatile current_codes;
@@ -34,7 +36,7 @@ typedef struct prof_stacktrace_s {
 
 
 RPY_EXTERN
-char *vmprof_init(int fd, double interval, int memory, char *interp_name)
+char *vmprof_init(int fd, double interval, int memory, int wall_time, char *interp_name)
 {
     if (interval < 1e-6 || interval >= 1.0)
         return "bad value for 'interval'";
@@ -48,8 +50,12 @@ char *vmprof_init(int fd, double interval, int memory, char *interp_name)
 
 #if !defined(__unix__)
     if (memory)
-        return "memory tracking not supported on non-linux";
+        return "memory tracking only supported on linux";
+    if (wall_time)
+        return "wall time profiling only supported on unix";
 #endif
+    use_wall_time = wall_time;
+
     assert(fd >= 0);
     profile_file = fd;
     if (opened_profile(interp_name, memory) < 0) {
@@ -108,9 +114,51 @@ static int opened_profile(char *interp_name, int memory)
  
 PyThreadState* get_current_thread_state(void)
 {
+    PyThreadState *tstate;
 #if PY_MAJOR_VERSION >= 3
-    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+    tstate = (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
 #else
-    return _PyThreadState_Current;
+    tstate = _PyThreadState_Current;
 #endif
+
+    if (tstate == NULL) {
+        /* This happens if we use wall time (ITIMER_REAL) and the current
+         * thread is waiting for a syscall to finish, in which case
+         * _PyThreadState_Current is NULL.  But we can still obtain the thread
+         * state by manually looking through the available thread states.
+         *
+         * In general we find more than one thread state there; these threads
+         * are either A) waiting for a syscall, or B) were put to rest by
+         * the CPython "thread scheduler" to let other threads run.
+         *
+         * In case A) we should consider them for inclusion in the profile.
+         * In case B) they aren't actually spending any time (not in any
+         * practical definition of "spending time" anyways) and should not be
+         * included in the profile.
+         *
+         * The problem is that we can't distinguish between the two cases.
+         * Therefore, if we find more than one thread here, we include none in
+         * the profile.  This means that wall time profiles DO NOT WORK with
+         * multiple threads. To be specific, a wall time profile of multiple
+         * threads behaves just like a normal (non-wall-time) profile.
+         *
+         * In the future this could be worked around by unwinding the C call
+         * stack to look for a call to "take_gil", which is an indicator for
+         * the thread being in B) state.
+         */
+        PyInterpreterState *interp = PyInterpreterState_Head();
+        while (interp != NULL) {
+            tstate = PyInterpreterState_ThreadHead(interp);
+            if (tstate != NULL) {
+               if (PyThreadState_Next(tstate) != NULL) {
+                    /* Found multiple thread states */
+                    tstate = NULL;
+                }
+                break;
+            }
+            interp = PyInterpreterState_Next(interp);
+        }
+    }
+
+    return tstate;
 }

@@ -5,6 +5,7 @@
 import py
 import sys
 import tempfile
+import time
 import vmprof
 from vmprof.reader import read_prof_bit_by_bit
 from vmprof.stats import Stats
@@ -19,7 +20,7 @@ if '__pypy__' in sys.builtin_module_names:
     COUNT = 100000
 else:
     COUNT = 10000
-    
+
 def function_foo():
     for k in range(1000):
         l = [a for a in xrange(COUNT)]
@@ -151,3 +152,25 @@ def test_memory_measurment():
         function_bar()
 
     s = prof.get_stats()
+
+def test_wall_time():
+    ticks_per_second = 1/0.001
+    sleep_seconds = 1
+
+    def function_real(seconds):
+        function_foo()
+        time.sleep(seconds)
+
+    prof = vmprof.Profiler()
+
+    with prof.measure(use_wall_time=True):
+        function_real(0)
+    d_nosleep = dict(prof.get_stats().top_profile())
+
+    with prof.measure(use_wall_time=True):
+        function_real(sleep_seconds)
+    d_sleep = dict(prof.get_stats().top_profile())
+
+    key, = (k for k in d_nosleep.keys() if "function_real" in k)
+    min_expected_diff = 0.9 * sleep_seconds * ticks_per_second
+    assert d_sleep[key] >= d_nosleep[key] + min_expected_diff

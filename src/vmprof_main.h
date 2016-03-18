@@ -95,7 +95,7 @@ static int proc_file = -1;
 
 static int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext)
 {
-    PyThreadState* current = get_current_thread_state();
+    PyThreadState *current = get_current_thread_state();
 
     if (!current)
         return 0;
@@ -235,14 +235,14 @@ static int install_sigprof_handler(void)
     sa.sa_sigaction = sigprof_handler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
     if (sigemptyset(&sa.sa_mask) == -1 ||
-        sigaction(SIGPROF, &sa, NULL) == -1)
+        sigaction(use_wall_time ? SIGALRM : SIGPROF, &sa, NULL) == -1)
         return -1;
     return 0;
 }
 
 static int remove_sigprof_handler(void)
 {
-    if (signal(SIGPROF, SIG_DFL) == SIG_ERR)
+    if (signal(use_wall_time ? SIGALRM : SIGPROF, SIG_DFL) == SIG_ERR)
         return -1;
     return 0;
 }
@@ -253,7 +253,7 @@ static int install_sigprof_timer(void)
     timer.it_interval.tv_sec = 0;
     timer.it_interval.tv_usec = profile_interval_usec;
     timer.it_value = timer.it_interval;
-    if (setitimer(ITIMER_PROF, &timer, NULL) != 0)
+    if (setitimer(use_wall_time ? ITIMER_REAL : ITIMER_PROF, &timer, NULL) != 0)
         return -1;
     return 0;
 }
@@ -264,7 +264,7 @@ static int remove_sigprof_timer(void) {
     timer.it_interval.tv_usec = 0;
     timer.it_value.tv_sec = 0;
     timer.it_value.tv_usec = 0;
-    if (setitimer(ITIMER_PROF, &timer, NULL) != 0)
+    if (setitimer(use_wall_time ? ITIMER_REAL : ITIMER_PROF, &timer, NULL) != 0)
         return -1;
     return 0;
 }
