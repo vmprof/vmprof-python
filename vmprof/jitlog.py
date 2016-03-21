@@ -10,7 +10,7 @@ MARKER_JITLOG_ASM = b'\x15'
 MARKER_JITLOG_TRACE = b'\x16'
 MARKER_JITLOG_TRACE_OPT = b'\x17'
 MARKER_JITLOG_TRACE_ASM = b'\x18'
-MARKER_JITLOG_TRACE_PATCH = b'\x19'
+MARKER_JITLOG_PATCH = b'\x19'
 
 class FlatOp(object):
     def __init__(self, opnum, opname, args, result, descr):
@@ -21,26 +21,45 @@ class FlatOp(object):
         self.descr = descr
         self.core_dump = None
 
-    def set_core_dump(self, core_dump):
-        self.core_dump = core_dump
+    def set_core_dump(self, rel_pos, core_dump):
+        self.core_dump = (rel_pos, core_dump)
+
+    def get_core_dump(self, base_addr, patches, timeval):
+        coredump = self.core_dump[1][:]
+        for timepos, addr, content in patches:
+            if timeval < timepos:
+                continue # do not apply the patch
+            op_off = self.core_dump[0]
+            patch_start = (addr - base_addr) - op_off 
+            patch_end = patch_start + len(content)
+            content_end = len(content)-1
+            if patch_end >= len(coredump):
+                patch_end = len(coredump)
+                content_end = patch_end - patch_start
+            coredump = coredump[:patch_start] + content[:content_end] + coredump[patch_end:]
+        return coredump
 
     def __repr__(self):
-        if self.result != '':
-            suffix = "%s =" % self.result
+        suffix = ''
+        if self.result is not None:
+            suffix = "%s = " % self.result
         descr = self.descr
         if descr is None:
             descr = ''
         else:
             descr = ', @' + descr
-        return '%s %s(%s%s)' % (suffix, self.opname,
+        return '%s%s(%s%s)' % (suffix, self.opname,
                                 ', '.join(self.args), descr)
 
 class Trace(object):
-    def __init__(self, trace_type, tick):
+    def __init__(self, forest, trace_type, tick):
+        self.forest = forest
         self.type = trace_type
         assert self.type in ('loop', 'bridge')
         self.ops = []
         self.creation_tick = tick
+        # this saves a quadrupel for each
+        self.my_patches = None
 
     def is_bridge(self):
         return self.type == 'bridge'
@@ -54,6 +73,29 @@ class Trace(object):
     def add_instr(self, opnum, opname, args, result, descr):
         self.ops.append(FlatOp(opnum, opname, args, result, descr))
 
+    def contains_patch(self, addr):
+        if self.addrs is None:
+            return False
+        return self.addrs[0] <= addr <= self.addrs[1]
+
+    def get_core_dump(self, timeval=-1, opslice=(0,-1)):
+        if timeval == -1:
+            timeval = 2**31-1 # a very high number
+        if self.my_patches is None:
+            self.my_patches = []
+            for patch in self.forest.patches:
+                patch_time, addr, content = patch
+                if self.contains_patch(addr):
+                    self.my_patches.append(patch)
+
+        core_dump = []
+        start,end = opslice
+        if end == -1:
+            end = len(opslice)
+        for i, op in enumerate(self.ops[start:end]):
+            dump = op.get_core_dump(self.addrs[0], self.my_patches, timeval)
+            core_dump.append(dump)
+        return ''.join(core_dump)
 
 class TraceTree(object):
     pass
@@ -61,17 +103,21 @@ class TraceTree(object):
 class TraceForest(object):
     def __init__(self):
         self.roots = []
-        self.trees = []
+        self.traces = []
         self.last_trace = None
         self.resops = {}
         self.timepos = 0
+        self.patches = []
 
     def add_trace(self, trace_type, marker):
-        tree = Trace(trace_type, self.timepos)
-        self.trees.append(tree)
+        tree = Trace(self, trace_type, self.timepos)
+        self.traces.append(tree)
         if marker == MARKER_JITLOG_TRACE:
             self.time_tick()
         return tree
+
+    def patch_memory(self, addr, content, timeval):
+        self.patches.append((timeval, addr, content))
 
     def time_tick(self):
         self.timepos += 1
@@ -112,7 +158,12 @@ class TraceForest(object):
             args = args[1:]
             trace.add_instr(opnum, self.resops[opnum], args, result, descr)
         elif marker == MARKER_JITLOG_ASM:
+            rel_pos = fileobj.read_le_u16()
             dump = fileobj.read_string()
             flatop = trace.ops[-1]
-            flatop.set_core_dump(dump)
+            flatop.set_core_dump(rel_pos, dump)
+        elif marker == MARKER_JITLOG_PATCH:
+            addr = fileobj.read_le_addr()
+            dump = fileobj.read_string()
+            self.patch_memory(addr, dump, self.timepos)
 

@@ -1,7 +1,7 @@
 
 import struct, py
 from vmprof import reader
-from vmprof import jitlog 
+from vmprof import jitlog
 from vmprof.reader import (read_one_marker, FileReadError, read_header,
     MARKER_HEADER, BufferTooSmallError, FileObjWrapper, ReaderStatus)
 
@@ -75,8 +75,6 @@ def default_resop_meta(self):
     pass
 
 def test_read_resop():
-    from vmprof.jitlog import MARKER_JITLOG_RESOP_META
-
     fobj = FileObj([b"\x11\xff\x00\x04\x00\x00\x00call\x11\x00\xfe\x02\x00\x00\x00me"])
     fw = FileObjWrapper(fobj)
     status = ReaderStatus('pypy', 0.001, '0')
@@ -95,23 +93,53 @@ def test_asm_addr():
     status = ReaderStatus('pypy', 0.001, '0')
     for i in range(2):
         read_one_marker(fw, status)
-    assert status.forest.trees[0].addrs == (0xAFFEAFFE, 0xFEEDFEED)
+    assert status.forest.traces[0].addrs == (0xAFFEAFFE, 0xFEEDFEED)
 
 def test_asm_positions():
     fobj = FileObj([b"\x11\xff\x00\x04\x00\x00\x00fire\x11\x00\xfe\x02\x00\x00\x00on",
                     b"\x16\x04\x00\x00\x00loop", # start a loop
                     b"\x10\x05\x00\x00\x00i1,i2", # input args
                     b"\x13\xff\x00\x10\x00\x00\x00i3,i2,i1,descr()", # resop
-                    b"\x15\x08\x00\x00\x00DEADBEEF", # resop
+                    b"\x15\x04\x00\x08\x00\x00\x00DEADBEEF", # resop
                     ])
     fw = FileObjWrapper(fobj)
     status = ReaderStatus('pypy', 0.001, '0')
     for i in range(6):
         read_one_marker(fw, status)
-    assert status.forest.trees[0].inputargs == ['i1','i2']
-    assert str(status.forest.trees[0].ops[0]) == 'i3 = fire(i2, i1, @descr())'
-    assert status.forest.trees[0].ops[0].core_dump == 'DEADBEEF'
+    assert status.forest.traces[0].inputargs == ['i1','i2']
+    assert str(status.forest.traces[0].ops[0]) == 'i3 = fire(i2, i1, @descr())'
+    assert status.forest.traces[0].ops[0].core_dump == (4, 'DEADBEEF')
 
+def test_patch_asm():
+    addr1 = struct.pack("l", 64)
+    addr2 = struct.pack("l", 127)
 
+    addr_len = struct.pack("<i", 8)
+    fobj = FileObj([b"\x11\xff\x00\x06\x00\x00\x00python",
+                    b"\x16\x04\x00\x00\x00loop", # start a loop
+                    b"\x14", addr1, addr2,
+                    b"\x12\xff\x00\x02\x00\x00\x00i3", # resop
+                    b"\x15\x00\x00\x40\x00\x00\x00", b"\x00" * 64, # machine code
+                    b"\x19", 64+56, b'\x08\x00\x00\x00', b'\x00\xFF' * 4, # patch
+                   ])
+    fw = FileObjWrapper(fobj)
+    status = ReaderStatus('pypy', 0.001, '0')
+    for i in range(6):
+        read_one_marker(fw, status)
+    assert str(status.forest.traces[0].ops[0]) == 'i3 = python()'
+    assert status.forest.traces[0].get_core_dump(0) == b'\x00' * 64
+    assert status.forest.traces[0].get_core_dump(1) == '\x00' * 56 + \
+                                                             '\x00\xFF' * 4
 
+def test_patch_asm_timeval():
+    forest = jitlog.TraceForest()
+    trace = jitlog.Trace(forest, 'bridge', 0)
+    trace.set_addr_bounds(0, 9)
+    trace.add_instr(0, 'hello', ['world'], None, None)
+    trace.ops[-1].set_core_dump(0, 'abcdef')
+    trace.add_instr(0, 'add', ['i1', 'i2'], 'i3', None)
+    trace.ops[-1].set_core_dump(6, 'a312')
+    forest.patch_memory(4, '4321', 1)
+    trace.get_core_dump(0) == "abcdefa312"
+    trace.get_core_dump(1) == "abcd432112"
 
