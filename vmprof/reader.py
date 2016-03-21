@@ -4,6 +4,8 @@ import struct
 import subprocess
 import sys
 
+from vmprof.jitlog import TraceForest, TraceTree, Trace
+
 
 PY3 = sys.version_info[0] >= 3
 
@@ -24,6 +26,7 @@ MARKER_TRAILER = b'\x03'
 MARKER_INTERP_NAME = b'\x04'
 MARKER_HEADER = b'\x05'
 
+
 VERSION_BASE = 0
 VERSION_THREAD_ID = 1
 VERSION_TAG = 2
@@ -35,6 +38,7 @@ VMPROF_JITTED_TAG = 3
 VMPROF_JITTING_TAG = 4
 VMPROF_GC_TAG = 5
 VMPROF_ASSEMBLER_TAG = 6
+
 
 class AssemblerCode(int):
     pass
@@ -77,6 +81,20 @@ class FileObjWrapper(object):
             raise BufferTooSmallError(self._buf)
         return s
 
+    def read_string(self):
+        lgt = int(struct.unpack('<i', self.read(4))[0])
+        data = self.read(lgt)
+        if PY3:
+            return data.decode()
+        return data
+
+    def read_le_addr(self):
+        b = self.read(WORD_SIZE)
+        return int(struct.unpack('l', b)[0])
+
+    def read_le_u16(self):
+        return int(struct.unpack('<H', self.read(2))[0])
+
 class ReaderStatus(object):
     def __init__(self, interp_name, period, version, previous_virtual_ips=None):
         if previous_virtual_ips is not None:
@@ -87,6 +105,7 @@ class ReaderStatus(object):
         self.interp_name = interp_name
         self.period = period
         self.version = version
+        self.forest = TraceForest()
 
 class FileReadError(Exception):
     pass
@@ -149,6 +168,8 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         status.virtual_ips[unique_id] = name
     elif marker == MARKER_TRAILER:
         return True # finished
+    elif status.forest.is_jitlog_marker(marker):
+        status.forest.parse(fileobj, marker)
     else:
         raise FileReadError("unexpected marker: %d" % ord(marker))
     return False

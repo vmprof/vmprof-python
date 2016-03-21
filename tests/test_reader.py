@@ -1,7 +1,9 @@
 
 import struct, py
-from vmprof.reader import read_one_marker, FileReadError, read_header,\
-    MARKER_HEADER, BufferTooSmallError, FileObjWrapper
+from vmprof import reader
+from vmprof import jitlog 
+from vmprof.reader import (read_one_marker, FileReadError, read_header,
+    MARKER_HEADER, BufferTooSmallError, FileObjWrapper, ReaderStatus)
 
 class FileObj(object):
     def __init__(self, lst=None):
@@ -55,3 +57,61 @@ def test_read_header():
     status = read_header(f, exc.value.get_buf())
     assert status.version == 13
     assert status.interp_name == "foointerp"
+
+def test_jitlog_numbering():
+    name_numbers = set()
+    for name in dir(reader):
+        if name.startswith('MARKER'):
+            number = getattr(reader, name)
+            assert number not in name_numbers
+            name_numbers.add(number)
+    for name in dir(jitlog):
+        if name.startswith('MARKER'):
+            number = getattr(jitlog, name)
+            assert number not in name_numbers
+            name_numbers.add(number)
+
+def default_resop_meta(self):
+    pass
+
+def test_read_resop():
+    from vmprof.jitlog import MARKER_JITLOG_RESOP_META
+
+    fobj = FileObj([b"\x11\xff\x00\x04\x00\x00\x00call\x11\x00\xfe\x02\x00\x00\x00me"])
+    fw = FileObjWrapper(fobj)
+    status = ReaderStatus('pypy', 0.001, '0')
+    read_one_marker(fw, status)
+    assert status.forest.resops[0xff] == 'call'
+    read_one_marker(fw, status)
+    assert status.forest.resops[0xfe00] == 'me'
+
+def test_asm_addr():
+    addr1 = struct.pack("l", 0xAFFEAFFE)
+    addr2 = struct.pack("l", 0xFEEDFEED)
+
+    fobj = FileObj([b"\x16\x04\x00\x00\x00loop", # start a loop
+                    b"\x14", addr1, addr2])
+    fw = FileObjWrapper(fobj)
+    status = ReaderStatus('pypy', 0.001, '0')
+    for i in range(2):
+        read_one_marker(fw, status)
+    assert status.forest.trees[0].addrs == (0xAFFEAFFE, 0xFEEDFEED)
+
+def test_asm_positions():
+    fobj = FileObj([b"\x11\xff\x00\x04\x00\x00\x00fire\x11\x00\xfe\x02\x00\x00\x00on",
+                    b"\x16\x04\x00\x00\x00loop", # start a loop
+                    b"\x10\x05\x00\x00\x00i1,i2", # input args
+                    b"\x13\xff\x00\x10\x00\x00\x00i3,i2,i1,descr()", # resop
+                    b"\x15\x08\x00\x00\x00DEADBEEF", # resop
+                    ])
+    fw = FileObjWrapper(fobj)
+    status = ReaderStatus('pypy', 0.001, '0')
+    for i in range(6):
+        read_one_marker(fw, status)
+    assert status.forest.trees[0].inputargs == ['i1','i2']
+    assert str(status.forest.trees[0].ops[0]) == 'i3 = fire(i2, i1, @descr())'
+    assert status.forest.trees[0].ops[0].core_dump == 'DEADBEEF'
+
+
+
+
