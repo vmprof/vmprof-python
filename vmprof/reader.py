@@ -11,14 +11,7 @@ PY3 = sys.version_info[0] >= 3
 
 WORD_SIZE = struct.calcsize('L')
 
-def read_word(fileobj):
-    b = fileobj.read(WORD_SIZE)
-    r = int(struct.unpack('l', b)[0])
-    return r
-
-def read_string(fileobj):
-    lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])
-    return fileobj.read(lgt)
+from vmprof.binary import read_word, read_string
 
 MARKER_STACKTRACE = b'\x01'
 MARKER_VIRTUAL_IP = b'\x02'
@@ -80,20 +73,6 @@ class FileObjWrapper(object):
         if len(s) < count:
             raise BufferTooSmallError(self._buf)
         return s
-
-    def read_string(self):
-        lgt = int(struct.unpack('<i', self.read(4))[0])
-        data = self.read(lgt)
-        if PY3:
-            return data.decode()
-        return data
-
-    def read_le_addr(self):
-        b = self.read(WORD_SIZE)
-        return int(struct.unpack('l', b)[0])
-
-    def read_le_u16(self):
-        return int(struct.unpack('<H', self.read(2))[0])
 
 class ReaderStatus(object):
     def __init__(self, interp_name, period, version, previous_virtual_ips=None):
@@ -166,10 +145,10 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         if PY3:
             name = name.decode()
         status.virtual_ips[unique_id] = name
-    elif marker == MARKER_TRAILER:
-        return True # finished
     elif status.forest.is_jitlog_marker(marker):
         status.forest.parse(fileobj, marker)
+    elif marker == MARKER_TRAILER:
+        return True # finished
     else:
         raise FileReadError("unexpected marker: %d" % ord(marker))
     return False
@@ -192,7 +171,7 @@ def read_prof_bit_by_bit(fileobj):
             finished = read_one_marker(fileobj, status, buf)
         except BufferTooSmallError as e:
             buf = e.get_buf()
-    return status.period, status.profiles, status.virtual_ips, status.interp_name
+    return status.period, status.profiles, status.virtual_ips, status.forest, status.interp_name
 
 def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count
@@ -205,6 +184,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
     profiles = []
     interp_name = None
     version = 0
+    forest = TraceForest()
 
     while True:
         marker = fileobj.read(1)
@@ -258,6 +238,8 @@ def read_prof(fileobj, virtual_ips_only=False): #
             if PY3:
                 name = name.decode()
             virtual_ips.append((unique_id, name))
+        elif forest.is_jitlog_marker(marker):
+            forest.parse(fileobj, marker)
         elif marker == MARKER_TRAILER:
             #if not virtual_ips_only:
             #    symmap = read_ranges(fileobj.read())
@@ -268,4 +250,4 @@ def read_prof(fileobj, virtual_ips_only=False): #
     virtual_ips.sort() # I think it's sorted, but who knows
     if virtual_ips_only:
         return virtual_ips
-    return period, profiles, virtual_ips, interp_name
+    return period, profiles, virtual_ips, forest, interp_name

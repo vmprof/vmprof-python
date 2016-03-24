@@ -5,17 +5,26 @@ import six.moves.urllib.request as request
 
 
 import vmprof
+from vmprof.stats import EmptyProfileFile
 PY3 = sys.version_info[0] >= 3
 
 
-def upload(stats, name, argv, host, auth):
+def upload(stats, name, argv, host, auth, jitlog=False):
+
+    try:
+        profiles = stats.get_tree()._serialize()
+    except EmptyProfileFile:
+        profiles = []
 
     data = {
         "VM": stats.interp,
-        "profiles": stats.get_tree()._serialize(),
+        "profiles": profiles,
         "argv": "%s %s" % (name, argv),
-        "version": 1,
+        "version": 2,
     }
+    if jitlog:
+        data["jitlog"] = stats.forest._serialize()
+        print json.dumps(data["jitlog"], indent=2, sort_keys=True)
 
     data = json.dumps(data).encode('utf-8')
 
@@ -51,7 +60,7 @@ def main():
     stats = vmprof.read_profile(args.profile)
     sys.stderr.write("Compiling and uploading to %s...\n" % args.web_url)
 
-    res = upload(stats, args.profile, [], args.web_url, args.web_auth)
+    res = upload(stats, args.profile, [], args.web_url, args.web_auth, True)
     sys.stderr.write("Available at:\n%s\n" % res)
 
 

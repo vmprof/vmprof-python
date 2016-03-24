@@ -48,7 +48,11 @@ def build_argparser():
         action="store_true",
         help='Do memory profiling as well',
     )
-
+    parser.add_argument(
+        '--jitlog',
+        action='store_true',
+        help='Upload the jitlog to remote server (defaults to vmprof.com)',
+    )
     output_mode_args = parser.add_mutually_exclusive_group()
     output_mode_args.add_argument(
         '--web',

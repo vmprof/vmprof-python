@@ -1,5 +1,5 @@
-
-
+from vmprof.binary import (read_word, read_string,
+        read_le_u16, read_le_addr)
 
 MARKER_JITLOG_INPUT_ARGS = b'\x10'
 MARKER_JITLOG_RESOP_META = b'\x11'
@@ -51,15 +51,47 @@ class FlatOp(object):
         return '%s%s(%s%s)' % (suffix, self.opname,
                                 ', '.join(self.args), descr)
 
+    def _serialize(self):
+        dict = { 'num': self.opnum,
+                 'args': self.args }
+        if self.result:
+            dict['res'] = self.result
+        if self.descr:
+            dict['descr'] = self.descr
+        if self.core_dump:
+             dict['dump'] = self.core_dump
+        return dict
+
 class Trace(object):
-    def __init__(self, forest, trace_type, tick):
+    def __init__(self, forest, trace_type, tick, unique_id, name):
         self.forest = forest
         self.type = trace_type
         assert self.type in ('loop', 'bridge')
-        self.ops = []
-        self.creation_tick = tick
+        self.unique_id = unique_id
+        self.name = name
+        self.ops = None
+        self.addrs = (-1,-1)
         # this saves a quadrupel for each
         self.my_patches = None
+
+    def start_mark(self, mark, tick=0):
+        mark_name = 'noopt'
+        if mark == MARKER_JITLOG_TRACE_OPT:
+            mark_name = 'opt'
+        elif mark == MARKER_JITLOG_TRACE_ASM:
+            mark_name = 'asm'
+        if not self.ops:
+            self.ops = []
+        self.ops.append((mark_name, [], tick))
+
+    def set_core_dump_to_last_op(self, rel_pos, dump):
+        ops = self.ops[-1][1]
+        flatop = ops[-1]
+        flatop.set_core_dump(rel_pos, dump)
+
+    def add_instr(self, opnum, opname, args, result, descr):
+        ops = self.ops[-1][1]
+        ops.append(FlatOp(opnum, opname, args, result, descr))
 
     def is_bridge(self):
         return self.type == 'bridge'
@@ -69,9 +101,6 @@ class Trace(object):
 
     def set_addr_bounds(self, a, b):
         self.addrs = (a,b)
-
-    def add_instr(self, opnum, opname, args, result, descr):
-        self.ops.append(FlatOp(opnum, opname, args, result, descr))
 
     def contains_patch(self, addr):
         if self.addrs is None:
@@ -92,29 +121,52 @@ class Trace(object):
         start,end = opslice
         if end == -1:
             end = len(opslice)
-        for i, op in enumerate(self.ops[start:end]):
+        ops = None
+        for mark, operations, tick in self.ops:
+            if mark == 'asm':
+                ops = operations
+        if not ops:
+            return None # no core dump!
+        for i, op in enumerate(ops[start:end]):
             dump = op.get_core_dump(self.addrs[0], self.my_patches, timeval)
             core_dump.append(dump)
         return ''.join(core_dump)
+
+    def _serialize(self):
+        dict = { 'unique_id': hex(self.unique_id),
+                 'name': self.name,
+                 'type': self.type,
+                 'args': self.inputargs,
+                 'stages': {
+                     markname : { 'ops': [ op._serialize() for op in ops ], \
+                                  'tick': tick, } \
+                     for markname, ops, tick in self.ops
+                 }
+               }
+        if self.addrs != (-1,-1):
+            dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
+        return dict
+
 
 class TraceTree(object):
     pass
 
 class TraceForest(object):
-    def __init__(self):
+    def __init__(self, keep_data=True):
         self.roots = []
-        self.traces = []
+        self.traces = {}
         self.last_trace = None
         self.resops = {}
         self.timepos = 0
         self.patches = []
+        self.keep = keep_data
 
-    def add_trace(self, trace_type, marker):
-        tree = Trace(self, trace_type, self.timepos)
-        self.traces.append(tree)
+    def add_trace(self, marker, trace_type, unique_id, name):
+        trace = Trace(self, trace_type, self.timepos, unique_id, name)
+        self.traces[unique_id] = trace
         if marker == MARKER_JITLOG_TRACE:
             self.time_tick()
-        return tree
+        return trace
 
     def patch_memory(self, addr, content, timeval):
         self.patches.append((timeval, addr, content))
@@ -123,6 +175,8 @@ class TraceForest(object):
         self.timepos += 1
 
     def is_jitlog_marker(self, marker):
+        if marker == '':
+            return False
         return marker in (b'\x10\x11\x12'
                           b'\x13\x14\x15'
                           b'\x16\x17\x18\x19')
@@ -132,25 +186,38 @@ class TraceForest(object):
         if marker == MARKER_JITLOG_TRACE or \
            marker == MARKER_JITLOG_TRACE_OPT or \
            marker == MARKER_JITLOG_TRACE_ASM:
-            trace_type = fileobj.read_string()
-            trace = self.add_trace(trace_type, marker)
-            self.last_trace = trace
+            trace_type = read_string(fileobj, True)
+            unique_id = read_le_addr(fileobj)
+            name = read_string(fileobj, True)
+            if self.keep:
+                if unique_id not in self.traces:
+                    trace = self.add_trace(marker, trace_type, unique_id, name)
+                else:
+                    trace = self.traces[unique_id]
+                trace.start_mark(marker, self.timepos)
+                self.last_trace = trace
+                self.time_tick()
         elif marker == MARKER_JITLOG_INPUT_ARGS:
-            argnames = fileobj.read_string().split(',')
-            trace.set_inputargs(argnames)
+            argnames = read_string(fileobj, True).split(',')
+            if self.keep:
+                trace.set_inputargs(argnames)
         elif marker == MARKER_JITLOG_ASM_ADDR:
-            addr1 = fileobj.read_le_addr()
-            addr2 = fileobj.read_le_addr()
-            trace.set_addr_bounds(addr1, addr2)
+            addr1 = read_le_addr(fileobj)
+            addr2 = read_le_addr(fileobj)
+            if self.keep:
+                trace.set_addr_bounds(addr1, addr2)
         elif marker == MARKER_JITLOG_RESOP_META:
-            opnum = fileobj.read_le_u16()
-            opname = fileobj.read_string()
-            self.resops[opnum] = opname
+            opnum = read_le_u16(fileobj)
+            opname = read_string(fileobj, True)
+            if self.keep:
+                self.resops[opnum] = opname
         elif marker == MARKER_JITLOG_RESOP or \
              marker == MARKER_JITLOG_RESOP_DESCR:
-            opnum = fileobj.read_le_u16()
-            args = fileobj.read_string().split(',')
+            opnum = read_le_u16(fileobj)
+            args = read_string(fileobj, True).split(',')
             descr = None
+            if not self.keep:
+                return
             if marker == MARKER_JITLOG_RESOP_DESCR:
                 descr = args[-1]
                 args = args[:-1]
@@ -158,12 +225,22 @@ class TraceForest(object):
             args = args[1:]
             trace.add_instr(opnum, self.resops[opnum], args, result, descr)
         elif marker == MARKER_JITLOG_ASM:
-            rel_pos = fileobj.read_le_u16()
-            dump = fileobj.read_string()
-            flatop = trace.ops[-1]
-            flatop.set_core_dump(rel_pos, dump)
+            rel_pos = read_le_u16(fileobj)
+            dump = read_string(fileobj, True)
+            if self.keep:
+                trace.set_core_dump_to_last_op(rel_pos, dump)
         elif marker == MARKER_JITLOG_PATCH:
-            addr = fileobj.read_le_addr()
-            dump = fileobj.read_string()
-            self.patch_memory(addr, dump, self.timepos)
+            addr = read_le_addr(fileobj)
+            dump = read_string(fileobj, True)
+            if self.keep:
+                self.patch_memory(addr, dump, self.timepos)
+        else:
+            assert False, (marker, fileobj.tell())
+
+    def _serialize(self):
+        return {
+            'resops': self.resops,
+            'traces': [trace._serialize() for trace in self.traces.values()],
+            'forest': None,
+        }
 
