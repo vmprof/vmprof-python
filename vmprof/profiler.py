@@ -30,11 +30,11 @@ class ProfilerContext(object):
 def read_profile(prof_filename):
     prof = open(str(prof_filename), 'rb')
 
-    period, profiles, virtual_symbols, forest, interp_name = read_prof(prof)
+    period, profiles, virtual_symbols, interp_name = read_prof(prof)
 
     jit_frames = {}
     d = dict(virtual_symbols)
-    s = Stats(profiles, d, jit_frames, forest, interp_name)
+    s = Stats(profiles, d, jit_frames, interp_name)
     return s
 
 

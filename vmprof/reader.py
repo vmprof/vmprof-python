@@ -4,7 +4,7 @@ import struct
 import subprocess
 import sys
 
-from vmprof.jitlog import TraceForest, TraceTree, Trace
+from vmprof.jitlog import TraceForest, Trace
 
 
 PY3 = sys.version_info[0] >= 3
@@ -84,7 +84,6 @@ class ReaderStatus(object):
         self.interp_name = interp_name
         self.period = period
         self.version = version
-        self.forest = TraceForest()
 
 class FileReadError(Exception):
     pass
@@ -145,8 +144,6 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         if PY3:
             name = name.decode()
         status.virtual_ips[unique_id] = name
-    elif status.forest.is_jitlog_marker(marker):
-        status.forest.parse(fileobj, marker)
     elif marker == MARKER_TRAILER:
         return True # finished
     else:
@@ -184,7 +181,6 @@ def read_prof(fileobj, virtual_ips_only=False): #
     profiles = []
     interp_name = None
     version = 0
-    forest = TraceForest()
 
     while True:
         marker = fileobj.read(1)
@@ -238,8 +234,6 @@ def read_prof(fileobj, virtual_ips_only=False): #
             if PY3:
                 name = name.decode()
             virtual_ips.append((unique_id, name))
-        elif forest.is_jitlog_marker(marker):
-            forest.parse(fileobj, marker)
         elif marker == MARKER_TRAILER:
             #if not virtual_ips_only:
             #    symmap = read_ranges(fileobj.read())
@@ -250,4 +244,4 @@ def read_prof(fileobj, virtual_ips_only=False): #
     virtual_ips.sort() # I think it's sorted, but who knows
     if virtual_ips_only:
         return virtual_ips
-    return period, profiles, virtual_ips, forest, interp_name
+    return period, profiles, virtual_ips, interp_name

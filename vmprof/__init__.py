@@ -40,3 +40,10 @@ else:
 
     def disable():
         _vmprof.disable()
+
+    def enable_jitlog(fileno):
+        """ Should be a different file than the one provided
+            to vmprof.enable(...). Otherwise the profiling data might
+            be broken.
+        """
+        _vmprof.enable_jitlog(fileno)

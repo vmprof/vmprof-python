@@ -1,5 +1,6 @@
 from vmprof.binary import (read_word, read_string,
         read_le_u16, read_le_addr)
+import struct
 
 MARKER_JITLOG_INPUT_ARGS = b'\x10'
 MARKER_JITLOG_RESOP_META = b'\x11'
@@ -10,16 +11,42 @@ MARKER_JITLOG_ASM = b'\x15'
 MARKER_JITLOG_TRACE = b'\x16'
 MARKER_JITLOG_TRACE_OPT = b'\x17'
 MARKER_JITLOG_TRACE_ASM = b'\x18'
-MARKER_JITLOG_PATCH = b'\x19'
+MARKER_JITLOG_STITCH_BRIDGE= b'\x19'
+MARKER_JITLOG_LOOP_COUNTER = b'\x20'
+MARKER_JITLOG_BRIDGE_COUNTER = b'\x21'
+MARKER_JITLOG_ENTRY_COUNTER = b'\x22'
+MARKER_JITLOG_HEADER = b'\x23'
+
+def read_jitlog(filename):
+    fileobj = open(str(filename), 'rb')
+    forest = TraceForest()
+
+    is_jit_log = fileobj.read(1) == MARKER_JITLOG_HEADER
+    is_jit_log = is_jit_log and fileobj.read(1) == '\xfe'
+    is_jit_log = is_jit_log and fileobj.read(1) == '\xaf'
+    assert is_jit_log, "missing jitlog header, this might be a differnt file"
+    while True:
+        marker = fileobj.read(1)
+        if marker == '':
+            break # end of file!
+        assert forest.is_jitlog_marker(marker)
+        forest.parse(fileobj, marker)
+    return forest
 
 class FlatOp(object):
-    def __init__(self, opnum, opname, args, result, descr):
+    def __init__(self, opnum, opname, args, result, descr, descr_number=None):
         self.opnum = opnum
         self.opname = opname
         self.args = args
         self.result = result
         self.descr = descr
+        self.descr_number = descr_number
         self.core_dump = None
+
+    def has_descr(self, descr=None):
+        if not descr:
+            return self.descr is not None
+        return descr == self.descr_number
 
     def set_core_dump(self, rel_pos, core_dump):
         self.core_dump = (rel_pos, core_dump)
@@ -60,6 +87,8 @@ class FlatOp(object):
             dict['descr'] = self.descr
         if self.core_dump:
              dict['dump'] = self.core_dump
+        if self.descr_number:
+             dict['descr_number'] = hex(self.descr_number)
         return dict
 
 class Trace(object):
@@ -73,6 +102,18 @@ class Trace(object):
         self.addrs = (-1,-1)
         # this saves a quadrupel for each
         self.my_patches = None
+        self.bridges = []
+        self.descr_numbers = set()
+
+    def getops(self, type):
+        for name, ops, _ in self.ops:
+            if name == type:
+                return ops
+        return []
+
+    def stitch_bridge(self, timeval, descr_number, addr_to):
+        oplist = self.getops('asm')
+        self.bridges.append((timeval, descr_number, addr_to))
 
     def start_mark(self, mark, tick=0):
         mark_name = 'noopt'
@@ -89,9 +130,11 @@ class Trace(object):
         flatop = ops[-1]
         flatop.set_core_dump(rel_pos, dump)
 
-    def add_instr(self, opnum, opname, args, result, descr):
+    def add_instr(self, opnum, opname, args, result, descr, descr_number=None):
+        if descr_number:
+            self.descr_numbers.add(descr_number)
         ops = self.ops[-1][1]
-        ops.append(FlatOp(opnum, opname, args, result, descr))
+        ops.append(FlatOp(opnum, opname, args, result, descr, descr_number))
 
     def is_bridge(self):
         return self.type == 'bridge'
@@ -101,6 +144,9 @@ class Trace(object):
 
     def set_addr_bounds(self, a, b):
         self.addrs = (a,b)
+
+    def contains_addr(self, addr):
+        return self.addrs[0] <= addr <= self.addrs[1]
 
     def contains_patch(self, addr):
         if self.addrs is None:
@@ -133,6 +179,12 @@ class Trace(object):
         return ''.join(core_dump)
 
     def _serialize(self):
+        bridges = []
+        for bridge in self.bridges:
+            bridges.append({ 'time': bridge[0],
+                             'descr_number': hex(bridge[1]),
+                             'target': hex(bridge[2]),
+                           })
         dict = { 'unique_id': hex(self.unique_id),
                  'name': self.name,
                  'type': self.type,
@@ -141,15 +193,13 @@ class Trace(object):
                      markname : { 'ops': [ op._serialize() for op in ops ], \
                                   'tick': tick, } \
                      for markname, ops, tick in self.ops
-                 }
+                 },
+                 'bridges': bridges,
                }
         if self.addrs != (-1,-1):
             dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
         return dict
 
-
-class TraceTree(object):
-    pass
 
 class TraceForest(object):
     def __init__(self, keep_data=True):
@@ -168,6 +218,14 @@ class TraceForest(object):
             self.time_tick()
         return trace
 
+    def stitch_bridge(self, descr_number, addr_to, timeval):
+        for tid, trace in self.traces.items():
+            if descr_number in trace.descr_numbers:
+                trace.stitch_bridge(timeval, descr_number, addr_to)
+                break
+        else:
+            raise NotImplementedError
+
     def patch_memory(self, addr, content, timeval):
         self.patches.append((timeval, addr, content))
 
@@ -177,9 +235,7 @@ class TraceForest(object):
     def is_jitlog_marker(self, marker):
         if marker == '':
             return False
-        return marker in (b'\x10\x11\x12'
-                          b'\x13\x14\x15'
-                          b'\x16\x17\x18\x19')
+        return 0x10 <= ord(marker) <= 0x22
 
     def parse(self, fileobj, marker):
         trace = self.last_trace
@@ -215,6 +271,9 @@ class TraceForest(object):
              marker == MARKER_JITLOG_RESOP_DESCR:
             opnum = read_le_u16(fileobj)
             args = read_string(fileobj, True).split(',')
+            descr_number = -1
+            if marker == MARKER_JITLOG_RESOP_DESCR:
+                descr_number = read_le_addr(fileobj)
             descr = None
             if not self.keep:
                 return
@@ -223,17 +282,33 @@ class TraceForest(object):
                 args = args[:-1]
             result = args[0]
             args = args[1:]
-            trace.add_instr(opnum, self.resops[opnum], args, result, descr)
+            if opnum not in self.resops:
+                assert False, "opnum is not known: " + str(opnum) + \
+                              " at binary pos " + str(hex(fileobj.tell()))
+            trace.add_instr(opnum, self.resops[opnum], args, result,
+                            descr, descr_number)
         elif marker == MARKER_JITLOG_ASM:
             rel_pos = read_le_u16(fileobj)
             dump = read_string(fileobj, True)
             if self.keep:
                 trace.set_core_dump_to_last_op(rel_pos, dump)
-        elif marker == MARKER_JITLOG_PATCH:
-            addr = read_le_addr(fileobj)
-            dump = read_string(fileobj, True)
+        elif marker == MARKER_JITLOG_STITCH_BRIDGE:
+            descr_number = read_le_addr(fileobj)
+            addr_tgt = read_le_addr(fileobj)
             if self.keep:
-                self.patch_memory(addr, dump, self.timepos)
+                self.stitch_bridge(descr_number, addr_tgt, self.timepos)
+        elif marker == MARKER_JITLOG_LOOP_COUNTER:
+            ident = read_le_addr(fileobj)
+            count = read_le_addr(fileobj)
+            # TODO
+        elif marker == MARKER_JITLOG_BRIDGE_COUNTER:
+            ident = read_le_addr(fileobj)
+            count = read_le_addr(fileobj)
+            # TODO
+        elif marker == MARKER_JITLOG_ENTRY_COUNTER:
+            ident = read_le_addr(fileobj)
+            count = read_le_addr(fileobj)
+            # TODO
         else:
             assert False, (marker, fileobj.tell())
 
