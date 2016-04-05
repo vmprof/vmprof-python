@@ -238,7 +238,7 @@ class TraceForest(object):
         if marker == '':
             return False
         assert len(marker) == 1
-        return MARKER_JITLOG_INPUT_ARGS <= ord(marker) <= MARKER_JITLOG_END
+        return MARKER_JITLOG_INPUT_ARGS <= marker <= MARKER_JITLOG_END
 
     def parse(self, fileobj, marker):
         trace = self.last_trace
