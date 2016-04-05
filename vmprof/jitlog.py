@@ -29,7 +29,8 @@ def read_jitlog(filename):
         marker = fileobj.read(1)
         if marker == '':
             break # end of file!
-        assert forest.is_jitlog_marker(marker)
+        assert forest.is_jitlog_marker(marker), \
+                "marker unkown: 0x%x at pos 0x%x" % (ord(marker), fileobj.tell())
         forest.parse(fileobj, marker)
     return forest
 
