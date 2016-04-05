@@ -1,6 +1,7 @@
 from vmprof.binary import (read_word, read_string,
         read_le_u16, read_le_addr)
 import struct
+from collections import defaultdict
 
 MARKER_JITLOG_INPUT_ARGS = b'\x10'
 MARKER_JITLOG_RESOP_META = b'\x11'
@@ -92,6 +93,20 @@ class FlatOp(object):
              dict['descr_number'] = hex(self.descr_number)
         return dict
 
+class Stage(object):
+    def __init__(self, mark, timeval):
+        self.mark = mark
+        self.ops = []
+        self.timeval = timeval
+
+    def get_last_op(self):
+        if len(self.ops) == 0:
+            return None
+        return self.ops[-1]
+
+    def get_ops(self):
+        return self.ops
+
 class Trace(object):
     def __init__(self, forest, trace_type, tick, unique_id, name):
         self.forest = forest
@@ -99,21 +114,19 @@ class Trace(object):
         assert self.type in ('loop', 'bridge')
         self.unique_id = unique_id
         self.name = name
-        self.ops = None
+        self.stages = {}
+        self.last_mark = None
         self.addrs = (-1,-1)
         # this saves a quadrupel for each
         self.my_patches = None
         self.bridges = []
         self.descr_numbers = set()
 
-    def getops(self, type):
-        for name, ops, _ in self.ops:
-            if name == type:
-                return ops
-        return []
+    def get_stage(self, type):
+        assert type is not None
+        return self.stages[type]
 
     def stitch_bridge(self, timeval, descr_number, addr_to):
-        oplist = self.getops('asm')
         self.bridges.append((timeval, descr_number, addr_to))
 
     def start_mark(self, mark, tick=0):
@@ -122,19 +135,19 @@ class Trace(object):
             mark_name = 'opt'
         elif mark == MARKER_JITLOG_TRACE_ASM:
             mark_name = 'asm'
-        if not self.ops:
-            self.ops = []
-        self.ops.append((mark_name, [], tick))
+        self.last_mark = mark_name
+        assert mark_name is not None
+        self.stages[mark_name] = Stage(mark_name, tick)
 
     def set_core_dump_to_last_op(self, rel_pos, dump):
-        ops = self.ops[-1][1]
-        flatop = ops[-1]
+        assert self.last_mark is not None
+        flatop = self.get_stage(self.last_mark).get_last_op()
         flatop.set_core_dump(rel_pos, dump)
 
     def add_instr(self, opnum, opname, args, result, descr, descr_number=None):
         if descr_number:
             self.descr_numbers.add(descr_number)
-        ops = self.ops[-1][1]
+        ops = self.get_stage(self.last_mark).get_ops()
         ops.append(FlatOp(opnum, opname, args, result, descr, descr_number))
 
     def is_bridge(self):
@@ -169,12 +182,10 @@ class Trace(object):
         if end == -1:
             end = len(opslice)
         ops = None
-        for mark, operations, tick in self.ops:
-            if mark == 'asm':
-                ops = operations
-        if not ops:
+        stage = self.get_stage('asm')
+        if not stage:
             return None # no core dump!
-        for i, op in enumerate(ops[start:end]):
+        for i, op in enumerate(stage.get_ops()[start:end]):
             dump = op.get_core_dump(self.addrs[0], self.my_patches, timeval)
             core_dump.append(dump)
         return ''.join(core_dump)
