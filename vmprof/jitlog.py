@@ -17,24 +17,24 @@ MARKER_JITLOG_LOOP_COUNTER = b'\x20'
 MARKER_JITLOG_BRIDGE_COUNTER = b'\x21'
 MARKER_JITLOG_ENTRY_COUNTER = b'\x22'
 MARKER_JITLOG_HEADER = b'\x23'
-MARKER_JITLOG_END = MARKER_JITLOG_HEADER
+JITLOG_END_MARKER = b'\x24' # do not prefix this one with MARKER, it is not used in the jitlog
 
 def read_jitlog(filename):
-    fileobj = open(str(filename), 'rb')
-    forest = TraceForest()
+    with open(str(filename), 'rb') as fileobj:
+        forest = TraceForest()
 
-    is_jit_log = fileobj.read(1) == MARKER_JITLOG_HEADER
-    is_jit_log = is_jit_log and fileobj.read(1) == '\xfe'
-    is_jit_log = is_jit_log and fileobj.read(1) == '\xaf'
-    assert is_jit_log, "missing jitlog header, this might be a differnt file"
-    while True:
-        marker = fileobj.read(1)
-        if marker == '':
-            break # end of file!
-        assert forest.is_jitlog_marker(marker), \
-                "marker unkown: 0x%x at pos 0x%x" % (ord(marker), fileobj.tell())
-        forest.parse(fileobj, marker)
-    return forest
+        is_jit_log = fileobj.read(1) == MARKER_JITLOG_HEADER
+        is_jit_log = is_jit_log and fileobj.read(1) == '\xfe'
+        is_jit_log = is_jit_log and fileobj.read(1) == '\xaf'
+        assert is_jit_log, "missing jitlog header, this might be a differnt file"
+        while True:
+            marker = fileobj.read(1)
+            if marker == '':
+                break # end of file!
+            assert forest.is_jitlog_marker(marker), \
+                    "marker unkown: 0x%x at pos 0x%x" % (ord(marker), fileobj.tell())
+            forest.parse(fileobj, marker)
+        return forest
 
 class FlatOp(object):
     def __init__(self, opnum, opname, args, result, descr, descr_number=None):
@@ -249,7 +249,7 @@ class TraceForest(object):
         if marker == '':
             return False
         assert len(marker) == 1
-        return MARKER_JITLOG_INPUT_ARGS <= marker <= MARKER_JITLOG_END
+        return MARKER_JITLOG_INPUT_ARGS <= marker <= JITLOG_END_MARKER
 
     def parse(self, fileobj, marker):
         trace = self.last_trace

@@ -168,7 +168,7 @@ def read_prof_bit_by_bit(fileobj):
             finished = read_one_marker(fileobj, status, buf)
         except BufferTooSmallError as e:
             buf = e.get_buf()
-    return status.period, status.profiles, status.virtual_ips, status.forest, status.interp_name
+    return status.period, status.profiles, status.virtual_ips, status.interp_name
 
 def read_prof(fileobj, virtual_ips_only=False): #
     assert read_word(fileobj) == 0 # header count

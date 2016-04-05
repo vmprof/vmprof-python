@@ -102,10 +102,11 @@ def test_asm_addr():
 def test_asm_positions():
     unique_id = struct.pack("l", 0xFFAA)
     name = struct.pack("<i", 3) + "zAz"
+    descr_nmr = struct.pack("l", 0)
     fobj = FileObj([b"\x11\xff\x00\x04\x00\x00\x00fire\x11\x00\xfe\x02\x00\x00\x00on",
                     b"\x16\x04\x00\x00\x00loop" + unique_id + name, # start a loop
                     b"\x10\x05\x00\x00\x00i1,i2", # input args
-                    b"\x13\xff\x00\x10\x00\x00\x00i3,i2,i1,descr()", # resop
+                    b"\x13\xff\x00\x10\x00\x00\x00i3,i2,i1,descr()" + descr_nmr, # resop
                     b"\x15\x04\x00\x08\x00\x00\x00DEADBEEF", # resop
                     ])
     fw = FileObjWrapper(fobj)
@@ -113,8 +114,8 @@ def test_asm_positions():
     for i in range(6):
         forest.parse(fw, fw.read(1))
     assert forest.traces[0xFFAA].inputargs == ['i1','i2']
-    assert str(forest.traces[0xFFAA].ops[0]) == 'i3 = fire(i2, i1, @descr())'
-    assert forest.traces[0xFFAA].ops[0].core_dump == (4, 'DEADBEEF')
+    assert str(forest.traces[0xFFAA].get_stage('noopt').ops[0]) == 'i3 = fire(i2, i1, @descr())'
+    assert forest.traces[0xFFAA].get_stage('noopt').ops[0].core_dump == (4, 'DEADBEEF')
 
 def test_patch_asm():
     addr1 = struct.pack("l", 64)
@@ -124,9 +125,9 @@ def test_patch_asm():
 
     addr_len = struct.pack("<i", 8)
     fobj = FileObj([b"\x11\xff\x00\x06\x00\x00\x00python",
-                    b"\x16\x04\x00\x00\x00loop" + unique_id + name, # start a loop
+                    b"\x18\x04\x00\x00\x00loop" + unique_id + name, # start a loop
                     b"\x14", addr1, addr2,
-                    b"\x12\xff\x00\x02\x00\x00\x00i3", # resop
+                    b"\x13\xff\x00\x05\x00\x00\x00i3,de" + "\x78" + "\x00" * 7, # resop
                     b"\x15\x00\x00\x40\x00\x00\x00", b"\x00" * 64, # machine code
                     b"\x19", 64+56, b'\x08\x00\x00\x00', b'\x00\xFF' * 4, # patch
                    ])
@@ -134,10 +135,8 @@ def test_patch_asm():
     forest = jitlog.TraceForest()
     for i in range(6):
         forest.parse(fw, fw.read(1))
-    assert str(forest.traces[0].ops[0]) == 'i3 = python()'
-    assert forest.traces[0].get_core_dump(0) == b'\x00' * 64
-    assert forest.traces[0].get_core_dump(1) == '\x00' * 56 + \
-                                                             '\x00\xFF' * 4
+    assert str(forest.traces[0].get_stage('asm').ops[0]) == 'i3 = python(, @de)'
+    # TODO assert forest.traces[0].get_core_dump() == '\x00' * 56 + '\x00\xFF' * 4
 
 def test_patch_asm_timeval():
     forest = jitlog.TraceForest()
