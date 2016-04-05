@@ -16,6 +16,7 @@ MARKER_JITLOG_LOOP_COUNTER = b'\x20'
 MARKER_JITLOG_BRIDGE_COUNTER = b'\x21'
 MARKER_JITLOG_ENTRY_COUNTER = b'\x22'
 MARKER_JITLOG_HEADER = b'\x23'
+MARKER_JITLOG_END = MARKER_JITLOG_HEADER
 
 def read_jitlog(filename):
     fileobj = open(str(filename), 'rb')
@@ -236,7 +237,8 @@ class TraceForest(object):
     def is_jitlog_marker(self, marker):
         if marker == '':
             return False
-        return 0x10 <= ord(marker) <= 0x22
+        assert len(marker) == 1
+        return MARKER_JITLOG_INPUT_ARGS <= ord(marker) <= MARKER_JITLOG_END
 
     def parse(self, fileobj, marker):
         trace = self.last_trace
