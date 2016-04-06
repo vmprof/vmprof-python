@@ -1,6 +1,7 @@
 from vmprof.binary import (read_word, read_string,
         read_le_u16, read_le_addr)
 import struct
+import argparse
 from collections import defaultdict
 
 MARKER_JITLOG_INPUT_ARGS = b'\x10'
@@ -81,6 +82,19 @@ class FlatOp(object):
         return '%s%s(%s%s)' % (suffix, self.opname,
                                 ', '.join(self.args), descr)
 
+    def pretty_print(self):
+        import pdb; pdb.set_trace()
+        suffix = ''
+        if self.result is not None and self.result != '?':
+            suffix = "%s = " % self.result
+        descr = self.descr
+        if descr is None:
+            descr = ''
+        else:
+            descr = ', @' + descr
+        return '%s%s(%s%s)' % (suffix, self.opname,
+                                ', '.join(self.args), descr)
+
     def _serialize(self):
         dict = { 'num': self.opnum,
                  'args': self.args }
@@ -122,6 +136,18 @@ class Trace(object):
         self.my_patches = None
         self.bridges = []
         self.descr_numbers = set()
+
+    def pretty_print(self, args):
+        #import pdb; pdb.set_trace()
+        stage = self.stages.get(args.stage, None)
+        if not stage:
+            return ""
+        resop = []
+
+        for op in stage.ops:
+            resop.append(op.pretty_print())
+
+        return '\n'.join(resop)
 
     def get_stage(self, type):
         assert type is not None
@@ -333,3 +359,18 @@ class TraceForest(object):
             'forest': None,
         }
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("jitlog")
+    parser.add_argument("--stage", default='asm', help='Which stage should be outputted to stdout')
+    args = parser.parse_args()
+
+    trace_forest = read_jitlog(args.jitlog)
+    print(trace_forest)
+    stage = args.stage
+    for _, trace in trace_forest.traces.items():
+        text = trace.pretty_print(args)
+        print(text)
+
+if __name__ == '__main__':
+    main()
