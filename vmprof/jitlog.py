@@ -27,7 +27,7 @@ def read_jitlog(filename):
         is_jit_log = fileobj.read(1) == MARKER_JITLOG_HEADER
         is_jit_log = is_jit_log and fileobj.read(1) == '\xfe'
         is_jit_log = is_jit_log and fileobj.read(1) == '\xaf'
-        assert is_jit_log, "missing jitlog header, this might be a differnt file"
+        assert is_jit_log, "missing jitlog header. %s does not contain the jitlog header" % filename
         while True:
             marker = fileobj.read(1)
             if marker == '':
@@ -83,7 +83,6 @@ class FlatOp(object):
                                 ', '.join(self.args), descr)
 
     def pretty_print(self):
-        import pdb; pdb.set_trace()
         suffix = ''
         if self.result is not None and self.result != '?':
             suffix = "%s = " % self.result
@@ -138,7 +137,6 @@ class Trace(object):
         self.descr_numbers = set()
 
     def pretty_print(self, args):
-        #import pdb; pdb.set_trace()
         stage = self.stages.get(args.stage, None)
         if not stage:
             return ""

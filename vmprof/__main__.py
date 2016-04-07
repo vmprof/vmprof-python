@@ -3,6 +3,7 @@ import sys, os
 import tempfile
 
 import vmprof
+from vmprof.jitlog import read_jitlog
 
 
 OUTPUT_CLI = 'cli'
@@ -15,14 +16,18 @@ def show_stats(filename, output_mode, args):
         return
 
     stats = vmprof.read_profile(filename)
+    forest = None
+    jitlog_filename = filename + '.jitlog'
+    if os.path.exists(jitlog_filename):
+        forest = read_jitlog(jitlog_filename)
 
     if output_mode == OUTPUT_CLI:
         vmprof.cli.show(stats)
     elif output_mode == OUTPUT_WEB:
-        upload_stats(stats, args)
+        upload_stats(stats, forest, args)
 
 
-def upload_stats(stats, args):
+def upload_stats(stats, forest, args):
     import vmprof.upload
     name = args.program
     argv = " ".join(args.args)
@@ -30,7 +35,7 @@ def upload_stats(stats, args):
     auth = args.web_auth
     #
     sys.stderr.write("Compiling and uploading to %s...\n" % (args.web_url,))
-    res = vmprof.upload.upload(stats, name, argv, host, auth, None)
+    res = vmprof.upload.upload(stats, name, argv, host, auth, forest)
     sys.stderr.write("Available at:\n%s\n" % res)
 
 
@@ -52,6 +57,10 @@ def main():
         prof_name = prof_file.name
 
     vmprof.enable(prof_file.fileno(), args.period, args.mem)
+    if args.jitlog:
+        # note that this file descr is then handled by jitlog
+        fd = os.open(prof_name + '.jitlog', os.O_WRONLY | os.O_TRUNC | os.O_CREAT)
+        vmprof.enable_jitlog(fd)
 
     try:
         sys.argv = [args.program] + args.args
