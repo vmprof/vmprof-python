@@ -224,17 +224,18 @@ class Trace(object):
                              'descr_number': hex(bridge[1]),
                              'target': hex(bridge[2]),
                            })
+        stages = {}
         dict = { 'unique_id': hex(self.unique_id),
                  'name': self.name,
                  'type': self.type,
                  'args': self.inputargs,
-                 'stages': {
-                     markname : { 'ops': [ op._serialize() for op in ops ], \
-                                  'tick': tick, } \
-                     for markname, ops, tick in self.ops
-                 },
+                 'stages': stages,
                  'bridges': bridges,
                }
+               
+        for markname, stage in self.stages.items():
+            stages[markname] = { 'ops': [ op._serialize() for op in stage.ops ], \
+                                  'tick': stage.timeval, }
         if self.addrs != (-1,-1):
             dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
         return dict

@@ -7,13 +7,22 @@
 
 See https://vmprof.readthedocs.org for up to date info
 
-basic usage:
+## Basic usage
 
+###Linux
 ```console
 sudo apt-get install python-dev
 pip install vmprof
 python -m vmprof <your program> <your program args>
 ```
+
+###Windows
+Install Microsoft Visual C++ Compiler for Python 2.7
+	
+	pip install vmprof
+
+For development:
+	pip install -e .
 
 ## vmprofshow
 
