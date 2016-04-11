@@ -98,9 +98,9 @@ if __name__ == '__main__':
             t0 = time.time()
             fuzzer(100)
             l.append(time.time() - t0)
-            print "%.1f ms" % ((time.time() - t0) * 1000)
-        print "min: %.1fms max: %.1fms avg: %.1fms %.1fms" % (min(l) * 1000, max(l) * 1000,
-                                                              sum(l) / len(l) * 1000, sum(l[30:]) / (len(l) - 30) * 1000)
+            print("%.1f ms" % ((time.time() - t0) * 1000))
+        print("min: %.1fms max: %.1fms avg: %.1fms %.1fms" % (min(l) * 1000, max(l) * 1000,
+                                                              sum(l) / len(l) * 1000, sum(l[30:]) / (len(l) - 30) * 1000))
         sys.exit(0)
     if len(sys.argv) > 1:
         count = int(sys.argv[1])
