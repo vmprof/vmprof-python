@@ -24,7 +24,7 @@ def read_string(fileobj, little_endian=False):
             data = data.decode()
         return data
     else:
-        lgt = int(struct.unpack('i', fileobj.read(WORD_SIZE))[0])
+        lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])
     return fileobj.read(lgt)
 
 def read_le_addr(fileobj):

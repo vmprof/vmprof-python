@@ -4,30 +4,36 @@ import struct
 import argparse
 from collections import defaultdict
 
-MARKER_JITLOG_INPUT_ARGS = b'\x10'
-MARKER_JITLOG_RESOP_META = b'\x11'
-MARKER_JITLOG_RESOP = b'\x12'
-MARKER_JITLOG_RESOP_DESCR = b'\x13'
-MARKER_JITLOG_ASM_ADDR = b'\x14'
-MARKER_JITLOG_ASM = b'\x15'
-MARKER_JITLOG_TRACE = b'\x16'
-MARKER_JITLOG_TRACE_OPT = b'\x17'
-MARKER_JITLOG_TRACE_ASM = b'\x18'
-MARKER_JITLOG_STITCH_BRIDGE= b'\x19'
-MARKER_JITLOG_LOOP_COUNTER = b'\x20'
-MARKER_JITLOG_BRIDGE_COUNTER = b'\x21'
-MARKER_JITLOG_ENTRY_COUNTER = b'\x22'
-MARKER_JITLOG_HEADER = b'\x23'
-JITLOG_END_MARKER = b'\x24' # do not prefix this one with MARKER, it is not used in the jitlog
+MARK_JITLOG_INPUT_ARGS = b'\x10'
+MARK_JITLOG_RESOP_META = b'\x11'
+MARK_JITLOG_RESOP = b'\x12'
+MARK_JITLOG_RESOP_DESCR = b'\x13'
+MARK_JITLOG_ASM_ADDR = b'\x14'
+MARK_JITLOG_ASM = b'\x15'
+MARK_JITLOG_TRACE = b'\x16'
+MARK_JITLOG_TRACE_OPT = b'\x17'
+MARK_JITLOG_TRACE_ASM = b'\x18'
+MARK_JITLOG_STITCH_BRIDGE= b'\x19'
+MARK_JITLOG_LOOP_COUNTER = b'\x20'
+MARK_JITLOG_BRIDGE_COUNTER = b'\x21'
+MARK_JITLOG_ENTRY_COUNTER = b'\x22'
+MARK_JITLOG_HEADER = b'\x23'
+MARK_JITLOG_DEBUG_MERGE_POINT = b'\x24'
+JITLOG_END_MARK = b'\x25' # do not prefix this one with MARKER, it is not used in the jitlog
+
+JITLOG_MIN_VERSION = 1
+JITLOG_VERSION = 1
 
 def read_jitlog(filename):
     with open(str(filename), 'rb') as fileobj:
         forest = TraceForest()
 
-        is_jit_log = fileobj.read(1) == MARKER_JITLOG_HEADER
-        is_jit_log = is_jit_log and fileobj.read(1) == '\xfe'
-        is_jit_log = is_jit_log and fileobj.read(1) == '\xaf'
-        assert is_jit_log, "missing jitlog header. %s does not contain the jitlog header" % filename
+        is_jit_log = fileobj.read(1) == MARK_JITLOG_HEADER
+        version = ord(fileobj.read(1)) | (ord(fileobj.read(1)) << 8)
+        assert is_jit_log, "Missing header. %s might not be a jitlog!" % filename
+        assert version >= JITLOG_MIN_VERSION, \
+                "Version does not match. Log is version %d%d is not satisfied" % \
+                    (version, JITLOG_VERSION)
         while True:
             marker = fileobj.read(1)
             if marker == '':
@@ -38,7 +44,7 @@ def read_jitlog(filename):
         return forest
 
 class FlatOp(object):
-    def __init__(self, opnum, opname, args, result, descr, descr_number=None):
+    def __init__(self, opnum, opname, args, result, descr=None, descr_number=None):
         self.opnum = opnum
         self.opname = opname
         self.args = args
@@ -94,7 +100,7 @@ class FlatOp(object):
         return '%s%s(%s%s)' % (suffix, self.opname,
                                 ', '.join(self.args), descr)
 
-    def _serialize(self):
+    def _serialize(self, trace_dict):
         dict = { 'num': self.opnum,
                  'args': self.args }
         if self.result:
@@ -106,6 +112,42 @@ class FlatOp(object):
         if self.descr_number:
              dict['descr_number'] = hex(self.descr_number)
         return dict
+
+class MergePoint(FlatOp):
+    def __init__(self, filename, lineno, enclosed, index, opname):
+        self.filename = filename
+        self.lineno = lineno
+        self.enclosed = enclosed
+        self.index = index
+        self.opname = opname
+
+    def has_descr(self, descr=None):
+        return False
+
+    def set_core_dump(self, rel_pos, core_dump):
+        raise NotImplementedError
+
+    def get_core_dump(self, base_addr, patches, timeval):
+        raise NotImplementedError
+
+    def __repr__(self):
+        return 'debug_merge_point(xxx)'
+
+    def pretty_print(self):
+        return 'impl me debug merge point'
+
+    def _serialize(self, trace_dict):
+        dict = {}
+        for prop in ['filename', 'lineno', 'enclosed', 'index', 'opname']:
+            dict[prop] = getattr(self, prop)
+        index = len(trace_dict['ops'])
+        merge_points = trace_dict['merge_points']
+        assert index not in merge_points, "duplicated index for debug merge point"
+        merge_points[index] = dict
+        if len(merge_points) == 1:
+            # fast access for the first debug merge point!
+            merge_points['first'] = index
+        return None
 
 class Stage(object):
     def __init__(self, mark, timeval):
@@ -122,12 +164,12 @@ class Stage(object):
         return self.ops
 
 class Trace(object):
-    def __init__(self, forest, trace_type, tick, unique_id, name):
+    def __init__(self, forest, trace_type, tick, unique_id):
         self.forest = forest
         self.type = trace_type
+        self.inputargs = []
         assert self.type in ('loop', 'bridge')
         self.unique_id = unique_id
-        self.name = name
         self.stages = {}
         self.last_mark = None
         self.addrs = (-1,-1)
@@ -156,9 +198,9 @@ class Trace(object):
 
     def start_mark(self, mark, tick=0):
         mark_name = 'noopt'
-        if mark == MARKER_JITLOG_TRACE_OPT:
+        if mark == MARK_JITLOG_TRACE_OPT:
             mark_name = 'opt'
-        elif mark == MARKER_JITLOG_TRACE_ASM:
+        elif mark == MARK_JITLOG_TRACE_ASM:
             mark_name = 'asm'
         self.last_mark = mark_name
         assert mark_name is not None
@@ -169,11 +211,11 @@ class Trace(object):
         flatop = self.get_stage(self.last_mark).get_last_op()
         flatop.set_core_dump(rel_pos, dump)
 
-    def add_instr(self, opnum, opname, args, result, descr, descr_number=None):
-        if descr_number:
-            self.descr_numbers.add(descr_number)
+    def add_instr(self, op):
+        if op.has_descr():
+            self.descr_numbers.add(op.descr_number)
         ops = self.get_stage(self.last_mark).get_ops()
-        ops.append(FlatOp(opnum, opname, args, result, descr, descr_number))
+        ops.append(op)
 
     def is_bridge(self):
         return self.type == 'bridge'
@@ -224,16 +266,21 @@ class Trace(object):
                            })
         stages = {}
         dict = { 'unique_id': hex(self.unique_id),
-                 'name': self.name,
                  'type': self.type,
                  'args': self.inputargs,
                  'stages': stages,
                  'bridges': bridges,
                }
-               
+
         for markname, stage in self.stages.items():
-            stages[markname] = { 'ops': [ op._serialize() for op in stage.ops ], \
-                                  'tick': stage.timeval, }
+            ops = []
+            # merge points is a dict mapping from index -> merge_points
+            merge_point = { 'ops': ops, 'tick': stage.timeval, 'merge_points': {} }
+            stages[markname] = merge_point
+            for op in stage.ops:
+                result = op._serialize(merge_point)
+                if result:
+                    ops.append(result)
         if self.addrs != (-1,-1):
             dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
         return dict
@@ -249,10 +296,10 @@ class TraceForest(object):
         self.patches = []
         self.keep = keep_data
 
-    def add_trace(self, marker, trace_type, unique_id, name):
-        trace = Trace(self, trace_type, self.timepos, unique_id, name)
+    def add_trace(self, marker, trace_type, unique_id):
+        trace = Trace(self, trace_type, self.timepos, unique_id)
         self.traces[unique_id] = trace
-        if marker == MARKER_JITLOG_TRACE:
+        if marker == MARK_JITLOG_TRACE:
             self.time_tick()
         return trace
 
@@ -274,49 +321,51 @@ class TraceForest(object):
         if marker == '':
             return False
         assert len(marker) == 1
-        return MARKER_JITLOG_INPUT_ARGS <= marker <= JITLOG_END_MARKER
+        return MARK_JITLOG_INPUT_ARGS <= marker <= JITLOG_END_MARKER
 
     def parse(self, fileobj, marker):
         trace = self.last_trace
-        if marker == MARKER_JITLOG_TRACE or \
-           marker == MARKER_JITLOG_TRACE_OPT or \
-           marker == MARKER_JITLOG_TRACE_ASM:
+        if marker == MARK_JITLOG_TRACE or \
+           marker == MARK_JITLOG_TRACE_OPT or \
+           marker == MARK_JITLOG_TRACE_ASM:
             trace_type = read_string(fileobj, True)
             unique_id = read_le_addr(fileobj)
+            # XXX remove name, there is no such thing as a name for
+            # the loop. but extract it from debug merge point
             name = read_string(fileobj, True)
             if self.keep:
                 if unique_id not in self.traces:
-                    trace = self.add_trace(marker, trace_type, unique_id, name)
+                    trace = self.add_trace(marker, trace_type, unique_id)
                 else:
                     trace = self.traces[unique_id]
                 trace.start_mark(marker, self.timepos)
                 self.last_trace = trace
                 self.time_tick()
-        elif marker == MARKER_JITLOG_INPUT_ARGS:
+        elif marker == MARK_JITLOG_INPUT_ARGS:
             argnames = read_string(fileobj, True).split(',')
             if self.keep:
                 trace.set_inputargs(argnames)
-        elif marker == MARKER_JITLOG_ASM_ADDR:
+        elif marker == MARK_JITLOG_ASM_ADDR:
             addr1 = read_le_addr(fileobj)
             addr2 = read_le_addr(fileobj)
             if self.keep:
                 trace.set_addr_bounds(addr1, addr2)
-        elif marker == MARKER_JITLOG_RESOP_META:
+        elif marker == MARK_JITLOG_RESOP_META:
             opnum = read_le_u16(fileobj)
             opname = read_string(fileobj, True)
             if self.keep:
                 self.resops[opnum] = opname
-        elif marker == MARKER_JITLOG_RESOP or \
-             marker == MARKER_JITLOG_RESOP_DESCR:
+        elif marker == MARK_JITLOG_RESOP or \
+             marker == MARK_JITLOG_RESOP_DESCR:
             opnum = read_le_u16(fileobj)
             args = read_string(fileobj, True).split(',')
             descr_number = -1
-            if marker == MARKER_JITLOG_RESOP_DESCR:
+            if marker == MARK_JITLOG_RESOP_DESCR:
                 descr_number = read_le_addr(fileobj)
             descr = None
             if not self.keep:
                 return
-            if marker == MARKER_JITLOG_RESOP_DESCR:
+            if marker == MARK_JITLOG_RESOP_DESCR:
                 descr = args[-1]
                 args = args[:-1]
             result = args[0]
@@ -324,30 +373,41 @@ class TraceForest(object):
             if opnum not in self.resops:
                 assert False, "opnum is not known: " + str(opnum) + \
                               " at binary pos " + str(hex(fileobj.tell()))
-            trace.add_instr(opnum, self.resops[opnum], args, result,
-                            descr, descr_number)
-        elif marker == MARKER_JITLOG_ASM:
+            opname = self.resops[opnum]
+            op = FlatOp(opnum, opname, args, result, descr, descr_number)
+            trace.add_instr(op)
+        elif marker == MARK_JITLOG_ASM:
             rel_pos = read_le_u16(fileobj)
             dump = read_string(fileobj, True)
             if self.keep:
                 trace.set_core_dump_to_last_op(rel_pos, dump)
-        elif marker == MARKER_JITLOG_STITCH_BRIDGE:
+        elif marker == MARK_JITLOG_STITCH_BRIDGE:
             descr_number = read_le_addr(fileobj)
             addr_tgt = read_le_addr(fileobj)
             if self.keep:
                 self.stitch_bridge(descr_number, addr_tgt, self.timepos)
-        elif marker == MARKER_JITLOG_LOOP_COUNTER:
+        elif marker == MARK_JITLOG_LOOP_COUNTER:
             ident = read_le_addr(fileobj)
             count = read_le_addr(fileobj)
             # TODO
-        elif marker == MARKER_JITLOG_BRIDGE_COUNTER:
+            xxx
+        elif marker == MARK_JITLOG_BRIDGE_COUNTER:
             ident = read_le_addr(fileobj)
             count = read_le_addr(fileobj)
             # TODO
-        elif marker == MARKER_JITLOG_ENTRY_COUNTER:
+            xxx
+        elif marker == MARK_JITLOG_ENTRY_COUNTER:
             ident = read_le_addr(fileobj)
             count = read_le_addr(fileobj)
             # TODO
+            xxx
+        elif marker == MARK_JITLOG_DEBUG_MERGE_POINT:
+            filename = read_string(fileobj, True)
+            lineno = read_le_u16(fileobj, True)
+            enclosed = read_string(fileobj, True)
+            index = read_le_u64(fileobj, True)
+            opname = read_string(fileobj, True)
+            self.add_instr(MergePoint(filename, lineno, enclosed, index, opname))
         else:
             assert False, (marker, fileobj.tell())
 
