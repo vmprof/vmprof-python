@@ -14,9 +14,7 @@ MARK_JITLOG_TRACE = b'\x16'
 MARK_JITLOG_TRACE_OPT = b'\x17'
 MARK_JITLOG_TRACE_ASM = b'\x18'
 MARK_JITLOG_STITCH_BRIDGE= b'\x19'
-MARK_JITLOG_LOOP_COUNTER = b'\x20'
-MARK_JITLOG_BRIDGE_COUNTER = b'\x21'
-MARK_JITLOG_ENTRY_COUNTER = b'\x22'
+MARK_JITLOG_COUNTER = b'\x20'
 MARK_JITLOG_HEADER = b'\x23'
 MARK_JITLOG_DEBUG_MERGE_POINT = b'\x24'
 JITLOG_END_MARK = b'\x25' # do not prefix this one with MARKER, it is not used in the jitlog
@@ -177,6 +175,7 @@ class Trace(object):
         self.my_patches = None
         self.bridges = []
         self.descr_numbers = set()
+        self.counter = 0
 
     def pretty_print(self, args):
         stage = self.stages.get(args.stage, None)
@@ -270,6 +269,7 @@ class Trace(object):
                  'args': self.inputargs,
                  'stages': stages,
                  'bridges': bridges,
+                 'counter': self.counter,
                }
 
         for markname, stage in self.stages.items():
@@ -295,6 +295,9 @@ class TraceForest(object):
         self.timepos = 0
         self.patches = []
         self.keep = keep_data
+
+    def get_trace(self, id):
+        return self.traces.get(id, None)
 
     def add_trace(self, marker, trace_type, unique_id):
         trace = Trace(self, trace_type, self.timepos, unique_id)
@@ -386,21 +389,11 @@ class TraceForest(object):
             addr_tgt = read_le_addr(fileobj)
             if self.keep:
                 self.stitch_bridge(descr_number, addr_tgt, self.timepos)
-        elif marker == MARK_JITLOG_LOOP_COUNTER:
+        elif marker == MARK_JITLOG_COUNTER:
             ident = read_le_addr(fileobj)
             count = read_le_addr(fileobj)
-            # TODO
-            xxx
-        elif marker == MARK_JITLOG_BRIDGE_COUNTER:
-            ident = read_le_addr(fileobj)
-            count = read_le_addr(fileobj)
-            # TODO
-            xxx
-        elif marker == MARK_JITLOG_ENTRY_COUNTER:
-            ident = read_le_addr(fileobj)
-            count = read_le_addr(fileobj)
-            # TODO
-            xxx
+            trace = self.get_trace(ident)
+            trace.counter += count
         elif marker == MARK_JITLOG_DEBUG_MERGE_POINT:
             filename = read_string(fileobj, True)
             lineno = read_le_u16(fileobj, True)
