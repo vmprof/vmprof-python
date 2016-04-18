@@ -1,5 +1,5 @@
 from vmprof.binary import (read_word, read_string,
-        read_le_u16, read_le_addr)
+        read_le_u16, read_le_addr, read_le_u64)
 import struct
 import argparse
 from collections import defaultdict
@@ -17,7 +17,7 @@ MARK_JITLOG_STITCH_BRIDGE= b'\x19'
 MARK_JITLOG_COUNTER = b'\x20'
 MARK_JITLOG_HEADER = b'\x23'
 MARK_JITLOG_DEBUG_MERGE_POINT = b'\x24'
-JITLOG_END_MARK = b'\x25' # do not prefix this one with MARKER, it is not used in the jitlog
+JITLOG_END = b'\x25' # do not prefix this one with MARKER, it is not used in the jitlog
 
 JITLOG_MIN_VERSION = 1
 JITLOG_VERSION = 1
@@ -140,8 +140,7 @@ class MergePoint(FlatOp):
             dict[prop] = getattr(self, prop)
         index = len(trace_dict['ops'])
         merge_points = trace_dict['merge_points']
-        assert index not in merge_points, "duplicated index for debug merge point"
-        merge_points[index] = dict
+        merge_points[index].append(dict)
         if len(merge_points) == 1:
             # fast access for the first debug merge point!
             merge_points['first'] = index
@@ -275,7 +274,7 @@ class Trace(object):
         for markname, stage in self.stages.items():
             ops = []
             # merge points is a dict mapping from index -> merge_points
-            merge_point = { 'ops': ops, 'tick': stage.timeval, 'merge_points': {} }
+            merge_point = { 'ops': ops, 'tick': stage.timeval, 'merge_points': defaultdict(list) }
             stages[markname] = merge_point
             for op in stage.ops:
                 result = op._serialize(merge_point)
@@ -324,7 +323,7 @@ class TraceForest(object):
         if marker == '':
             return False
         assert len(marker) == 1
-        return MARK_JITLOG_INPUT_ARGS <= marker <= JITLOG_END_MARKER
+        return MARK_JITLOG_INPUT_ARGS <= marker <= JITLOG_END
 
     def parse(self, fileobj, marker):
         trace = self.last_trace
@@ -333,6 +332,8 @@ class TraceForest(object):
            marker == MARK_JITLOG_TRACE_ASM:
             trace_type = read_string(fileobj, True)
             unique_id = read_le_addr(fileobj)
+            if trace_type == 'bridge':
+                unique_id = read_le_addr(fileobj)
             # XXX remove name, there is no such thing as a name for
             # the loop. but extract it from debug merge point
             name = read_string(fileobj, True)
@@ -354,10 +355,13 @@ class TraceForest(object):
             if self.keep:
                 trace.set_addr_bounds(addr1, addr2)
         elif marker == MARK_JITLOG_RESOP_META:
-            opnum = read_le_u16(fileobj)
-            opname = read_string(fileobj, True)
-            if self.keep:
-                self.resops[opnum] = opname
+            assert len(self.resops) == 0
+            count = read_le_u16(fileobj)
+            for i in range(count):
+                opnum = read_le_u16(fileobj)
+                opname = read_string(fileobj, True)
+                if self.keep:
+                    self.resops[opnum] = opname
         elif marker == MARK_JITLOG_RESOP or \
              marker == MARK_JITLOG_RESOP_DESCR:
             opnum = read_le_u16(fileobj)
@@ -396,11 +400,11 @@ class TraceForest(object):
             trace.counter += count
         elif marker == MARK_JITLOG_DEBUG_MERGE_POINT:
             filename = read_string(fileobj, True)
-            lineno = read_le_u16(fileobj, True)
+            lineno = read_le_u16(fileobj)
             enclosed = read_string(fileobj, True)
-            index = read_le_u64(fileobj, True)
+            index = read_le_u64(fileobj)
             opname = read_string(fileobj, True)
-            self.add_instr(MergePoint(filename, lineno, enclosed, index, opname))
+            trace.add_instr(MergePoint(filename, lineno, enclosed, index, opname))
         else:
             assert False, (marker, fileobj.tell())
 

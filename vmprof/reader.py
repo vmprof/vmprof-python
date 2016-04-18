@@ -32,7 +32,6 @@ VMPROF_JITTING_TAG = 4
 VMPROF_GC_TAG = 5
 VMPROF_ASSEMBLER_TAG = 6
 
-
 class AssemblerCode(int):
     pass
 

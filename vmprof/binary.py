@@ -34,4 +34,7 @@ def read_le_addr(fileobj):
 def read_le_u16(fileobj):
     return int(struct.unpack('<H', fileobj.read(2))[0])
 
+def read_le_u64(fileobj):
+    return int(struct.unpack('<Q', fileobj.read(8))[0])
+
 
