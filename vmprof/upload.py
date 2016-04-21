@@ -28,7 +28,7 @@ def upload(stats, name, argv, host, auth, trace_forest):
     }
     if trace_forest:
         data["jitlog"] = trace_forest._serialize()
-        #print json.dumps(data["jitlog"], indent=2, sort_keys=True)
+        print json.dumps(data["jitlog"], indent=2, sort_keys=True)
 
     data = json.dumps(data).encode('utf-8')
 

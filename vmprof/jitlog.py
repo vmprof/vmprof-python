@@ -274,12 +274,13 @@ class Trace(object):
         for markname, stage in self.stages.items():
             ops = []
             # merge points is a dict mapping from index -> merge_points
-            merge_point = { 'ops': ops, 'tick': stage.timeval, 'merge_points': defaultdict(list) }
-            stages[markname] = merge_point
+            stage_dict = { 'ops': ops, 'tick': stage.timeval, 'merge_points': defaultdict(list) }
+            stages[markname] = stage_dict
             for op in stage.ops:
-                result = op._serialize(merge_point)
+                result = op._serialize(stage_dict)
                 if result:
                     ops.append(result)
+        import pdb; pdb.set_trace()
         if self.addrs != (-1,-1):
             dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
         return dict
@@ -339,8 +340,10 @@ class TraceForest(object):
             name = read_string(fileobj, True)
             if self.keep:
                 if unique_id not in self.traces:
+                    print("adding new trace with unique_id:", hex(unique_id))
                     trace = self.add_trace(marker, trace_type, unique_id)
                 else:
+                    print("found      trace with unique_id:", hex(unique_id))
                     trace = self.traces[unique_id]
                 trace.start_mark(marker, self.timepos)
                 self.last_trace = trace
