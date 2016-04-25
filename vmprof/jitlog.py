@@ -1,23 +1,10 @@
 from vmprof.binary import (read_word, read_string,
-        read_le_u16, read_le_addr, read_le_u64)
+        read_le_u16, read_le_addr, read_le_u64,
+        read_le_s64)
 import struct
+from vmprof import constants as const
 import argparse
 from collections import defaultdict
-
-MARK_JITLOG_INPUT_ARGS = b'\x10'
-MARK_JITLOG_RESOP_META = b'\x11'
-MARK_JITLOG_RESOP = b'\x12'
-MARK_JITLOG_RESOP_DESCR = b'\x13'
-MARK_JITLOG_ASM_ADDR = b'\x14'
-MARK_JITLOG_ASM = b'\x15'
-MARK_JITLOG_TRACE = b'\x16'
-MARK_JITLOG_TRACE_OPT = b'\x17'
-MARK_JITLOG_TRACE_ASM = b'\x18'
-MARK_JITLOG_STITCH_BRIDGE= b'\x19'
-MARK_JITLOG_COUNTER = b'\x20'
-MARK_JITLOG_HEADER = b'\x23'
-MARK_JITLOG_DEBUG_MERGE_POINT = b'\x24'
-JITLOG_END = b'\x25' # do not prefix this one with MARKER, it is not used in the jitlog
 
 JITLOG_MIN_VERSION = 1
 JITLOG_VERSION = 1
@@ -196,9 +183,9 @@ class Trace(object):
 
     def start_mark(self, mark, tick=0):
         mark_name = 'noopt'
-        if mark == MARK_JITLOG_TRACE_OPT:
+        if mark == const.MARK_TRACE_OPT:
             mark_name = 'opt'
-        elif mark == MARK_JITLOG_TRACE_ASM:
+        elif mark == const.MARK_TRACE_ASM:
             mark_name = 'asm'
         self.last_mark = mark_name
         assert mark_name is not None
@@ -280,7 +267,6 @@ class Trace(object):
                 result = op._serialize(stage_dict)
                 if result:
                     ops.append(result)
-        import pdb; pdb.set_trace()
         if self.addrs != (-1,-1):
             dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
         return dict
@@ -290,6 +276,7 @@ class TraceForest(object):
     def __init__(self, keep_data=True):
         self.roots = []
         self.traces = {}
+        self.addrs = {}
         self.last_trace = None
         self.resops = {}
         self.timepos = 0
@@ -299,10 +286,13 @@ class TraceForest(object):
     def get_trace(self, id):
         return self.traces.get(id, None)
 
+    def get_trace_by_addr(self, addr):
+        return self.addrs.get(addr, None)
+
     def add_trace(self, marker, trace_type, unique_id):
         trace = Trace(self, trace_type, self.timepos, unique_id)
         self.traces[unique_id] = trace
-        if marker == MARK_JITLOG_TRACE:
+        if marker == const.MARK_TRACE:
             self.time_tick()
         return trace
 
@@ -324,40 +314,36 @@ class TraceForest(object):
         if marker == '':
             return False
         assert len(marker) == 1
-        return MARK_JITLOG_INPUT_ARGS <= marker <= JITLOG_END
+        return const.MARK_JITLOG_START <= marker <= const.MARK_JITLOG_END
 
     def parse(self, fileobj, marker):
         trace = self.last_trace
-        if marker == MARK_JITLOG_TRACE or \
-           marker == MARK_JITLOG_TRACE_OPT or \
-           marker == MARK_JITLOG_TRACE_ASM:
+        if marker == const.MARK_START_TRACE:
+            trace_id = read_le_s64(fileobj)
             trace_type = read_string(fileobj, True)
-            unique_id = read_le_addr(fileobj)
-            if trace_type == 'bridge':
-                unique_id = read_le_addr(fileobj)
-            # XXX remove name, there is no such thing as a name for
-            # the loop. but extract it from debug merge point
-            name = read_string(fileobj, True)
+            trace_nmr = read_le_s64(fileobj)
             if self.keep:
-                if unique_id not in self.traces:
-                    print("adding new trace with unique_id:", hex(unique_id))
-                    trace = self.add_trace(marker, trace_type, unique_id)
-                else:
-                    print("found      trace with unique_id:", hex(unique_id))
-                    trace = self.traces[unique_id]
-                trace.start_mark(marker, self.timepos)
+                assert trace_id not in self.traces
+                trace = self.add_trace(marker, trace_type, trace_id)
                 self.last_trace = trace
                 self.time_tick()
-        elif marker == MARK_JITLOG_INPUT_ARGS:
+        elif marker == const.MARK_TRACE or \
+           marker == const.MARK_TRACE_OPT or \
+           marker == const.MARK_TRACE_ASM:
+            trace_id = read_le_s64(fileobj)
+            assert trace_id in self.traces
+            self.last_trace.start_mark(marker, self.timepos)
+        elif marker == const.MARK_INPUT_ARGS:
             argnames = read_string(fileobj, True).split(',')
             if self.keep:
                 trace.set_inputargs(argnames)
-        elif marker == MARK_JITLOG_ASM_ADDR:
+        elif marker == const.MARK_ASM_ADDR:
             addr1 = read_le_addr(fileobj)
             addr2 = read_le_addr(fileobj)
             if self.keep:
                 trace.set_addr_bounds(addr1, addr2)
-        elif marker == MARK_JITLOG_RESOP_META:
+                trace.forest.addrs[addr1] = trace
+        elif marker == const.MARK_RESOP_META:
             assert len(self.resops) == 0
             count = read_le_u16(fileobj)
             for i in range(count):
@@ -365,17 +351,17 @@ class TraceForest(object):
                 opname = read_string(fileobj, True)
                 if self.keep:
                     self.resops[opnum] = opname
-        elif marker == MARK_JITLOG_RESOP or \
-             marker == MARK_JITLOG_RESOP_DESCR:
+        elif marker == const.MARK_RESOP or \
+             marker == const.MARK_RESOP_DESCR:
             opnum = read_le_u16(fileobj)
             args = read_string(fileobj, True).split(',')
             descr_number = -1
-            if marker == MARK_JITLOG_RESOP_DESCR:
+            if marker == const.MARK_RESOP_DESCR:
                 descr_number = read_le_addr(fileobj)
             descr = None
             if not self.keep:
                 return
-            if marker == MARK_JITLOG_RESOP_DESCR:
+            if marker == const.MARK_RESOP_DESCR:
                 descr = args[-1]
                 args = args[:-1]
             result = args[0]
@@ -386,22 +372,22 @@ class TraceForest(object):
             opname = self.resops[opnum]
             op = FlatOp(opnum, opname, args, result, descr, descr_number)
             trace.add_instr(op)
-        elif marker == MARK_JITLOG_ASM:
+        elif marker == const.MARK_ASM:
             rel_pos = read_le_u16(fileobj)
             dump = read_string(fileobj, True)
             if self.keep:
                 trace.set_core_dump_to_last_op(rel_pos, dump)
-        elif marker == MARK_JITLOG_STITCH_BRIDGE:
+        elif marker == const.MARK_STITCH_BRIDGE:
             descr_number = read_le_addr(fileobj)
             addr_tgt = read_le_addr(fileobj)
             if self.keep:
                 self.stitch_bridge(descr_number, addr_tgt, self.timepos)
-        elif marker == MARK_JITLOG_COUNTER:
-            ident = read_le_addr(fileobj)
+        elif marker == const.MARK_JITLOG_COUNTER:
+            addr = read_le_addr(fileobj)
             count = read_le_addr(fileobj)
-            trace = self.get_trace(ident)
+            trace = self.get_trace_by_addr(addr)
             trace.counter += count
-        elif marker == MARK_JITLOG_DEBUG_MERGE_POINT:
+        elif marker == const.MARK_MERGE_POINT:
             filename = read_string(fileobj, True)
             lineno = read_le_u16(fileobj)
             enclosed = read_string(fileobj, True)

@@ -37,4 +37,19 @@ def read_le_u16(fileobj):
 def read_le_u64(fileobj):
     return int(struct.unpack('<Q', fileobj.read(8))[0])
 
+def read_le_s64(fileobj):
+    return int(struct.unpack('<q', fileobj.read(8))[0])
+
+def encode_s64(value):
+    return struct.pack('<q', value)
+
+def encode_u64(value):
+    return struct.pack('<Q', value)
+
+def encode_addr(val):
+    return struct.pack("l", val)
+
+def encode_str(val):
+    return struct.pack("<i", len(val)) + val
+
 
