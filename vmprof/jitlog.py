@@ -2,7 +2,7 @@ from vmprof.binary import (read_word, read_string,
         read_le_u16, read_le_addr, read_le_u64,
         read_le_s64)
 import struct
-from vmprof import constants as const
+from vmprof.log import constants as const, marks
 import argparse
 from collections import defaultdict
 
@@ -11,10 +11,10 @@ JITLOG_VERSION = 1
 
 def read_jitlog(filename):
     with open(str(filename), 'rb') as fileobj:
-        forest = TraceForest()
 
-        is_jit_log = fileobj.read(1) == MARK_JITLOG_HEADER
+        is_jit_log = fileobj.read(1) == const.MARK_JITLOG_HEADER
         version = ord(fileobj.read(1)) | (ord(fileobj.read(1)) << 8)
+        forest = TraceForest(version)
         assert is_jit_log, "Missing header. %s might not be a jitlog!" % filename
         assert version >= JITLOG_MIN_VERSION, \
                 "Version does not match. Log is version %d%d is not satisfied" % \
@@ -25,7 +25,15 @@ def read_jitlog(filename):
                 break # end of file!
             assert forest.is_jitlog_marker(marker), \
                     "marker unkown: 0x%x at pos 0x%x" % (ord(marker), fileobj.tell())
-            forest.parse(fileobj, marker)
+            trace = forest.last_trace
+            try:
+                read = marks.get_reader(version, marker)
+                read(forest, trace, fileobj)
+                forest.time_tick()
+            except KeyError:
+                print("failed at", hex(fileobj.tell()), "with marker", marker)
+                raise
+
         return forest
 
 class FlatOp(object):
@@ -181,7 +189,7 @@ class Trace(object):
     def stitch_bridge(self, timeval, descr_number, addr_to):
         self.bridges.append((timeval, descr_number, addr_to))
 
-    def start_mark(self, mark, tick=0):
+    def start_mark(self, mark):
         mark_name = 'noopt'
         if mark == const.MARK_TRACE_OPT:
             mark_name = 'opt'
@@ -189,6 +197,7 @@ class Trace(object):
             mark_name = 'asm'
         self.last_mark = mark_name
         assert mark_name is not None
+        tick = self.forest.timepos
         self.stages[mark_name] = Stage(mark_name, tick)
 
     def set_core_dump_to_last_op(self, rel_pos, dump):
@@ -273,7 +282,8 @@ class Trace(object):
 
 
 class TraceForest(object):
-    def __init__(self, keep_data=True):
+    def __init__(self, version, keep_data=True):
+        self.version = version
         self.roots = []
         self.traces = {}
         self.addrs = {}
@@ -289,11 +299,10 @@ class TraceForest(object):
     def get_trace_by_addr(self, addr):
         return self.addrs.get(addr, None)
 
-    def add_trace(self, marker, trace_type, unique_id):
+    def add_trace(self, trace_type, unique_id):
         trace = Trace(self, trace_type, self.timepos, unique_id)
         self.traces[unique_id] = trace
-        if marker == const.MARK_TRACE:
-            self.time_tick()
+        self.last_trace = trace
         return trace
 
     def stitch_bridge(self, descr_number, addr_to, timeval):
@@ -315,87 +324,6 @@ class TraceForest(object):
             return False
         assert len(marker) == 1
         return const.MARK_JITLOG_START <= marker <= const.MARK_JITLOG_END
-
-    def parse(self, fileobj, marker):
-        trace = self.last_trace
-        if marker == const.MARK_START_TRACE:
-            trace_id = read_le_s64(fileobj)
-            trace_type = read_string(fileobj, True)
-            trace_nmr = read_le_s64(fileobj)
-            if self.keep:
-                assert trace_id not in self.traces
-                trace = self.add_trace(marker, trace_type, trace_id)
-                self.last_trace = trace
-                self.time_tick()
-        elif marker == const.MARK_TRACE or \
-           marker == const.MARK_TRACE_OPT or \
-           marker == const.MARK_TRACE_ASM:
-            trace_id = read_le_s64(fileobj)
-            assert trace_id in self.traces
-            self.last_trace.start_mark(marker, self.timepos)
-        elif marker == const.MARK_INPUT_ARGS:
-            argnames = read_string(fileobj, True).split(',')
-            if self.keep:
-                trace.set_inputargs(argnames)
-        elif marker == const.MARK_ASM_ADDR:
-            addr1 = read_le_addr(fileobj)
-            addr2 = read_le_addr(fileobj)
-            if self.keep:
-                trace.set_addr_bounds(addr1, addr2)
-                trace.forest.addrs[addr1] = trace
-        elif marker == const.MARK_RESOP_META:
-            assert len(self.resops) == 0
-            count = read_le_u16(fileobj)
-            for i in range(count):
-                opnum = read_le_u16(fileobj)
-                opname = read_string(fileobj, True)
-                if self.keep:
-                    self.resops[opnum] = opname
-        elif marker == const.MARK_RESOP or \
-             marker == const.MARK_RESOP_DESCR:
-            opnum = read_le_u16(fileobj)
-            args = read_string(fileobj, True).split(',')
-            descr_number = -1
-            if marker == const.MARK_RESOP_DESCR:
-                descr_number = read_le_addr(fileobj)
-            descr = None
-            if not self.keep:
-                return
-            if marker == const.MARK_RESOP_DESCR:
-                descr = args[-1]
-                args = args[:-1]
-            result = args[0]
-            args = args[1:]
-            if opnum not in self.resops:
-                assert False, "opnum is not known: " + str(opnum) + \
-                              " at binary pos " + str(hex(fileobj.tell()))
-            opname = self.resops[opnum]
-            op = FlatOp(opnum, opname, args, result, descr, descr_number)
-            trace.add_instr(op)
-        elif marker == const.MARK_ASM:
-            rel_pos = read_le_u16(fileobj)
-            dump = read_string(fileobj, True)
-            if self.keep:
-                trace.set_core_dump_to_last_op(rel_pos, dump)
-        elif marker == const.MARK_STITCH_BRIDGE:
-            descr_number = read_le_addr(fileobj)
-            addr_tgt = read_le_addr(fileobj)
-            if self.keep:
-                self.stitch_bridge(descr_number, addr_tgt, self.timepos)
-        elif marker == const.MARK_JITLOG_COUNTER:
-            addr = read_le_addr(fileobj)
-            count = read_le_addr(fileobj)
-            trace = self.get_trace_by_addr(addr)
-            trace.counter += count
-        elif marker == const.MARK_MERGE_POINT:
-            filename = read_string(fileobj, True)
-            lineno = read_le_u16(fileobj)
-            enclosed = read_string(fileobj, True)
-            index = read_le_u64(fileobj)
-            opname = read_string(fileobj, True)
-            trace.add_instr(MergePoint(filename, lineno, enclosed, index, opname))
-        else:
-            assert False, (marker, fileobj.tell())
 
     def _serialize(self):
         return {
