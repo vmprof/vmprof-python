@@ -1,40 +1,6 @@
-from vmprof.binary import (read_word, read_string,
-        read_le_u16, read_le_addr, read_le_u64,
-        read_le_s64)
-import struct
-from vmprof.log import constants as const, marks
 import argparse
 from collections import defaultdict
-
-JITLOG_MIN_VERSION = 1
-JITLOG_VERSION = 1
-
-def read_jitlog(filename):
-    with open(str(filename), 'rb') as fileobj:
-
-        is_jit_log = fileobj.read(1) == const.MARK_JITLOG_HEADER
-        version = ord(fileobj.read(1)) | (ord(fileobj.read(1)) << 8)
-        forest = TraceForest(version)
-        assert is_jit_log, "Missing header. %s might not be a jitlog!" % filename
-        assert version >= JITLOG_MIN_VERSION, \
-                "Version does not match. Log is version %d%d is not satisfied" % \
-                    (version, JITLOG_VERSION)
-        while True:
-            marker = fileobj.read(1)
-            if marker == '':
-                break # end of file!
-            assert forest.is_jitlog_marker(marker), \
-                    "marker unkown: 0x%x at pos 0x%x" % (ord(marker), fileobj.tell())
-            trace = forest.last_trace
-            try:
-                read = marks.get_reader(version, marker)
-                read(forest, trace, fileobj)
-                forest.time_tick()
-            except KeyError:
-                print("failed at", hex(fileobj.tell()), "with marker", marker)
-                raise
-
-        return forest
+from vmprof.log import constants as const, merge_point
 
 class FlatOp(object):
     def __init__(self, opnum, opname, args, result, descr=None, descr_number=None):
@@ -93,7 +59,7 @@ class FlatOp(object):
         return '%s%s(%s%s)' % (suffix, self.opname,
                                 ', '.join(self.args), descr)
 
-    def _serialize(self, trace_dict):
+    def _serialize(self):
         dict = { 'num': self.opnum,
                  'args': self.args }
         if self.result:
@@ -107,12 +73,8 @@ class FlatOp(object):
         return dict
 
 class MergePoint(FlatOp):
-    def __init__(self, filename, lineno, enclosed, index, opname):
-        self.filename = filename
-        self.lineno = lineno
-        self.enclosed = enclosed
-        self.index = index
-        self.opname = opname
+    def __init__(self, values):
+        self.values = values
 
     def has_descr(self, descr=None):
         return False
@@ -129,17 +91,12 @@ class MergePoint(FlatOp):
     def pretty_print(self):
         return 'impl me debug merge point'
 
-    def _serialize(self, trace_dict):
+    def _serialize(self):
         dict = {}
-        for prop in ['filename', 'lineno', 'enclosed', 'index', 'opname']:
-            dict[prop] = getattr(self, prop)
-        index = len(trace_dict['ops'])
-        merge_points = trace_dict['merge_points']
-        merge_points[index].append(dict)
-        if len(merge_points) == 1:
-            # fast access for the first debug merge point!
-            merge_points['first'] = index
-        return None
+        for sem_type, value in self.values:
+            name = const.SEM_TYPE_NAMES[sem_type]
+            dict[name] = value
+        return dict
 
 class Stage(object):
     def __init__(self, mark, timeval):
@@ -154,6 +111,23 @@ class Stage(object):
 
     def get_ops(self):
         return self.ops
+
+    def _serialize(self):
+        ops = []
+        merge_points = defaultdict(list)
+        # merge points is a dict mapping from index -> merge_points
+        dict = { 'ops': ops, 'tick': self.timeval, 'merge_points': merge_points }
+        for op in self.ops:
+            result = op._serialize()
+            if isinstance(op, MergePoint):
+                index = len(ops)
+                merge_points[index].append(result)
+                if len(merge_points) == 1:
+                    # fast access for the first debug merge point!
+                    merge_points['first'] = index
+            else:
+                ops.append(result)
+        return dict
 
 class Trace(object):
     def __init__(self, forest, trace_type, tick, unique_id):
@@ -170,6 +144,7 @@ class Trace(object):
         self.bridges = []
         self.descr_numbers = set()
         self.counter = 0
+        print("created trace with id", unique_id)
 
     def pretty_print(self, args):
         stage = self.stages.get(args.stage, None)
@@ -186,8 +161,8 @@ class Trace(object):
         assert type is not None
         return self.stages[type]
 
-    def stitch_bridge(self, timeval, descr_number, addr_to):
-        self.bridges.append((timeval, descr_number, addr_to))
+    def stitch_bridge(self, descr_number, addr_to):
+        self.bridges.append((self.timepos, descr_number, addr_to))
 
     def start_mark(self, mark):
         mark_name = 'noopt'
@@ -195,10 +170,26 @@ class Trace(object):
             mark_name = 'opt'
         elif mark == const.MARK_TRACE_ASM:
             mark_name = 'asm'
+        else:
+            assert mark == const.MARK_TRACE
+            if self.last_mark == mark_name:
+                # NOTE unrolling
+                #
+                # this case means that the optimizer has been invoked
+                # twice (see compile_loop in rpython/jit/metainterp/compile.py)
+                # and the loop was unrolled in between.
+                #
+                # we just return here, which means the following ops will just append the loop
+                # ops to the preamble ops to the current stage!
+                return
         self.last_mark = mark_name
         assert mark_name is not None
         tick = self.forest.timepos
         self.stages[mark_name] = Stage(mark_name, tick)
+        print "  ", self.unique_id, "start mark", mark_name, self.stages[mark_name]
+
+    def get_last_stage(self):
+        return self.stages.get(self.last_mark, None)
 
     def set_core_dump_to_last_op(self, rel_pos, dump):
         assert self.last_mark is not None
@@ -268,14 +259,7 @@ class Trace(object):
                }
 
         for markname, stage in self.stages.items():
-            ops = []
-            # merge points is a dict mapping from index -> merge_points
-            stage_dict = { 'ops': ops, 'tick': stage.timeval, 'merge_points': defaultdict(list) }
-            stages[markname] = stage_dict
-            for op in stage.ops:
-                result = op._serialize(stage_dict)
-                if result:
-                    ops.append(result)
+            stages[markname] = stage._serialize()
         if self.addrs != (-1,-1):
             dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
         return dict
@@ -326,9 +310,10 @@ class TraceForest(object):
         return const.MARK_JITLOG_START <= marker <= const.MARK_JITLOG_END
 
     def _serialize(self):
+        traces = [trace._serialize() for trace in self.traces.values()],
         return {
             'resops': self.resops,
-            'traces': [trace._serialize() for trace in self.traces.values()],
+            'traces': traces,
             'forest': None,
         }
 

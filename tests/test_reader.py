@@ -1,7 +1,6 @@
 
 import struct, py
 from vmprof import reader
-from vmprof import jitlog
 from vmprof.reader import (read_one_marker, FileReadError, read_header,
     MARKER_HEADER, BufferTooSmallError, FileObjWrapper, ReaderStatus)
 

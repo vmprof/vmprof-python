@@ -18,3 +18,17 @@ MARK_MERGE_POINT = chr(0x1f)
 MARK_COMMON_PREFIX = chr(0x20)
 MARK_ABORT_TRACE = chr(0x21)
 MARK_JITLOG_END = chr(0x22)
+MP_STR = (0x0,"s")
+MP_INT = (0x0,"i")
+MP_FILENAME = (0x1,"s")
+MP_LINENO = (0x2,"i")
+MP_INDEX = (0x4,"i")
+MP_SCOPE = (0x8,"s")
+MP_OPCODE = (0x10,"s")
+SEM_TYPE_NAMES = {
+    0x10: "opcode",
+    0x8: "scope",
+    0x1: "filename",
+    0x4: "index",
+    0x2: "lineno",
+}

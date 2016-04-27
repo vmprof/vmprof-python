@@ -4,8 +4,6 @@ import struct
 import subprocess
 import sys
 
-from vmprof.jitlog import TraceForest, Trace
-
 
 PY3 = sys.version_info[0] >= 3
 

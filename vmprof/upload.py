@@ -5,7 +5,7 @@ import six.moves.urllib.request as request
 
 
 import vmprof
-from vmprof import jitlog
+from vmprof.log.parser import read_jitlog
 from vmprof.stats import Stats
 from vmprof.stats import EmptyProfileFile
 PY3 = sys.version_info[0] >= 3
@@ -28,7 +28,7 @@ def upload(stats, name, argv, host, auth, trace_forest):
     }
     if trace_forest:
         data["jitlog"] = trace_forest._serialize()
-        print json.dumps(data["jitlog"], indent=2, sort_keys=True)
+        #print json.dumps(data["jitlog"]["traces"][0], indent=2, sort_keys=True)
 
     data = json.dumps(data).encode('utf-8')
 
@@ -64,13 +64,13 @@ def main():
 
     trace_forest = None
     if args.jitlog:
-        trace_forest = jitlog.read_jitlog(args.profile)
+        trace_forest = read_jitlog(args.profile)
         stats = Stats([], {}, {}, "pypy")
     else:
         stats = vmprof.read_profile(args.profile)
         jitlog_path = args.profile + ".jitlog"
         if os.path.exists(jitlog_path):
-            trace_forest = jitlog.read_jitlog(jitlog_path, stats=stats)
+            trace_forest = read_jitlog(jitlog_path, stats=stats)
         sys.stderr.write("Compiling and uploading to %s...\n" % args.web_url)
 
     res = upload(stats, args.profile, [], args.web_url,

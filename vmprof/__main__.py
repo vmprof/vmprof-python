@@ -3,7 +3,7 @@ import sys, os
 import tempfile
 
 import vmprof
-from vmprof.jitlog import read_jitlog
+from vmprof.log.parser import read_jitlog
 
 
 OUTPUT_CLI = 'cli'
@@ -69,6 +69,8 @@ def main():
         if not isinstance(e, (KeyboardInterrupt, SystemExit)):
             raise
     vmprof.disable()
+    # TODO if args.jitlog:
+    # TODO     vmprof.disable_jitlog(fd)
     prof_file.close()
     show_stats(prof_name, output_mode, args)
     if output_mode != OUTPUT_FILE:

@@ -1,4 +1,6 @@
 from vmprof.log import constants as const
+from vmprof.log import merge_point
+from vmprof.log.objects import FlatOp, MergePoint
 from vmprof.binary import (read_word, read_string,
         read_le_u16, read_le_addr, read_le_u64,
         read_le_s64)
@@ -72,7 +74,6 @@ def read_input_args(forest, trace, fileobj):
 
 @version(1)
 def read_resop(forest, trace, fileobj):
-    from vmprof.jitlog import FlatOp
     assert trace is not None
     opnum = read_le_u16(fileobj)
     args = read_string(fileobj, True).split(',')
@@ -86,7 +87,6 @@ def read_resop(forest, trace, fileobj):
 
 @version(1)
 def read_resop_descr(forest, trace, fileobj):
-    from vmprof.jitlog import FlatOp
     assert trace is not None
     opnum = read_le_u16(fileobj)
     args = read_string(fileobj, True).split(',')
@@ -101,52 +101,69 @@ def read_resop_descr(forest, trace, fileobj):
     trace.add_instr(op)
 
 
+@version(1)
+def read_asm_addr(forest, trace, fileobj):
+    assert trace is not None
+    addr1 = read_le_addr(fileobj)
+    addr2 = read_le_addr(fileobj)
+    trace.set_addr_bounds(addr1, addr2)
+    if addr1 in forest.addrs:
+        xxx
+    forest.addrs[addr1] = trace
 
-#        elif marker == const.MARK_TRACE or \
-#           marker == const.MARK_TRACE_OPT or \
-#           marker == const.MARK_TRACE_ASM:
-#            trace_id = read_le_s64(fileobj)
-#            print("marking trace", trace_id, hex(fileobj.tell()))
-#            assert trace_id in self.traces
-#            self.last_trace.start_mark(marker, self.timepos)
+@version(1)
+def read_asm(forest, trace, fileobj):
+    assert trace is not None
+    rel_pos = read_le_u16(fileobj)
+    dump = read_string(fileobj, True)
+    trace.set_core_dump_to_last_op(rel_pos, dump)
 
-#        elif marker == const.MARK_TRACE or \
-#           marker == const.MARK_TRACE_OPT or \
-#           marker == const.MARK_TRACE_ASM:
-#            trace_id = read_le_s64(fileobj)
-#            print("marking trace", trace_id, hex(fileobj.tell()))
-#            assert trace_id in self.traces
-#            self.last_trace.start_mark(marker, self.timepos)
-#        elif marker == const.MARK_ASM_ADDR:
-#            addr1 = read_le_addr(fileobj)
-#            addr2 = read_le_addr(fileobj)
-#            if self.keep:
-#                trace.set_addr_bounds(addr1, addr2)
-#                trace.forest.addrs[addr1] = trace
-#        elif marker == const.MARK_ASM:
-#            rel_pos = read_le_u16(fileobj)
-#            dump = read_string(fileobj, True)
-#            if self.keep:
-#                trace.set_core_dump_to_last_op(rel_pos, dump)
-#        elif marker == const.MARK_STITCH_BRIDGE:
-#            descr_number = read_le_addr(fileobj)
-#            addr_tgt = read_le_addr(fileobj)
-#            if self.keep:
-#                self.stitch_bridge(descr_number, addr_tgt, self.timepos)
-#        elif marker == const.MARK_JITLOG_COUNTER:
-#            addr = read_le_addr(fileobj)
-#            count = read_le_addr(fileobj)
-#            trace = self.get_trace_by_addr(addr)
-#            trace.counter += count
-#        elif marker == const.MARK_MERGE_POINT:
-#            filename = read_string(fileobj, True)
-#            lineno = read_le_u16(fileobj)
-#            enclosed = read_string(fileobj, True)
-#            index = read_le_u64(fileobj)
-#            opname = read_string(fileobj, True)
-#            trace.add_instr(MergePoint(filename, lineno, enclosed, index, opname))
-#        elif marker == const.MARK_ABORT_TRACE:
-#            trace_id = read_le_u64(fileobj)
-#            # TODO
-#        else:
-#            assert False, (marker, fileobj.tell())
+@version(1)
+def read_init_merge_point(forest, trace, fileobj):
+    count = read_le_u16(fileobj)
+    types = []
+    for i in range(count):
+        read = fileobj.read(2)
+        sem_type = ord(read[0])
+        gen_type = read[1]
+        d = merge_point.get_decoder(sem_type, gen_type, forest.version)
+        types.append(d)
+    stage = trace.get_last_stage()
+    assert stage is not None
+    stage.merge_point_types = types
+
+@version(1)
+def read_common_prefix(forest, trace, fileobj):
+    index = ord(fileobj.read(1))
+    prefix = read_string(fileobj, True)
+    stage = trace.get_last_stage()
+    stage.merge_point_types[index].set_prefix(prefix)
+
+@version(1)
+def read_merge_point(forest, trace, fileobj):
+    assert trace is not None
+    stage = trace.get_last_stage()
+    assert stage is not None
+    #
+    values = [(decoder.sem_type, decoder.decode(fileobj))
+              for decoder in stage.merge_point_types]
+    trace.add_instr(MergePoint(values))
+
+@version(1)
+def read_stitch_bridge(forest, trace, fileobj):
+    descr_number = read_le_addr(fileobj)
+    addr_tgt = read_le_addr(fileobj)
+    forest.stitch_bridge(descr_number, addr_tgt)
+
+@version(1)
+def read_jitlog_counter(forest, trace, fileobj):
+    addr = read_le_addr(fileobj)
+    count = read_le_u64(fileobj)
+    trace = forest.get_trace_by_addr(addr)
+    trace.counter += count
+
+@version(1)
+def read_abort_trace(forest, trace, fileobj):
+    trace_id = read_le_u64(fileobj)
+    print("aborting", trace_id)
+    # TODO?
