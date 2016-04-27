@@ -144,7 +144,6 @@ class Trace(object):
         self.bridges = []
         self.descr_numbers = set()
         self.counter = 0
-        print("created trace with id", unique_id)
 
     def pretty_print(self, args):
         stage = self.stages.get(args.stage, None)
@@ -186,7 +185,6 @@ class Trace(object):
         assert mark_name is not None
         tick = self.forest.timepos
         self.stages[mark_name] = Stage(mark_name, tick)
-        print "  ", self.unique_id, "start mark", mark_name, self.stages[mark_name]
 
     def get_last_stage(self):
         return self.stages.get(self.last_mark, None)

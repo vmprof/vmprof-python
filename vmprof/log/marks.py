@@ -165,5 +165,4 @@ def read_jitlog_counter(forest, trace, fileobj):
 @version(1)
 def read_abort_trace(forest, trace, fileobj):
     trace_id = read_le_u64(fileobj)
-    print("aborting", trace_id)
     # TODO?
