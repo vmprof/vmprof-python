@@ -44,7 +44,7 @@ def test_asm_addr():
 
 def test_asm_positions():
     unique_id = struct.pack("l", 0xFFAA)
-    name = struct.pack("<i", 3) + "zAz"
+    name = struct.pack("<i", 3) + b"zAz"
     descr_nmr = struct.pack("l", 0)
     fobj = FileObj([const.MARK_RESOP_META, b"\x02\x00",
                     b"\xff\x00\x04\x00\x00\x00fire\x00\xfe\x02\x00\x00\x00on",
@@ -120,7 +120,7 @@ def test_serialize_debug_merge_point():
     assert len(stage['ops']) == 3
     assert len(stage['merge_points']) == 1 + 1
     merge_points = stage['merge_points']
-    assert merge_points.keys()[0] == 3
+    assert 3 in merge_points.keys()
     assert merge_points['first'] == 3
     assert merge_points[3][0] == {
             'filename': '/x.py',

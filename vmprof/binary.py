@@ -50,6 +50,8 @@ def encode_addr(val):
     return struct.pack("l", val)
 
 def encode_str(val):
+    if PY3:
+        val = val.encode()
     return struct.pack("<i", len(val)) + val
 
 

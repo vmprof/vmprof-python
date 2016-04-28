@@ -308,7 +308,7 @@ class TraceForest(object):
         return const.MARK_JITLOG_START <= marker <= const.MARK_JITLOG_END
 
     def _serialize(self):
-        traces = [trace._serialize() for trace in self.traces.values()],
+        traces = [trace._serialize() for trace in self.traces.values()]
         return {
             'resops': self.resops,
             'traces': traces,
