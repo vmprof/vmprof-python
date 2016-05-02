@@ -4,8 +4,8 @@ import struct
 import array
 import subprocess
 import sys
-from itertools import islice, izip
-
+from itertools import islice
+from six.moves import zip as izip
 
 PY3 = sys.version_info[0] >= 3
 
