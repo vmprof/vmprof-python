@@ -1,8 +1,10 @@
 from __future__ import print_function
 import re
 import struct
+import array
 import subprocess
 import sys
+from itertools import islice, izip
 
 
 PY3 = sys.version_info[0] >= 3
@@ -10,13 +12,39 @@ PY3 = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')
 
 def read_word(fileobj):
+    """Read a single long from `fileobj`."""
     b = fileobj.read(WORD_SIZE)
     r = int(struct.unpack('l', b)[0])
+    return r
+
+def read_words(fileobj, nwords):
+    """Read `nwords` longs from `fileobj`."""
+    try:
+        # Do we have real file object?
+        fileobj.fileno()
+    except (AttributeError, NotImplementedError):
+        # If not, use slow version
+        b = fileobj.read(WORD_SIZE * nwords)
+        r = [int(w) for w in struct.unpack('l' * nwords, b)]
+    else:
+        r = array.array('l')
+        r.fromfile(fileobj, nwords)
     return r
 
 def read_string(fileobj):
     lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])
     return fileobj.read(lgt)
+
+def read_trace(fileobj, depth, version):
+    if version == VERSION_TAG:
+        assert depth & 1 == 0
+        depth = depth // 2
+        pcs_and_kinds = read_words(fileobj, depth * 2)
+        kinds = islice(pcs_and_kinds, 0, None, 2)
+        pcs   = islice(pcs_and_kinds, 1, None, 2)
+        return [wrap_kind(kind, pc) for kind, pc in izip(kinds, pcs)]
+    else:
+        return read_words(fileobj, depth)
 
 MARKER_STACKTRACE = b'\x01'
 MARKER_VIRTUAL_IP = b'\x02'
@@ -43,12 +71,12 @@ class JittedCode(int):
     pass
 
 def wrap_kind(kind, pc):
-    if kind == VMPROF_ASSEMBLER_TAG:
-        return AssemblerCode(pc)
-    elif kind == VMPROF_JITTED_TAG:
-        return JittedCode(pc)
-    assert kind == VMPROF_CODE_TAG
-    return pc
+    cls = {
+        VMPROF_ASSEMBLER_TAG: AssemblerCode,
+        VMPROF_JITTED_TAG: JittedCode,
+        VMPROF_CODE_TAG: lambda x: x,
+    }[kind]
+    return cls(pc)
 
 class BufferTooSmallError(Exception):
     def get_buf(self):
@@ -120,17 +148,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         assert count == 1
         depth = read_word(fileobj)
         assert depth <= 2**16, 'stack strace depth too high'
-        trace = []
-        if status.version == VERSION_TAG:
-            assert depth & 1 == 0
-            depth = depth // 2
-        for j in range(depth):
-            if status.version == VERSION_TAG:
-                kind = read_word(fileobj)
-            else:
-                kind = VMPROF_CODE_TAG
-            pc = read_word(fileobj)
-            trace.append(wrap_kind(kind, pc))
+        trace = read_trace(fileobj, depth, status.version)
         if status.version >= VERSION_THREAD_ID:
             thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
         else:
@@ -200,20 +218,11 @@ def read_prof(fileobj, virtual_ips_only=False): #
             assert count == 1
             depth = read_word(fileobj)
             assert depth <= 2**16, 'stack strace depth too high'
-            trace = []
             if virtual_ips_only:
                 fileobj.read(WORD_SIZE * depth)
+                trace = []
             else:
-                if version == VERSION_TAG:
-                    assert depth & 1 == 0
-                    depth = depth // 2
-                for j in range(depth):
-                    if version == VERSION_TAG:
-                        kind = read_word(fileobj)
-                    else:
-                        kind = VMPROF_CODE_TAG
-                    pc = read_word(fileobj)
-                    trace.append(wrap_kind(kind, pc))
+                trace = read_trace(fileobj, depth, version)
             if version >= VERSION_THREAD_ID:
                 thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:
