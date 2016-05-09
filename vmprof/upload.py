@@ -5,13 +5,13 @@ import six.moves.urllib.request as request
 
 
 import vmprof
-from vmprof.log.parser import read_jitlog
+from vmprof.log.parser import read_jitlog_data, parse_jitlog
 from vmprof.stats import Stats
 from vmprof.stats import EmptyProfileFile
 PY3 = sys.version_info[0] >= 3
 
 
-def upload(stats, name, argv, host, auth, trace_forest):
+def upload(stats, name, argv, host, auth):
 
     try:
         profiles = stats.get_tree()._serialize()
@@ -26,17 +26,16 @@ def upload(stats, name, argv, host, auth, trace_forest):
         "argv": "%s %s" % (name, argv),
         "version": 2,
     }
-    if trace_forest:
-        data["jitlog"] = trace_forest._serialize()
-        #print json.dumps(data["jitlog"]["traces"][0], indent=2, sort_keys=True)
-
     data = json.dumps(data).encode('utf-8')
 
+    upload_data(host, "api/log/", data, auth=auth)
+
+def upload_data(host, path, data, auth=None):
     # XXX http only for now
     if host.startswith("http"):
-        url = '%s/api/log/' % host.rstrip("/")
+        url = '%s/api/%s' % (host.rstrip("/"), path)
     else:
-        url = 'http://%s/api/log/' % host.rstrip("/")
+        url = 'http://%s/%s' % (host.rstrip("/"), path)
 
     headers = {'content-type': 'application/json'}
 
@@ -53,6 +52,10 @@ def upload(stats, name, argv, host, auth, trace_forest):
         val = val[1:-1]
     return "%s/#/%s" % (host, val)
 
+def upload_jitlog(jitlog, args):
+    data = read_jitlog_data(args.jitlog)
+    trace_forest = parse_jitlog(data)
+    upload_to(args.web_url, "api/jitlog/", data, auth=args.web_auth)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -64,13 +67,12 @@ def main():
 
     trace_forest = None
     if args.jitlog:
-        trace_forest = read_jitlog(args.profile)
-        stats = Stats([], {}, {}, "pypy")
+        upload_jitlog(args.jitlog, args)
     else:
         stats = vmprof.read_profile(args.profile)
         jitlog_path = args.profile + ".jitlog"
         if os.path.exists(jitlog_path):
-            trace_forest = read_jitlog(jitlog_path, stats=stats)
+            upload_jitlog(jitlog_path, args)
         sys.stderr.write("Compiling and uploading to %s...\n" % args.web_url)
 
     res = upload(stats, args.profile, [], args.web_url,

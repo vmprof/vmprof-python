@@ -76,6 +76,19 @@ class MergePoint(FlatOp):
     def __init__(self, values):
         self.values = values
 
+    def get_source_line(self):
+        filename = None
+        lineno = None
+        for sem_type, value in self.values:
+            name = const.SEM_TYPE_NAMES[sem_type]
+            if name == "filename":
+                filename = value
+            if name == "lineno":
+                lineno = value
+        if filename is None or lineno is None:
+            return 0, None
+        return lineno, filename
+
     def has_descr(self, descr=None):
         return False
 
@@ -144,6 +157,7 @@ class Trace(object):
         self.bridges = []
         self.descr_numbers = set()
         self.counter = 0
+        self.merge_point_files = defaultdict(list)
 
     def pretty_print(self, args):
         stage = self.stages.get(args.stage, None)
@@ -160,8 +174,8 @@ class Trace(object):
         assert type is not None
         return self.stages[type]
 
-    def stitch_bridge(self, descr_number, addr_to):
-        self.bridges.append((self.timepos, descr_number, addr_to))
+    def stitch_bridge(self, timeval, descr_number, addr_to):
+        self.bridges.append((timeval, descr_number, addr_to))
 
     def start_mark(self, mark):
         mark_name = 'noopt'
@@ -199,6 +213,11 @@ class Trace(object):
             self.descr_numbers.add(op.descr_number)
         ops = self.get_stage(self.last_mark).get_ops()
         ops.append(op)
+
+        if isinstance(op, MergePoint):
+            lineno, filename = op.get_source_line()
+            if filename:
+                self.merge_point_files[filename].append(lineno)
 
     def is_bridge(self):
         return self.type == 'bridge'
@@ -262,6 +281,20 @@ class Trace(object):
             dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
         return dict
 
+def iter_ranges(lines):
+    if len(lines) == 0:
+        raise StopIteration
+    lines.sort()
+    first = lines[0]
+    last = lines[0]
+    for i in lines[1:]:
+        if i == last+1:
+            last = i
+        else:
+            yield range(first, last+1)
+            first = i
+            last = i
+    yield range(first, last+1)
 
 class TraceForest(object):
     def __init__(self, version, keep_data=True):
@@ -274,6 +307,24 @@ class TraceForest(object):
         self.timepos = 0
         self.patches = []
         self.keep = keep_data
+        # a mapping from source file name -> [(lineno, line)]
+        self.source_lines = defaultdict(list)
+
+    def extract_source_code_lines(self):
+        file_contents = {}
+        for _, trace in self.traces.items():
+            for file, lines in trace.merge_point_files.items():
+                if file not in file_contents:
+                    with open(file, 'rb') as fd:
+                        data = fd.read()
+                        if PY3:
+                            data = data.encode('utf-8')
+                        file_contents[file] = data.splitlines()
+            lines = file_contents[file]
+            saved_lines = self.source_lines[file]
+            for range in iter_ranges(lines):
+                for r in range:
+                    saved_lines.append((r, lines[r]))
 
     def get_trace(self, id):
         return self.traces.get(id, None)
@@ -287,10 +338,10 @@ class TraceForest(object):
         self.last_trace = trace
         return trace
 
-    def stitch_bridge(self, descr_number, addr_to, timeval):
+    def stitch_bridge(self, descr_number, addr_to):
         for tid, trace in self.traces.items():
             if descr_number in trace.descr_numbers:
-                trace.stitch_bridge(timeval, descr_number, addr_to)
+                trace.stitch_bridge(self.timepos, descr_number, addr_to)
                 break
         else:
             raise NotImplementedError
@@ -307,13 +358,36 @@ class TraceForest(object):
         assert len(marker) == 1
         return const.MARK_JITLOG_START <= marker <= const.MARK_JITLOG_END
 
+    def encode_source_code_lines(self):
+        marks = []
+        for filename, lines in self.source_lines.items():
+            marks.append(const.MARK_SOURCE_CODE)
+            data = filename
+            if PY3:
+                data = data.decode('utf-8')
+            marks.append(struct.pack('>I', len(data)))
+            marks.append(data)
+
+            marks.append(struct.pack('>I', len(lines)))
+            for lineno, line in lines.items():
+                indent = 0
+                rindent = 0
+                while indent < len(line) and \
+                      (line[indent] == ' ' or line[indent] == '\t'):
+                    indent += 1
+                    rindent += 1
+                    if line[indent] == '\t':
+                        indent += 7 # linux is 8 spaces == 1 tab
+                data = line[rindent:]
+                if PY3:
+                    data = data.decode('utf-8')
+                marks.append(struct.pack('>HBI', lineno, indent, len(data)))
+                marks.append(data)
+        return ''.join(marks)
+
     def _serialize(self):
         traces = [trace._serialize() for trace in self.traces.values()]
-        return {
-            'resops': self.resops,
-            'traces': traces,
-            'forest': None,
-        }
+        return { 'resops': self.resops, 'traces': traces }
 
 def main():
     parser = argparse.ArgumentParser()
