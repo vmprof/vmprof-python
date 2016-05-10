@@ -1,4 +1,4 @@
-import struct, py
+import struct, py, sys
 from vmprof import reader
 from vmprof.log import constants as const
 from vmprof.log import marks
@@ -10,6 +10,8 @@ from tests.test_reader import FileObj
 from vmprof.reader import (read_one_marker, FileReadError, read_header,
     FileObjWrapper)
 import base64
+
+PY3 = sys.version_info[0] >= 3
 
 def construct_forest(fileobj):
     version = 1
@@ -59,7 +61,7 @@ def test_asm_positions():
     forest = construct_forest(fw)
     assert forest.traces[0xFFAA].inputargs == ['i1','i2']
     assert str(forest.traces[0xFFAA].get_stage('noopt').ops[0]) == 'i3 = fire(i2, i1, @descr())'
-    assert forest.traces[0xFFAA].get_stage('noopt').ops[0].core_dump == (4, base64.b64encode('DEADBEEF'))
+    assert forest.traces[0xFFAA].get_stage('noopt').ops[0].core_dump == (4, 'DEADBEEF')
 
 #def test_patch_asm():
 #    addr1 = struct.pack("l", 64)
@@ -194,22 +196,28 @@ def test_merge_point_encode():
     trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 7)]))
     trace.add_instr(MergePoint([(0x1,'tests/data/code2.py'), (0x2, 3)]))
     forest.extract_source_code_lines()
-    assert trace.forest.encode_source_code_lines() == b'\x22' \
-            b'\x00\x00\x00\x13tests/data/code2.py' \
+    binary = trace.forest.encode_source_code_lines()
+    parta = b'\x00\x00\x00\x13tests/data/code2.py' \
             b'\x00\x00\x00\x01' \
-            b'\x00\x03\x07\x00\x00\x00\x13self.unique = False' \
-            b'\x22\x00\x00\x00\x12tests/data/code.py' \
+            b'\x00\x03\x07\x00\x00\x00\x13self.unique = False'
+    partb = b'\x22\x00\x00\x00\x12tests/data/code.py' \
             b'\x00\x00\x00\x03' \
             b'\x00\x05\x04\x00\x00\x00\x09c = a * 2' \
             b'\x00\x06\x08\x00\x00\x00\x09d = c * 3' \
-            b'\x00\x07\x04\x00\x00\x00\x0creturn d + 5' \
+            b'\x00\x07\x04\x00\x00\x00\x0creturn d + 5'
+    equals = binary == b'\x22' + parta + partb
+    if not equals:
+        assert binary == b'\x22' + partb + parta
 
 def test_iter_ranges():
+    r = lambda a,b: list(range(a,b))
+    if PY3:
+        r = range
     assert list(iter_ranges([])) == []
-    assert list(iter_ranges([1])) == [[1]]
-    assert list(iter_ranges([5,7])) == [[5,6,7]]
-    assert list(iter_ranges([14,25,100])) == [list(range(14,25+1)),[100]]
-    assert list(iter_ranges([-1,2])) == [list(range(-1,2+1))]
-    assert list(iter_ranges([0,1,100,101,102,300,301])) == [[0,1],[100,101,102],[300,301]]
+    assert list(iter_ranges([1])) == [r(1,2)]
+    assert list(iter_ranges([5,7])) == [r(5,8)]
+    assert list(iter_ranges([14,25,100])) == [r(14,26),r(100,101)]
+    assert list(iter_ranges([-1,2])) == [r(-1,2+1)]
+    assert list(iter_ranges([0,1,100,101,102,300,301])) == [r(0,2),r(100,103),r(300,302)]
 
 

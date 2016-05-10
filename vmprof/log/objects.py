@@ -325,7 +325,7 @@ class TraceForest(object):
                     with open(file, 'rb') as fd:
                         data = fd.read()
                         if PY3:
-                            data = data.encode('utf-8')
+                            data = data.decode('utf-8')
                         file_contents[file] = data.splitlines()
                 split_lines = file_contents[file]
                 saved_lines = self.source_lines[file]
@@ -371,7 +371,7 @@ class TraceForest(object):
             marks.append(const.MARK_SOURCE_CODE)
             data = filename
             if PY3:
-                data = data.decode('utf-8')
+                data = data.encode('utf-8')
             marks.append(struct.pack('>I', len(data)))
             marks.append(data)
 
@@ -384,10 +384,10 @@ class TraceForest(object):
                     if line[i] == '\t':
                         indent += 7
                 if PY3:
-                    data = data.decode('utf-8')
+                    data = data.encode('utf-8')
                 marks.append(struct.pack('>HBI', lineno, indent, len(data)))
                 marks.append(data)
-        return ''.join(marks)
+        return b''.join(marks)
 
     def _serialize(self):
         traces = [trace._serialize() for trace in self.traces.values()]

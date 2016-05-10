@@ -117,7 +117,7 @@ def read_asm(forest, trace, fileobj):
     assert trace is not None
     rel_pos = read_le_u16(fileobj)
     dump = read_string(fileobj, True)
-    trace.set_core_dump_to_last_op(rel_pos, base64.b64encode(dump))
+    trace.set_core_dump_to_last_op(rel_pos, dump)
 
 @version(1)
 def read_init_merge_point(forest, trace, fileobj):
