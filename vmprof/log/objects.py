@@ -1,6 +1,10 @@
+import sys
+import struct
 import argparse
 from collections import defaultdict
 from vmprof.log import constants as const, merge_point
+
+PY3 = sys.version_info[0] >= 3
 
 class FlatOp(object):
     def __init__(self, opnum, opname, args, result, descr=None, descr_number=None):
@@ -281,18 +285,21 @@ class Trace(object):
             dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
         return dict
 
-def iter_ranges(lines):
-    if len(lines) == 0:
+def iter_ranges(numbers):
+    if len(numbers) == 0:
         raise StopIteration
-    lines.sort()
-    first = lines[0]
-    last = lines[0]
-    for i in lines[1:]:
-        if i == last+1:
-            last = i
-        else:
+    numbers.sort()
+    first = numbers[0]
+    last = numbers[0]
+    for pos, i in enumerate(numbers[1:]):
+        if (i - first) > 50:
             yield range(first, last+1)
-            first = i
+            if pos+1 < len(numbers):
+                last = i
+                first = i
+            else:
+                raise StopIteration
+        else:
             last = i
     yield range(first, last+1)
 
@@ -320,11 +327,11 @@ class TraceForest(object):
                         if PY3:
                             data = data.encode('utf-8')
                         file_contents[file] = data.splitlines()
-            lines = file_contents[file]
-            saved_lines = self.source_lines[file]
-            for range in iter_ranges(lines):
-                for r in range:
-                    saved_lines.append((r, lines[r]))
+                split_lines = file_contents[file]
+                saved_lines = self.source_lines[file]
+                for range in iter_ranges(lines):
+                    for r in range:
+                        saved_lines.append((r, split_lines[r-1]))
 
     def get_trace(self, id):
         return self.traces.get(id, None)
@@ -369,16 +376,13 @@ class TraceForest(object):
             marks.append(data)
 
             marks.append(struct.pack('>I', len(lines)))
-            for lineno, line in lines.items():
-                indent = 0
-                rindent = 0
-                while indent < len(line) and \
-                      (line[indent] == ' ' or line[indent] == '\t'):
-                    indent += 1
-                    rindent += 1
-                    if line[indent] == '\t':
-                        indent += 7 # linux is 8 spaces == 1 tab
-                data = line[rindent:]
+            for lineno, line in lines:
+                data = line.lstrip()
+                diff = len(line) - len(data)
+                indent = diff
+                for i in range(0, diff):
+                    if line[i] == '\t':
+                        indent += 7
                 if PY3:
                     data = data.decode('utf-8')
                 marks.append(struct.pack('>HBI', lineno, indent, len(data)))

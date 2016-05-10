@@ -3,7 +3,7 @@ from vmprof import reader
 from vmprof.log import constants as const
 from vmprof.log import marks
 from vmprof.log.objects import (FlatOp, TraceForest, Trace,
-        MergePoint)
+        MergePoint, iter_ranges)
 from vmprof.binary import (encode_addr, encode_str, encode_s64,
     encode_u64)
 from tests.test_reader import FileObj
@@ -153,39 +153,63 @@ def test_counters():
     forest.get_trace_by_addr(0xabcdef).counter == 30
 
 def test_merge_point_extract_source_code():
-    trace = Trace(TraceForest(1), 'loop', 0, 0)
+    forest = TraceForest(1)
+    trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
     trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 2)]))
     trace.add_instr(FlatOp(0, 'INT_ADD', ['i1','i2'], 'i3'))
-    forest = trace.forest
     forest.extract_source_code_lines()
     assert (0x2, '    return a + b') in forest.source_lines['tests/data/code.py']
 
 def test_merge_point_extract_multiple_lines():
-    trace = Trace(TraceForest(1), 'loop', 0, 0)
+    forest = TraceForest(1)
+    trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
     trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
     trace.add_instr(FlatOp(0, 'INT_MUL', ['i1','i2'], 'i3'))
     trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 7)]))
-    forest = trace.forest
     forest.extract_source_code_lines()
     assert (0x5, '    c = a * 2') in forest.source_lines['tests/data/code.py']
     assert (0x6, '\td = c * 3') in forest.source_lines['tests/data/code.py']
     assert (0x7, '    return d + 5') in forest.source_lines['tests/data/code.py']
 
+def test_merge_point_duplicate_source_lines():
+    forest = TraceForest(1)
+    trace = forest.add_trace('loop', 0)
+    trace.start_mark(const.MARK_TRACE_OPT)
+    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
+    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
+    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
+    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
+    forest.extract_source_code_lines()
+    assert (0x5, '    c = a * 2') in forest.source_lines['tests/data/code.py']
+    assert len(forest.source_lines['tests/data/code.py']) == 1
+
 def test_merge_point_encode():
-    trace = Trace(TraceForest(1), 'loop', 0, 0)
+    forest = TraceForest(1)
+    trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
     trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
     trace.add_instr(FlatOp(0, 'INT_MUL', ['i1','i2'], 'i3'))
     trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 7)]))
     trace.add_instr(MergePoint([(0x1,'tests/data/code2.py'), (0x2, 3)]))
-    trace.forest.extract_source_code_lines()
-    assert trace.forest.encode_source_code_lines() == \
+    forest.extract_source_code_lines()
+    assert trace.forest.encode_source_code_lines() == b'\x22' \
+            b'\x00\x00\x00\x13tests/data/code2.py' \
+            b'\x00\x00\x00\x01' \
+            b'\x00\x03\x07\x00\x00\x00\x13self.unique = False' \
             b'\x22\x00\x00\x00\x12tests/data/code.py' \
+            b'\x00\x00\x00\x03' \
             b'\x00\x05\x04\x00\x00\x00\x09c = a * 2' \
             b'\x00\x06\x08\x00\x00\x00\x09d = c * 3' \
-            b'\x00\x07\x08\x00\x00\x00\x09d = c * 3' \
-            b'\x00\x00\x00\x13tests/data/code2.py' \
-            b'\x00\x03\x07\x00\x00\x00\x13self.unique = False' \
+            b'\x00\x07\x04\x00\x00\x00\x0creturn d + 5' \
+
+def test_iter_ranges():
+    assert list(iter_ranges([])) == []
+    assert list(iter_ranges([1])) == [[1]]
+    assert list(iter_ranges([5,7])) == [[5,6,7]]
+    assert list(iter_ranges([14,25,100])) == [list(range(14,25+1)),[100]]
+    assert list(iter_ranges([-1,2])) == [list(range(-1,2+1))]
+    assert list(iter_ranges([0,1,100,101,102,300,301])) == [[0,1],[100,101,102],[300,301]]
+
 
