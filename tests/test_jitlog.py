@@ -9,6 +9,7 @@ from vmprof.binary import (encode_addr, encode_str, encode_s64,
 from tests.test_reader import FileObj
 from vmprof.reader import (read_one_marker, FileReadError, read_header,
     FileObjWrapper)
+import base64
 
 def construct_forest(fileobj):
     version = 1
@@ -58,7 +59,7 @@ def test_asm_positions():
     forest = construct_forest(fw)
     assert forest.traces[0xFFAA].inputargs == ['i1','i2']
     assert str(forest.traces[0xFFAA].get_stage('noopt').ops[0]) == 'i3 = fire(i2, i1, @descr())'
-    assert forest.traces[0xFFAA].get_stage('noopt').ops[0].core_dump == (4, 'DEADBEEF')
+    assert forest.traces[0xFFAA].get_stage('noopt').ops[0].core_dump == (4, base64.b64encode('DEADBEEF'))
 
 #def test_patch_asm():
 #    addr1 = struct.pack("l", 64)
