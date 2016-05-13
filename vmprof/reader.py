@@ -1,7 +1,7 @@
 from __future__ import print_function
+import array
 import re
 import struct
-import array
 import subprocess
 import sys
 from itertools import islice
@@ -19,16 +19,12 @@ def read_word(fileobj):
 
 def read_words(fileobj, nwords):
     """Read `nwords` longs from `fileobj`."""
-    try:
-        # Do we have real file object?
-        fileobj.fileno()
-    except (AttributeError, NotImplementedError):
-        # If not, use slow version
-        b = fileobj.read(WORD_SIZE * nwords)
-        r = [int(w) for w in struct.unpack('l' * nwords, b)]
+    r = array.array('l')
+    b = fileobj.read(WORD_SIZE * nwords)
+    if PY3:
+        r.frombytes(b)
     else:
-        r = array.array('l')
-        r.fromfile(fileobj, nwords)
+        r.fromstring(b)
     return r
 
 def read_string(fileobj):
