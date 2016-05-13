@@ -71,12 +71,12 @@ class JittedCode(int):
     pass
 
 def wrap_kind(kind, pc):
-    cls = {
-        VMPROF_ASSEMBLER_TAG: AssemblerCode,
-        VMPROF_JITTED_TAG: JittedCode,
-        VMPROF_CODE_TAG: lambda x: x,
-    }[kind]
-    return cls(pc)
+    if kind == VMPROF_ASSEMBLER_TAG:
+        return AssemblerCode(pc)
+    elif kind == VMPROF_JITTED_TAG:
+        return JittedCode(pc)
+    assert kind == VMPROF_CODE_TAG
+    return pc
 
 class BufferTooSmallError(Exception):
     def get_buf(self):
