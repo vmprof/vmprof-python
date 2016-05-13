@@ -4,12 +4,17 @@ import struct
 import array
 import subprocess
 import sys
+import io
+import gzip
 from itertools import islice
 from six.moves import zip as izip
 
-PY3 = sys.version_info[0] >= 3
+PY3  = sys.version_info[0] >= 3
+CPY2 = sys.version_info[0] < 3 and not '__pypy__' in sys.builtin_module_names
 
 WORD_SIZE = struct.calcsize('L')
+
+SEEK_RELATIVE = 1
 
 def read_word(fileobj):
     """Read a single long from `fileobj`."""
@@ -19,11 +24,8 @@ def read_word(fileobj):
 
 def read_words(fileobj, nwords):
     """Read `nwords` longs from `fileobj`."""
-    try:
-        # Do we have real file object?
-        fileobj.fileno()
-    except (AttributeError, NotImplementedError):
-        # If not, use slow version
+    if CPY2 and not isinstance(fileobj, file):
+        # Slow(er): the Python 2 array module only supports <type 'file'> objects
         b = fileobj.read(WORD_SIZE * nwords)
         r = [int(w) for w in struct.unpack('l' * nwords, b)]
     else:
@@ -77,6 +79,15 @@ def wrap_kind(kind, pc):
         VMPROF_CODE_TAG: lambda x: x,
     }[kind]
     return cls(pc)
+
+
+def gunzip(fileobj):
+    is_gzipped = fileobj.read(2) == b'\037\213'
+    fileobj.seek(-2, SEEK_RELATIVE)
+    if is_gzipped:
+        fileobj = io.BufferedReader(gzip.GzipFile(fileobj=fileobj))
+    return fileobj
+
 
 class BufferTooSmallError(Exception):
     def get_buf(self):
@@ -172,6 +183,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
     return False
 
 def read_prof_bit_by_bit(fileobj):
+    fileobj = gunzip(fileobj)
     # note that we don't want to use all of this on normal files, since it'll
     # cost us quite a bit in memory and performance and parsing 200M files in
     # CPython is slow (pypy does better, use pypy)
@@ -191,7 +203,9 @@ def read_prof_bit_by_bit(fileobj):
             buf = e.get_buf()
     return status.period, status.profiles, status.virtual_ips, status.interp_name
 
-def read_prof(fileobj, virtual_ips_only=False): #
+def read_prof(fileobj, virtual_ips_only=False):
+    fileobj = gunzip(fileobj)
+
     assert read_word(fileobj) == 0 # header count
     assert read_word(fileobj) == 3 # header size
     assert read_word(fileobj) == 0
