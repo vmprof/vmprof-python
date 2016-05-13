@@ -203,6 +203,11 @@ def read_prof(fileobj, virtual_ips_only=False): #
     interp_name = None
     version = 0
 
+    # Optimization: Save a lot of memory by explicitly caching IP integers.
+    # This works around the fact that integers, albeit equivalent, are usually
+    # allocated to different actual memory objects by Python.
+    integer_cache = {}
+
     while True:
         marker = fileobj.read(1)
         if marker == MARKER_HEADER:
@@ -223,6 +228,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
                 trace = []
             else:
                 trace = read_trace(fileobj, depth, version)
+                trace = [integer_cache.setdefault(x, x) for x in trace]
             if version >= VERSION_THREAD_ID:
                 thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:
