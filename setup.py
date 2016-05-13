@@ -19,7 +19,7 @@ else:
                                'src/vmprof_common.h',
                            ],
                             extra_compile_args=extra_compile_args,
-                            libraries=[])]
+                            libraries=['z'])]
    
 
 setup(
