@@ -15,6 +15,7 @@ before_install:
   - sudo apt-get install -y libdwarf-dev
   - sudo apt-get install -y libelfg0-dev
   - sudo apt-get install -y libunwind8-dev
+  - sudo apt-get install -y zlib1g-dev
 
 install:
   - pip install .
