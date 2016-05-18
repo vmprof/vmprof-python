@@ -1,8 +1,9 @@
 #include <stddef.h>
+#include <zlib.h>
 
 #define MAX_FUNC_NAME 1024
 
-static int profile_file = -1;
+static gzFile profile_file = NULL;
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
 static int opened_profile(char *interp_name, int memory);
@@ -51,9 +52,9 @@ char *vmprof_init(int fd, double interval, int memory, char *interp_name)
         return "memory tracking not supported on non-linux";
 #endif
     assert(fd >= 0);
-    profile_file = fd;
+    profile_file = gzdopen(dup(fd), "ab3");
     if (opened_profile(interp_name, memory) < 0) {
-        profile_file = -1;
+        profile_file = NULL;
         return strerror(errno);
     }
     return NULL;

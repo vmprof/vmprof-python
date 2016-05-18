@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <sys/mman.h>
+#include <zlib.h>
 
 /* The idea is that we have MAX_NUM_BUFFERS available, all of size
    SINGLE_BUF_SIZE.  Threads and signal handlers can ask to reserve a
@@ -80,7 +81,7 @@ static int prepare_concurrent_bufs(void)
     return 0;
 }
 
-static int _write_single_ready_buffer(int fd, long i)
+static int _write_single_ready_buffer(gzFile file, long i)
 {
     /* Try to write to disk the buffer number 'i'.  This function must
        only be called while we hold the write lock. */
@@ -101,7 +102,7 @@ static int _write_single_ready_buffer(int fd, long i)
 
     int err;
     struct profbuf_s *p = &profbuf_all_buffers[i];
-    ssize_t count = write(fd, p->data + p->data_offset, p->data_size);
+    ssize_t count = gzwrite(file, p->data + p->data_offset, p->data_size);
     if (count == p->data_size) {
         profbuf_state[i] = PROFBUF_UNUSED;
         profbuf_pending_write = -1;
@@ -118,7 +119,7 @@ static int _write_single_ready_buffer(int fd, long i)
     return 0;
 }
 
-static void _write_ready_buffers(int fd)
+static void _write_ready_buffers(gzFile file)
 {
     long i;
     int has_write_lock = 0;
@@ -130,7 +131,7 @@ static void _write_ready_buffers(int fd)
                     return;   /* can't acquire the write lock, give up */
                 has_write_lock = 1;
             }
-            if (_write_single_ready_buffer(fd, i) < 0)
+            if (_write_single_ready_buffer(file, i) < 0)
                 break;
         }
     }
@@ -138,7 +139,7 @@ static void _write_ready_buffers(int fd)
         profbuf_write_lock = 0;
 }
 
-static struct profbuf_s *reserve_buffer(int fd)
+static struct profbuf_s *reserve_buffer(gzFile file)
 {
     /* Tries to enter a region of code that fills one buffer.  If
        successful, returns the profbuf_s.  It fails only if the
@@ -150,7 +151,7 @@ static struct profbuf_s *reserve_buffer(int fd)
     */
     long i;
 
-    _write_ready_buffers(fd);
+    _write_ready_buffers(file);
 
     for (i = 0; i < MAX_NUM_BUFFERS; i++) {
         if (profbuf_state[i] == PROFBUF_UNUSED &&
@@ -166,7 +167,7 @@ static struct profbuf_s *reserve_buffer(int fd)
     return NULL;
 }
 
-static void commit_buffer(int fd, struct profbuf_s *buf)
+static void commit_buffer(gzFile file, struct profbuf_s *buf)
 {
     /* Leaves a region of code that filled 'buf'.
 
@@ -187,7 +188,7 @@ static void commit_buffer(int fd, struct profbuf_s *buf)
         /* can't acquire the write lock, ignore */
     }
     else {
-        _write_single_ready_buffer(fd, i);
+        _write_single_ready_buffer(file, i);
         profbuf_write_lock = 0;
     }
 }
@@ -199,7 +200,7 @@ static void cancel_buffer(struct profbuf_s *buf)
     profbuf_state[i] = PROFBUF_UNUSED;
 }
 
-static int shutdown_concurrent_bufs(int fd)
+static int shutdown_concurrent_bufs(gzFile file)
 {
     /* no signal handler can be running concurrently here, because we
        already did vmprof_ignore_signals(1) */
@@ -210,7 +211,7 @@ static int shutdown_concurrent_bufs(int fd)
     int i;
     for (i = 0; i < MAX_NUM_BUFFERS; i++) {
         while (profbuf_state[i] == PROFBUF_READY) {
-            if (_write_single_ready_buffer(fd, i) < 0)
+            if (_write_single_ready_buffer(file, i) < 0)
                 return -1;
         }
     }

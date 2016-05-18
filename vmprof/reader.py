@@ -1,22 +1,52 @@
 from __future__ import print_function
 import re
 import struct
+import array
 import subprocess
 import sys
+import io
+import gzip
+from itertools import islice
+from six.moves import zip as izip
 
-
-PY3 = sys.version_info[0] >= 3
+PY3  = sys.version_info[0] >= 3
+CPY2 = sys.version_info[0] < 3 and not '__pypy__' in sys.builtin_module_names
 
 WORD_SIZE = struct.calcsize('L')
 
+SEEK_RELATIVE = 1
+
 def read_word(fileobj):
+    """Read a single long from `fileobj`."""
     b = fileobj.read(WORD_SIZE)
     r = int(struct.unpack('l', b)[0])
+    return r
+
+def read_words(fileobj, nwords):
+    """Read `nwords` longs from `fileobj`."""
+    if CPY2 and not isinstance(fileobj, file):
+        # Slow(er): the Python 2 array module only supports <type 'file'> objects
+        b = fileobj.read(WORD_SIZE * nwords)
+        r = [int(w) for w in struct.unpack('l' * nwords, b)]
+    else:
+        r = array.array('l')
+        r.fromfile(fileobj, nwords)
     return r
 
 def read_string(fileobj):
     lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])
     return fileobj.read(lgt)
+
+def read_trace(fileobj, depth, version):
+    if version == VERSION_TAG:
+        assert depth & 1 == 0
+        depth = depth // 2
+        pcs_and_kinds = read_words(fileobj, depth * 2)
+        kinds = islice(pcs_and_kinds, 0, None, 2)
+        pcs   = islice(pcs_and_kinds, 1, None, 2)
+        return [wrap_kind(kind, pc) for kind, pc in izip(kinds, pcs)]
+    else:
+        return read_words(fileobj, depth)
 
 MARKER_STACKTRACE = b'\x01'
 MARKER_VIRTUAL_IP = b'\x02'
@@ -43,12 +73,21 @@ class JittedCode(int):
     pass
 
 def wrap_kind(kind, pc):
-    if kind == VMPROF_ASSEMBLER_TAG:
-        return AssemblerCode(pc)
-    elif kind == VMPROF_JITTED_TAG:
-        return JittedCode(pc)
-    assert kind == VMPROF_CODE_TAG
-    return pc
+    cls = {
+        VMPROF_ASSEMBLER_TAG: AssemblerCode,
+        VMPROF_JITTED_TAG: JittedCode,
+        VMPROF_CODE_TAG: lambda x: x,
+    }[kind]
+    return cls(pc)
+
+
+def gunzip(fileobj):
+    is_gzipped = fileobj.read(2) == b'\037\213'
+    fileobj.seek(-2, SEEK_RELATIVE)
+    if is_gzipped:
+        fileobj = io.BufferedReader(gzip.GzipFile(fileobj=fileobj))
+    return fileobj
+
 
 class BufferTooSmallError(Exception):
     def get_buf(self):
@@ -120,17 +159,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         assert count == 1
         depth = read_word(fileobj)
         assert depth <= 2**16, 'stack strace depth too high'
-        trace = []
-        if status.version == VERSION_TAG:
-            assert depth & 1 == 0
-            depth = depth // 2
-        for j in range(depth):
-            if status.version == VERSION_TAG:
-                kind = read_word(fileobj)
-            else:
-                kind = VMPROF_CODE_TAG
-            pc = read_word(fileobj)
-            trace.append(wrap_kind(kind, pc))
+        trace = read_trace(fileobj, depth, status.version)
         if status.version >= VERSION_THREAD_ID:
             thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
         else:
@@ -154,6 +183,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
     return False
 
 def read_prof_bit_by_bit(fileobj):
+    fileobj = gunzip(fileobj)
     # note that we don't want to use all of this on normal files, since it'll
     # cost us quite a bit in memory and performance and parsing 200M files in
     # CPython is slow (pypy does better, use pypy)
@@ -173,7 +203,9 @@ def read_prof_bit_by_bit(fileobj):
             buf = e.get_buf()
     return status.period, status.profiles, status.virtual_ips, status.interp_name
 
-def read_prof(fileobj, virtual_ips_only=False): #
+def read_prof(fileobj, virtual_ips_only=False):
+    fileobj = gunzip(fileobj)
+
     assert read_word(fileobj) == 0 # header count
     assert read_word(fileobj) == 3 # header size
     assert read_word(fileobj) == 0
@@ -184,6 +216,11 @@ def read_prof(fileobj, virtual_ips_only=False): #
     profiles = []
     interp_name = None
     version = 0
+
+    # Optimization: Save a lot of memory by explicitly caching IP integers.
+    # This works around the fact that integers, albeit equivalent, are usually
+    # allocated to different actual memory objects by Python.
+    integer_cache = {}
 
     while True:
         marker = fileobj.read(1)
@@ -200,20 +237,12 @@ def read_prof(fileobj, virtual_ips_only=False): #
             assert count == 1
             depth = read_word(fileobj)
             assert depth <= 2**16, 'stack strace depth too high'
-            trace = []
             if virtual_ips_only:
                 fileobj.read(WORD_SIZE * depth)
+                trace = []
             else:
-                if version == VERSION_TAG:
-                    assert depth & 1 == 0
-                    depth = depth // 2
-                for j in range(depth):
-                    if version == VERSION_TAG:
-                        kind = read_word(fileobj)
-                    else:
-                        kind = VMPROF_CODE_TAG
-                    pc = read_word(fileobj)
-                    trace.append(wrap_kind(kind, pc))
+                trace = read_trace(fileobj, depth, version)
+                trace = [integer_cache.setdefault(x, x) for x in trace]
             if version >= VERSION_THREAD_ID:
                 thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:

@@ -1,10 +1,10 @@
 
 """ Test the actual run
 """
-
 import py
 import sys
 import tempfile
+import gzip
 import vmprof
 from vmprof.reader import read_prof_bit_by_bit
 from vmprof.stats import Stats
@@ -19,7 +19,7 @@ if '__pypy__' in sys.builtin_module_names:
     COUNT = 100000
 else:
     COUNT = 10000
-    
+
 def function_foo():
     for k in range(1000):
         l = [a for a in xrange(COUNT)]
@@ -42,7 +42,7 @@ def test_basic():
     function_foo()
     vmprof.disable()
     tmpfile.close()
-    assert b"function_foo" in open(tmpfile.name, 'rb').read()
+    assert b"function_foo" in gzip.GzipFile(tmpfile.name).read()
 
 def test_read_bit_by_bit():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)

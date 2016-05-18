@@ -50,11 +50,11 @@ static long volatile signal_handler_value = 1;
 
 static int _write_all(const char *buf, size_t bufsize)
 {
-    if (profile_file == -1) {
+    if (profile_file == NULL) {
         return -1;
     }
     while (bufsize > 0) {
-        ssize_t count = write(profile_file, buf, bufsize);
+        ssize_t count = gzwrite(profile_file, buf, bufsize);
         if (count <= 0)
             return -1;   /* failed */
         buf += count;
@@ -190,10 +190,8 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 
     if ((val & 1) == 0) {
         int saved_errno = errno;
-        int fd = profile_file;
-        assert(fd >= 0);
 
-        struct profbuf_s *p = reserve_buffer(fd);
+        struct profbuf_s *p = reserve_buffer(profile_file);
         if (p == NULL) {
             /* ignore this signal: there are no free buffers right now */
         }
@@ -208,12 +206,12 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             st->depth = depth;
             st->stack[depth++] = get_current_thread_id();
             if (proc_file != -1)
-        	    st->stack[depth++] = (void*)get_current_proc_rss();
+                st->stack[depth++] = (void*)get_current_proc_rss();
             p->data_offset = offsetof(struct prof_stacktrace_s, marker);
             p->data_size = (depth * sizeof(void *) +
                             sizeof(struct prof_stacktrace_s) -
                             offsetof(struct prof_stacktrace_s, marker));
-            commit_buffer(fd, p);
+            commit_buffer(profile_file, p);
         }
 
         errno = saved_errno;
@@ -330,7 +328,7 @@ int vmprof_enable(int memory)
     return 0;
 
  error:
-    profile_file = -1;
+    profile_file = NULL;
     profile_interval_usec = 0;
     return -1;
 }
@@ -345,8 +343,9 @@ static int close_profile(void)
 
     close(proc_file);
     proc_file = -1;
-    /* don't close() the file descriptor from here */
-    profile_file = -1;
+    /* This does not close() the original file descriptor */
+    gzclose(profile_file);
+    profile_file = NULL;
     return 0;
 }
 
