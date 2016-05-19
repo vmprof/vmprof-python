@@ -4,8 +4,7 @@ import re
 import struct
 import subprocess
 import sys
-from itertools import islice
-from six.moves import zip as izip
+from six.moves import xrange
 
 PY3 = sys.version_info[0] >= 3
 
@@ -35,10 +34,10 @@ def read_trace(fileobj, depth, version):
     if version == VERSION_TAG:
         assert depth & 1 == 0
         depth = depth // 2
-        pcs_and_kinds = read_words(fileobj, depth * 2)
-        kinds = islice(pcs_and_kinds, 0, None, 2)
-        pcs   = islice(pcs_and_kinds, 1, None, 2)
-        return [wrap_kind(kind, pc) for kind, pc in izip(kinds, pcs)]
+        kinds_and_pcs = read_words(fileobj, depth * 2)
+        # kinds_and_pcs is a list of [kind1, pc1, kind2, pc2, ...]
+        return [wrap_kind(kinds_and_pcs[i], kinds_and_pcs[i+1])
+                for i in xrange(len(kinds_and_pcs), None, 2)]
     else:
         return read_words(fileobj, depth)
 
