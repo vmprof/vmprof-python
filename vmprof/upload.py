@@ -1,17 +1,42 @@
 import sys
 import json
 import argparse
-import six.moves.urllib.request as request
-
-
+import os
+import requests
+import tempfile
 import vmprof
 from vmprof.log.parser import read_jitlog_data, parse_jitlog
 from vmprof.stats import Stats
 from vmprof.stats import EmptyProfileFile
+
 PY3 = sys.version_info[0] >= 3
+if PY3:
+    import lzma
+    compressor = lzma.LZMACompressor
+    compressor_suffix = '.xz'
+else:
+    import bz2
+    compressor = bz2.BZ2Compressor
+    compressor_suffix = '.bz2'
+
+def compress_file(filename):
+    fileno, name = tempfile.mkstemp(prefix='jit', suffix='.log' + compressor_suffix)
+    c = compressor()
+    with open(filename, 'rb') as fd:
+        with os.fdopen(fileno, 'wb') as lzfd:
+            while True:
+                chunk = fd.read(1024)
+                if not chunk:
+                    break
+                out = c.compress(chunk)
+                lzfd.write(out)
+            out = c.flush()
+            lzfd.write(out)
+
+    return name
 
 
-def upload(stats, name, argv, host, auth):
+def upload(stats, name, argv, host, auth, forest=None):
 
     try:
         profiles = stats.get_tree()._serialize()
@@ -28,29 +53,37 @@ def upload(stats, name, argv, host, auth):
     }
     data = json.dumps(data).encode('utf-8')
 
-    upload_data(host, "api/log/", data, auth=auth)
+    base_headers = {}
+    if auth:
+        base_headers = {'AUTHORIZATION': "Token %s" % auth}
 
-def upload_data(host, path, data, auth=None):
     # XXX http only for now
+    # upload the json profile
+    headers = base_headers.copy()
+    headers['Content-Type'] = 'application/json'
+    url = get_url(host, "api/profile/")
+    r = requests.post(url, data=data, headers=headers)
+    profile_checksum = r.text[1:-1]
+    sys.stderr.write("VMProf log: %s/#/%s\n" % (host.rstrip("/"), profile_checksum))
+
+    # upload jitlog
+    if forest:
+        lzma_file = compress_file(forest.filepath)
+        with open(lzma_file, 'rb') as fd:
+            url = get_url(host, "api/jitlog/%s/" % profile_checksum)
+            r = requests.post(url, files={ 'file': fd })
+            checksum = r.text[1:-1]
+            sys.stderr.write("PyPy JIT log: %s/#/%s/traces\n" % (host.rstrip("/"), checksum))
+
+        # TODO remove temp file?
+
+def get_url(host, path):
     if host.startswith("http"):
-        url = '%s/api/%s' % (host.rstrip("/"), path)
+        url = '%s/%s' % (host.rstrip("/"), path)
     else:
         url = 'http://%s/%s' % (host.rstrip("/"), path)
+    return url
 
-    headers = {'content-type': 'application/json'}
-
-    if auth:
-        headers['AUTHORIZATION'] = "Token %s" % auth
-
-    req = request.Request(url, data, headers)
-
-    res = request.urlopen(req)
-    val = res.read()
-    if PY3:
-        val = val[1:-1].decode("utf-8")
-    else:
-        val = val[1:-1]
-    return "%s/#/%s" % (host, val)
 
 def upload_jitlog(jitlog, args):
     data = read_jitlog_data(args.jitlog)
@@ -75,9 +108,8 @@ def main():
             upload_jitlog(jitlog_path, args)
         sys.stderr.write("Compiling and uploading to %s...\n" % args.web_url)
 
-    res = upload(stats, args.profile, [], args.web_url,
+    upload(stats, args.profile, [], args.web_url,
                  args.web_auth, trace_forest)
-    sys.stderr.write("Available at:\n%s\n" % res)
 
 
 if __name__ == '__main__':

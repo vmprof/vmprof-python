@@ -113,11 +113,11 @@ def test_serialize_debug_merge_point():
     trace.add_instr(FlatOp(0, 'INT_ADD', ['i1','i2'], 'i3'))
     trace.add_instr(FlatOp(1, 'INT_SUB', ['i1','i2'], 'i4'))
     trace.add_instr(FlatOp(2, 'INT_MUL', ['i1','i2'], 'i5'))
-    trace.add_instr(MergePoint([(0x1,'/x.py'),
-                                (0x2,2),
-                                (0x4, 4),
-                                (0x8, 'funcname'),
-                                (0x10, 'LOAD_FAST')]))
+    trace.add_instr(MergePoint({ 0x1: '/x.py',
+                                 0x2: 2,
+                                 0x4: 4,
+                                 0x8: 'funcname',
+                                 0x10: 'LOAD_FAST'}))
     dict = trace._serialize()
     stage = dict['stages']['opt']
     assert len(stage['ops']) == 3
@@ -158,56 +158,56 @@ def test_merge_point_extract_source_code():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 2)]))
+    trace.add_instr(MergePoint({0x1:'vmprof/log/test/data/code.py', 0x2: 2}))
     trace.add_instr(FlatOp(0, 'INT_ADD', ['i1','i2'], 'i3'))
     forest.extract_source_code_lines()
-    assert (0x2, '    return a + b') in forest.source_lines['tests/data/code.py']
+    assert (0x2, '    return a + b') in forest.source_lines['vmprof/log/test/data/code.py']
 
 def test_merge_point_extract_multiple_lines():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
+    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
     trace.add_instr(FlatOp(0, 'INT_MUL', ['i1','i2'], 'i3'))
-    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 7)]))
+    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 7}))
     forest.extract_source_code_lines()
-    assert (0x5, '    c = a * 2') in forest.source_lines['tests/data/code.py']
-    assert (0x6, '\td = c * 3') in forest.source_lines['tests/data/code.py']
-    assert (0x7, '    return d + 5') in forest.source_lines['tests/data/code.py']
+    assert (0x5, '    c = a * 2') in forest.source_lines['vmprof/log/test/data/code.py']
+    assert (0x6, '\td = c * 3') in forest.source_lines['vmprof/log/test/data/code.py']
+    assert (0x7, '    return d + 5') in forest.source_lines['vmprof/log/test/data/code.py']
 
 def test_merge_point_duplicate_source_lines():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
-    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
-    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
-    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
+    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
+    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
+    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
+    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
     forest.extract_source_code_lines()
-    assert (0x5, '    c = a * 2') in forest.source_lines['tests/data/code.py']
-    assert len(forest.source_lines['tests/data/code.py']) == 1
+    assert (0x5, '    c = a * 2') in forest.source_lines['vmprof/log/test/data/code.py']
+    assert len(forest.source_lines['vmprof/log/test/data/code.py']) == 1
 
 def test_merge_point_encode():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 5)]))
+    trace.add_instr(MergePoint({0x1:'vmprof/log/test/data/code.py', 0x2: 5}))
     trace.add_instr(FlatOp(0, 'INT_MUL', ['i1','i2'], 'i3'))
-    trace.add_instr(MergePoint([(0x1,'tests/data/code.py'), (0x2, 7)]))
-    trace.add_instr(MergePoint([(0x1,'tests/data/code2.py'), (0x2, 3)]))
+    trace.add_instr(MergePoint({0x1:'vmprof/log/test/data/code.py', 0x2: 7}))
+    trace.add_instr(MergePoint({0x1:'vmprof/log/test/data/code2.py', 0x2: 3}))
     forest.extract_source_code_lines()
     binary = trace.forest.encode_source_code_lines()
-    parta = b'\x00\x00\x00\x13tests/data/code2.py' \
+    parta = b'\x22\x00\x00\x00\x1dvmprof/log/test/data/code2.py' \
             b'\x00\x00\x00\x01' \
             b'\x00\x03\x07\x00\x00\x00\x13self.unique = False'
-    partb = b'\x22\x00\x00\x00\x12tests/data/code.py' \
+    partb = b'\x22\x00\x00\x00\x1cvmprof/log/test/data/code.py' \
             b'\x00\x00\x00\x03' \
             b'\x00\x05\x04\x00\x00\x00\x09c = a * 2' \
             b'\x00\x06\x08\x00\x00\x00\x09d = c * 3' \
             b'\x00\x07\x04\x00\x00\x00\x0creturn d + 5'
-    equals = binary == b'\x22' + parta + partb
+    equals = binary == parta + partb
     if not equals:
-        assert binary == b'\x22' + partb + parta
+        assert binary == partb + parta
 
 def test_iter_ranges():
     r = lambda a,b: list(range(a,b))

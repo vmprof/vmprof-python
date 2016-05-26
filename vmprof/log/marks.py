@@ -3,7 +3,8 @@ from vmprof.log import merge_point
 from vmprof.log.objects import FlatOp, MergePoint
 from vmprof.binary import (read_word, read_string,
         read_le_u16, read_le_addr, read_le_u64,
-        read_le_s64)
+        read_le_s64, read_bytes, read_byte,
+        read_char)
 import base64
 
 VERSIONS = {}
@@ -116,7 +117,7 @@ def read_asm_addr(forest, trace, fileobj):
 def read_asm(forest, trace, fileobj):
     assert trace is not None
     rel_pos = read_le_u16(fileobj)
-    dump = read_string(fileobj, True)
+    dump = read_bytes(fileobj, True)
     trace.set_core_dump_to_last_op(rel_pos, dump)
 
 @version(1)
@@ -124,9 +125,8 @@ def read_init_merge_point(forest, trace, fileobj):
     count = read_le_u16(fileobj)
     types = []
     for i in range(count):
-        read = fileobj.read(2)
-        sem_type = ord(read[0])
-        gen_type = read[1]
+        sem_type = read_byte(fileobj)
+        gen_type = read_char(fileobj)
         d = merge_point.get_decoder(sem_type, gen_type, forest.version)
         types.append(d)
     stage = trace.get_last_stage()
@@ -146,8 +146,8 @@ def read_merge_point(forest, trace, fileobj):
     stage = trace.get_last_stage()
     assert stage is not None
     #
-    values = [(decoder.sem_type, decoder.decode(fileobj))
-              for decoder in stage.merge_point_types]
+    values = { decoder.sem_type : decoder.decode(fileobj)
+               for decoder in stage.merge_point_types }
     trace.add_instr(MergePoint(values))
 
 @version(1)

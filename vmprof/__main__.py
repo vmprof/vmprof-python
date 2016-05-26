@@ -3,7 +3,7 @@ import sys, os
 import tempfile
 
 import vmprof
-from vmprof.log.parser import read_jitlog
+from vmprof.log.parser import parse_jitlog
 
 
 OUTPUT_CLI = 'cli'
@@ -19,7 +19,7 @@ def show_stats(filename, output_mode, args):
     forest = None
     jitlog_filename = filename + '.jitlog'
     if os.path.exists(jitlog_filename):
-        forest = read_jitlog(jitlog_filename)
+        forest = parse_jitlog(jitlog_filename)
 
     if output_mode == OUTPUT_CLI:
         vmprof.cli.show(stats)
@@ -35,8 +35,7 @@ def upload_stats(stats, forest, args):
     auth = args.web_auth
     #
     sys.stderr.write("Compiling and uploading to %s...\n" % (args.web_url,))
-    res = vmprof.upload.upload(stats, name, argv, host, auth, forest)
-    sys.stderr.write("Available at:\n%s\n" % res)
+    vmprof.upload.upload(stats, name, argv, host, auth, forest)
 
 
 def main():
@@ -56,6 +55,9 @@ def main():
         prof_file = tempfile.NamedTemporaryFile(delete=False)
         prof_name = prof_file.name
 
+    if args.jitlog:
+        assert hasattr(vmprof, 'enable_jitlog'), "note: jitlog is only available on pypy"
+
     vmprof.enable(prof_file.fileno(), args.period, args.mem)
     if args.jitlog:
         # note that this file descr is then handled by jitlog
@@ -69,8 +71,8 @@ def main():
         if not isinstance(e, (KeyboardInterrupt, SystemExit)):
             raise
     vmprof.disable()
-    # TODO if args.jitlog:
-    # TODO     vmprof.disable_jitlog(fd)
+    if args.jitlog and hasattr(vmprof, 'disable_jitlog'):
+        vmprof.disable_jitlog(fd)
     prof_file.close()
     show_stats(prof_name, output_mode, args)
     if output_mode != OUTPUT_FILE:

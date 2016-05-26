@@ -12,9 +12,25 @@ PY3 = sys.version_info[0] >= 3
 
 def read_word(fileobj):
     b = fileobj.read(WORD_SIZE)
-	#do not use UNPACK_CHAR here
+    #do not use UNPACK_CHAR here
     r = int(struct.unpack('l', b)[0])
     return r
+
+def read_byte(fileobj):
+    value = fileobj.read(1)
+    if PY3:
+        return value[0]
+    return ord(value[0])
+
+def read_char(fileobj):
+    value = fileobj.read(1)
+    if PY3:
+        return chr(value[0])
+    return value[0]
+
+def read_bytes(fileobj, little_endian=False):
+    lgt = int(struct.unpack('<i', fileobj.read(4))[0])
+    return fileobj.read(lgt)
 
 def read_string(fileobj, little_endian=False):
     if little_endian:

@@ -78,16 +78,22 @@ class FlatOp(object):
 
 class MergePoint(FlatOp):
     def __init__(self, values):
+        assert isinstance(values, dict)
         self.values = values
+
+    def get_scope(self):
+        scope = const.MP_SCOPE[0]
+        if scope in self.values:
+            return self.values[scope]
+        return ""
 
     def get_source_line(self):
         filename = None
         lineno = None
-        for sem_type, value in self.values:
-            name = const.SEM_TYPE_NAMES[sem_type]
-            if name == "filename":
+        for sem_type, value in self.values.items():
+            if sem_type == const.MP_FILENAME[0]:
                 filename = value
-            if name == "lineno":
+            if sem_type == const.MP_LINENO[0]:
                 lineno = value
         if filename is None or lineno is None:
             return 0, None
@@ -110,7 +116,7 @@ class MergePoint(FlatOp):
 
     def _serialize(self):
         dict = {}
-        for sem_type, value in self.values:
+        for sem_type, value in self.values.items():
             name = const.SEM_TYPE_NAMES[sem_type]
             dict[name] = value
         return dict
@@ -163,6 +169,14 @@ class Trace(object):
         self.counter = 0
         self.merge_point_files = defaultdict(list)
 
+    def get_first_merge_point(self):
+        stage = self.get_stage('opt')
+        if stage:
+            for op in stage.ops:
+                if isinstance(op, MergePoint):
+                    return op
+        return None
+
     def pretty_print(self, args):
         stage = self.stages.get(args.stage, None)
         if not stage:
@@ -202,7 +216,9 @@ class Trace(object):
         self.last_mark = mark_name
         assert mark_name is not None
         tick = self.forest.timepos
-        self.stages[mark_name] = Stage(mark_name, tick)
+        stage = Stage(mark_name, tick)
+        self.stages[mark_name] = stage
+        return stage
 
     def get_last_stage(self):
         return self.stages.get(self.last_mark, None)
@@ -262,6 +278,12 @@ class Trace(object):
             dump = op.get_core_dump(self.addrs[0], self.my_patches, timeval)
             core_dump.append(dump)
         return ''.join(core_dump)
+
+    def get_name(self):
+        stage = self.get_stage('opt')
+        if not stage:
+            pass
+        return 'unknown'
 
     def _serialize(self):
         bridges = []
@@ -351,7 +373,7 @@ class TraceForest(object):
                 trace.stitch_bridge(self.timepos, descr_number, addr_to)
                 break
         else:
-            raise NotImplementedError
+            print("WARNING: could not stitch bridge. descrnmr: 0x%x to addr: 0x%x" % (descr_number, addr_to))
 
     def patch_memory(self, addr, content, timeval):
         self.patches.append((timeval, addr, content))
@@ -360,7 +382,7 @@ class TraceForest(object):
         self.timepos += 1
 
     def is_jitlog_marker(self, marker):
-        if marker == '':
+        if len(marker) == 0:
             return False
         assert len(marker) == 1
         return const.MARK_JITLOG_START <= marker <= const.MARK_JITLOG_END
