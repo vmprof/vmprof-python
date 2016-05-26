@@ -61,7 +61,7 @@ def test_asm_positions():
     forest = construct_forest(fw)
     assert forest.traces[0xFFAA].inputargs == ['i1','i2']
     assert str(forest.traces[0xFFAA].get_stage('noopt').ops[0]) == 'i3 = fire(i2, i1, @descr())'
-    assert forest.traces[0xFFAA].get_stage('noopt').ops[0].core_dump == (4, 'DEADBEEF')
+    assert forest.traces[0xFFAA].get_stage('noopt').ops[0].core_dump == (4, b'DEADBEEF')
 
 #def test_patch_asm():
 #    addr1 = struct.pack("l", 64)
