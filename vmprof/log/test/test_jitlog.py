@@ -97,42 +97,6 @@ def test_patch_asm_timeval():
     trace.get_core_dump(0) == "abcdefa312"
     trace.get_core_dump(1) == "abcd432112"
 
-def test_serialize_op():
-    forest = TraceForest(1)
-    trace = Trace(forest, 'loop', 200, 0)
-    trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(FlatOp(0, 'INT_ADD', ['i1','i2'], '?'))
-    dict = trace._serialize()
-    stage = dict['stages']['opt']
-    assert len(stage['ops']) == 1
-
-def test_serialize_debug_merge_point():
-    forest = TraceForest(1)
-    trace = Trace(forest, 'loop', 0, 0)
-    trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(FlatOp(0, 'INT_ADD', ['i1','i2'], 'i3'))
-    trace.add_instr(FlatOp(1, 'INT_SUB', ['i1','i2'], 'i4'))
-    trace.add_instr(FlatOp(2, 'INT_MUL', ['i1','i2'], 'i5'))
-    trace.add_instr(MergePoint({ 0x1: '/x.py',
-                                 0x2: 2,
-                                 0x4: 4,
-                                 0x8: 'funcname',
-                                 0x10: 'LOAD_FAST'}))
-    dict = trace._serialize()
-    stage = dict['stages']['opt']
-    assert len(stage['ops']) == 3
-    assert len(stage['merge_points']) == 1 + 1
-    merge_points = stage['merge_points']
-    assert 3 in merge_points.keys()
-    assert merge_points['first'] == 3
-    assert merge_points[3][0] == {
-            'filename': '/x.py',
-            'lineno': 2,
-            'scope': 'funcname',
-            'index': 4,
-            'opcode': 'LOAD_FAST'
-           }
-
 def test_counters():
     descr_nmr = encode_addr(10)
 

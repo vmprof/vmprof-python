@@ -63,19 +63,6 @@ class FlatOp(object):
         return '%s%s(%s%s)' % (suffix, self.opname,
                                 ', '.join(self.args), descr)
 
-    def _serialize(self):
-        dict = { 'num': self.opnum,
-                 'args': self.args }
-        if self.result:
-            dict['res'] = self.result
-        if self.descr:
-            dict['descr'] = self.descr
-        if self.core_dump:
-             dict['dump'] = self.core_dump
-        if self.descr_number:
-             dict['descr_number'] = hex(self.descr_number)
-        return dict
-
 class MergePoint(FlatOp):
     def __init__(self, values):
         assert isinstance(values, dict)
@@ -114,13 +101,6 @@ class MergePoint(FlatOp):
     def pretty_print(self):
         return 'impl me debug merge point'
 
-    def _serialize(self):
-        dict = {}
-        for sem_type, value in self.values.items():
-            name = const.SEM_TYPE_NAMES[sem_type]
-            dict[name] = value
-        return dict
-
 class Stage(object):
     def __init__(self, mark, timeval):
         self.mark = mark
@@ -134,23 +114,6 @@ class Stage(object):
 
     def get_ops(self):
         return self.ops
-
-    def _serialize(self):
-        ops = []
-        merge_points = defaultdict(list)
-        # merge points is a dict mapping from index -> merge_points
-        dict = { 'ops': ops, 'tick': self.timeval, 'merge_points': merge_points }
-        for op in self.ops:
-            result = op._serialize()
-            if isinstance(op, MergePoint):
-                index = len(ops)
-                merge_points[index].append(result)
-                if len(merge_points) == 1:
-                    # fast access for the first debug merge point!
-                    merge_points['first'] = index
-            else:
-                ops.append(result)
-        return dict
 
 class Trace(object):
     def __init__(self, forest, trace_type, tick, unique_id):
@@ -190,7 +153,7 @@ class Trace(object):
 
     def get_stage(self, type):
         assert type is not None
-        return self.stages[type]
+        return self.stages.get(type, None)
 
     def stitch_bridge(self, timeval, descr_number, addr_to):
         self.bridges.append((timeval, descr_number, addr_to))
@@ -285,28 +248,6 @@ class Trace(object):
             pass
         return 'unknown'
 
-    def _serialize(self):
-        bridges = []
-        for bridge in self.bridges:
-            bridges.append({ 'time': bridge[0],
-                             'descr_number': hex(bridge[1]),
-                             'target': hex(bridge[2]),
-                           })
-        stages = {}
-        dict = { 'unique_id': hex(self.unique_id),
-                 'type': self.type,
-                 'args': self.inputargs,
-                 'stages': stages,
-                 'bridges': bridges,
-                 'counter': self.counter,
-               }
-
-        for markname, stage in self.stages.items():
-            stages[markname] = stage._serialize()
-        if self.addrs != (-1,-1):
-            dict['addr'] = (hex(self.addrs[0]), hex(self.addrs[1]))
-        return dict
-
 def iter_ranges(numbers):
     if len(numbers) == 0:
         raise StopIteration
@@ -361,6 +302,9 @@ class TraceForest(object):
     def get_trace_by_addr(self, addr):
         return self.addrs.get(addr, None)
 
+    def get_trace_by_id(self, id):
+        return self.traces.get(id, None)
+
     def add_trace(self, trace_type, unique_id):
         trace = Trace(self, trace_type, self.timepos, unique_id)
         self.traces[unique_id] = trace
@@ -410,10 +354,6 @@ class TraceForest(object):
                 marks.append(struct.pack('>HBI', lineno, indent, len(data)))
                 marks.append(data)
         return b''.join(marks)
-
-    def _serialize(self):
-        traces = [trace._serialize() for trace in self.traces.values()]
-        return { 'resops': self.resops, 'traces': traces }
 
 def main():
     parser = argparse.ArgumentParser()
