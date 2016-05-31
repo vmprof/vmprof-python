@@ -21,6 +21,12 @@ class FlatOp(object):
             return self.descr is not None
         return descr == self.descr_number
 
+    def get_descr_nmr(self):
+        return self.descr_number
+
+    def is_guard(self):
+        return "guard" in self.opname
+
     def set_core_dump(self, rel_pos, core_dump):
         self.core_dump = (rel_pos, core_dump)
 
