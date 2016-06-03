@@ -36,7 +36,8 @@ setup(
     ],
     entry_points = {
         'console_scripts': [
-            'vmprofshow = vmprof.show:main'
+            'vmprofshow = vmprof.show:main',
+            'vmprof-flamegraph = vmprof.flamegraph:main',
     ]},
     classifiers=[
         'License :: OSI Approved :: BSD License',
