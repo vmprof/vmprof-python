@@ -16,10 +16,16 @@ class FlatOp(object):
         self.descr_number = descr_number
         self.core_dump = None
 
+    def is_debug(self):
+        return False
+
     def has_descr(self, descr=None):
         if not descr:
             return self.descr is not None
         return descr == self.descr_number
+
+    def is_stitched(self):
+        return False
 
     def get_descr_nmr(self):
         return self.descr_number
@@ -74,6 +80,9 @@ class MergePoint(FlatOp):
         assert isinstance(values, dict)
         self.values = values
 
+    def is_debug(self):
+        return True
+
     def get_scope(self):
         scope = const.MP_SCOPE[0]
         if scope in self.values:
@@ -118,8 +127,14 @@ class Stage(object):
             return None
         return self.ops[-1]
 
-    def get_ops(self):
-        return self.ops
+    def append_op(self, op):
+        self.ops.append(op)
+
+    def get_ops(self, debug=False):
+        """ creates an iterator around the operations """
+        for op in self.ops:
+            if not debug and not op.is_debug():
+                yield op
 
 class Trace(object):
     def __init__(self, forest, trace_type, tick, unique_id):
@@ -200,8 +215,7 @@ class Trace(object):
     def add_instr(self, op):
         if op.has_descr():
             self.descr_numbers.add(op.descr_number)
-        ops = self.get_stage(self.last_mark).get_ops()
-        ops.append(op)
+        self.get_stage(self.last_mark).append_op(op)
 
         if isinstance(op, MergePoint):
             lineno, filename = op.get_source_line()
@@ -243,9 +257,10 @@ class Trace(object):
         stage = self.get_stage('asm')
         if not stage:
             return None # no core dump!
-        for i, op in enumerate(stage.get_ops()[start:end]):
-            dump = op.get_core_dump(self.addrs[0], self.my_patches, timeval)
-            core_dump.append(dump)
+        for i, op in enumerate(stage.get_ops()):
+            if start <= i <= end:
+                dump = op.get_core_dump(self.addrs[0], self.my_patches, timeval)
+                core_dump.append(dump)
         return ''.join(core_dump)
 
     def get_name(self):
@@ -283,6 +298,7 @@ class TraceForest(object):
         self.timepos = 0
         self.patches = []
         self.keep = keep_data
+        self.stitches = {}
         # a mapping from source file name -> [(lineno, line)]
         self.source_lines = defaultdict(list)
 
@@ -318,12 +334,17 @@ class TraceForest(object):
         return trace
 
     def stitch_bridge(self, descr_number, addr_to):
+        self.stitches[descr_number] = addr_to
         for tid, trace in self.traces.items():
             if descr_number in trace.descr_numbers:
                 trace.stitch_bridge(self.timepos, descr_number, addr_to)
                 break
         else:
             print("WARNING: could not stitch bridge. descrnmr: 0x%x to addr: 0x%x" % (descr_number, addr_to))
+
+    def get_stitch_target(self, descr_nmr):
+        assert isinstance(descr_nmr, int)
+        return self.stitches.get(descr_nmr)
 
     def patch_memory(self, addr, content, timeval):
         self.patches.append((timeval, addr, content))

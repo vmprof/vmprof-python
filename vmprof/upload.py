@@ -1,3 +1,4 @@
+import gzip
 import sys
 import json
 import argparse
@@ -10,29 +11,17 @@ from vmprof.stats import Stats
 from vmprof.stats import EmptyProfileFile
 
 PY3 = sys.version_info[0] >= 3
-if PY3:
-    import lzma
-    compressor = lzma.LZMACompressor
-    compressor_suffix = '.xz'
-else:
-    import bz2
-    compressor = bz2.BZ2Compressor
-    compressor_suffix = '.bz2'
 
 def compress_file(filename):
-    fileno, name = tempfile.mkstemp(prefix='jit', suffix='.log' + compressor_suffix)
-    c = compressor()
+    fileno, name = tempfile.mkstemp(prefix='jit', suffix='.log.zip')
+    os.close(fileno)
     with open(filename, 'rb') as fd:
-        with os.fdopen(fileno, 'wb') as lzfd:
+        with gzip.open(name, 'wb') as zipfd:
             while True:
                 chunk = fd.read(1024)
                 if not chunk:
                     break
-                out = c.compress(chunk)
-                lzfd.write(out)
-            out = c.flush()
-            lzfd.write(out)
-
+                zipfd.write(chunk)
     return name
 
 
@@ -68,8 +57,8 @@ def upload(stats, name, argv, host, auth, forest=None):
 
     # upload jitlog
     if forest:
-        lzma_file = compress_file(forest.filepath)
-        with open(lzma_file, 'rb') as fd:
+        filename = compress_file(forest.filepath)
+        with open(filename, 'rb') as fd:
             url = get_url(host, "api/jitlog/%s/" % profile_checksum)
             r = requests.post(url, files={ 'file': fd })
             checksum = r.text[1:-1]
