@@ -148,10 +148,17 @@ class Trace(object):
         self.addrs = (-1,-1)
         # this saves a quadrupel for each
         self.my_patches = None
-        self.bridges = []
-        self.descr_numbers = set()
         self.counter = 0
         self.merge_point_files = defaultdict(list)
+        self.parent = None
+        self.bridges = []
+        self.descr_nmr = 0 # the descr this trace is attached to
+
+    def get_stitched_descr_number(self):
+        return self.descr_nmr
+
+    def get_parent(self):
+        return self.parent
 
     def get_first_merge_point(self):
         stage = self.get_stage('opt')
@@ -175,9 +182,6 @@ class Trace(object):
     def get_stage(self, type):
         assert type is not None
         return self.stages.get(type, None)
-
-    def stitch_bridge(self, timeval, descr_number, addr_to):
-        self.bridges.append((timeval, descr_number, addr_to))
 
     def start_mark(self, mark):
         mark_name = 'noopt'
@@ -213,8 +217,6 @@ class Trace(object):
         flatop.set_core_dump(rel_pos, dump)
 
     def add_instr(self, op):
-        if op.has_descr():
-            self.descr_numbers.add(op.descr_number)
         self.get_stage(self.last_mark).append_op(op)
 
         if isinstance(op, MergePoint):
@@ -334,13 +336,14 @@ class TraceForest(object):
         return trace
 
     def stitch_bridge(self, descr_number, addr_to):
-        self.stitches[descr_number] = addr_to
-        for tid, trace in self.traces.items():
-            if descr_number in trace.descr_numbers:
-                trace.stitch_bridge(self.timepos, descr_number, addr_to)
-                break
-        else:
-            print("WARNING: could not stitch bridge. descrnmr: 0x%x to addr: 0x%x" % (descr_number, addr_to))
+        bridge = self.get_trace_by_addr(addr_to)
+        assert bridge is not None, ("0x%x well no trace to be found" % addr_to)
+        # TODO bridge.parent = trace
+        bridge.descr_nmr = descr_number
+        #
+        self.stitches[descr_number] = bridge.unique_id
+        #
+        # TODO trace.bridges.append(bridge)
 
     def get_stitch_target(self, descr_nmr):
         assert isinstance(descr_nmr, int)
