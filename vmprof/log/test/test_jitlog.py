@@ -161,14 +161,14 @@ def test_merge_point_encode():
     trace.add_instr(MergePoint({0x1:'vmprof/log/test/data/code2.py', 0x2: 3}))
     forest.extract_source_code_lines()
     binary = trace.forest.encode_source_code_lines()
-    parta = b'\x22\x00\x00\x00\x1dvmprof/log/test/data/code2.py' \
-            b'\x00\x00\x00\x01' \
-            b'\x00\x03\x07\x00\x00\x00\x13self.unique = False'
-    partb = b'\x22\x00\x00\x00\x1cvmprof/log/test/data/code.py' \
-            b'\x00\x00\x00\x03' \
-            b'\x00\x05\x04\x00\x00\x00\x09c = a * 2' \
-            b'\x00\x06\x08\x00\x00\x00\x09d = c * 3' \
-            b'\x00\x07\x04\x00\x00\x00\x0creturn d + 5'
+    parta = b'\x22\x1d\x00\x00\x00vmprof/log/test/data/code2.py' \
+            b'\x01\x00' \
+            b'\x03\x00\x07\x13\x00\x00\x00self.unique = False'
+    partb = b'\x22\x1c\x00\x00\x00vmprof/log/test/data/code.py' \
+            b'\x03\x00' \
+            b'\x05\x00\x04\x09\x00\x00\x00c = a * 2' \
+            b'\x06\x00\x08\x09\x00\x00\x00d = c * 3' \
+            b'\x07\x00\x04\x0c\x00\x00\x00return d + 5'
     equals = binary == parta + partb
     if not equals:
         assert binary == partb + parta
