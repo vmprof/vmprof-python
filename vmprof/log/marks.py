@@ -164,3 +164,13 @@ def read_jitlog_counter(forest, trace, fileobj):
 def read_abort_trace(forest, trace, fileobj):
     trace_id = read_le_u64(fileobj)
     # TODO?
+
+@version(1)
+def read_source_code(forest, trace, fileobj):
+    filename = read_string(fileobj, True)
+    count = read_le_u16(fileobj)
+    for i in range(count):
+        lineno = read_le_u16(fileobj)
+        indent = read_byte(fileobj)
+        text = read_string(fileobj, True)
+        forest.add_source_code_line(filename, lineno, " " * indent + text)

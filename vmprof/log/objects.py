@@ -377,10 +377,10 @@ class TraceForest(object):
             data = filename
             if PY3:
                 data = data.encode('utf-8')
-            marks.append(struct.pack('>I', len(data)))
+            marks.append(struct.pack('<I', len(data)))
             marks.append(data)
 
-            marks.append(struct.pack('>I', len(lines)))
+            marks.append(struct.pack('<H', len(lines)))
             for lineno, line in lines:
                 data = line.lstrip()
                 diff = len(line) - len(data)
@@ -390,9 +390,12 @@ class TraceForest(object):
                         indent += 7
                 if PY3:
                     data = data.encode('utf-8')
-                marks.append(struct.pack('>HBI', lineno, indent, len(data)))
+                marks.append(struct.pack('<HBI', lineno, indent, len(data)))
                 marks.append(data)
         return b''.join(marks)
+
+    def add_source_code_line(self, filename, lineno, line):
+        self.source_lines[filename].append((lineno, line))
 
 def main():
     parser = argparse.ArgumentParser()

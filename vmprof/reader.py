@@ -1,5 +1,4 @@
 from __future__ import print_function
-import array
 import re
 import struct
 import subprocess
