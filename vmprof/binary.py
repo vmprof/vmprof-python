@@ -11,10 +11,33 @@ else:
 PY3 = sys.version_info[0] >= 3
 
 def read_word(fileobj):
+    """Read a single long from `fileobj`."""
     b = fileobj.read(WORD_SIZE)
     #do not use UNPACK_CHAR here
     r = int(struct.unpack('l', b)[0])
     return r
+
+def read_words(fileobj, nwords):
+    """Read `nwords` longs from `fileobj`."""
+    r = array.array('l')
+    b = fileobj.read(WORD_SIZE * nwords)
+    if PY3:
+        r.frombytes(b)
+    else:
+        r.fromstring(b)
+    return r
+
+def read_trace(fileobj, depth, version):
+    if version == VERSION_TAG:
+        assert depth & 1 == 0
+        depth = depth // 2
+        kinds_and_pcs = read_words(fileobj, depth * 2)
+        # kinds_and_pcs is a list of [kind1, pc1, kind2, pc2, ...]
+        return [wrap_kind(kinds_and_pcs[i], kinds_and_pcs[i+1])
+                for i in xrange(len(kinds_and_pcs), None, 2)]
+    else:
+        return read_words(fileobj, depth)
+
 
 def read_byte(fileobj):
     value = fileobj.read(1)
