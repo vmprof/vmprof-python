@@ -28,7 +28,7 @@ def read_char(fileobj):
         return chr(value[0])
     return value[0]
 
-def read_bytes(fileobj, little_endian=False):
+def read_bytes(fileobj):
     lgt = int(struct.unpack('<i', fileobj.read(4))[0])
     return fileobj.read(lgt)
 
@@ -58,6 +58,12 @@ def read_le_s64(fileobj):
 
 def encode_le_u16(value):
     return struct.pack('<H', value)
+
+def encode_le_s32(value):
+    return struct.pack('<i', value)
+
+def encode_le_u32(value):
+    return struct.pack('<I', value)
 
 def encode_s64(value):
     return struct.pack('<q', value)

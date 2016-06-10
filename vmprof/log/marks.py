@@ -109,15 +109,12 @@ def read_asm_addr(forest, trace, fileobj):
     addr1 = read_le_addr(fileobj)
     addr2 = read_le_addr(fileobj)
     trace.set_addr_bounds(addr1, addr2)
-    if addr1 in forest.addrs:
-        xxx
-    forest.addrs[addr1] = trace
 
 @version(1)
 def read_asm(forest, trace, fileobj):
     assert trace is not None
     rel_pos = read_le_u16(fileobj)
-    dump = read_bytes(fileobj, True)
+    dump = read_bytes(fileobj)
     trace.set_core_dump_to_last_op(rel_pos, dump)
 
 @version(1)

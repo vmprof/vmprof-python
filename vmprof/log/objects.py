@@ -218,6 +218,8 @@ class Trace(object):
 
     def add_instr(self, op):
         self.get_stage(self.last_mark).append_op(op)
+        if op.has_descr():
+            self.forest.descr_nmr_to_trace[op.get_descr_nmr()] = self
 
         if isinstance(op, MergePoint):
             lineno, filename = op.get_source_line()
@@ -232,6 +234,9 @@ class Trace(object):
 
     def set_addr_bounds(self, a, b):
         self.addrs = (a,b)
+        if a in self.forest.addrs:
+            raise NotImplementedError("jit log sets address bounds to a location another trace already is resident of")
+        self.forest.addrs[a] = self
 
     def contains_addr(self, addr):
         return self.addrs[0] <= addr <= self.addrs[1]
@@ -303,6 +308,7 @@ class TraceForest(object):
         self.stitches = {}
         # a mapping from source file name -> [(lineno, line)]
         self.source_lines = defaultdict(list)
+        self.descr_nmr_to_trace = {}
 
     def extract_source_code_lines(self):
         file_contents = {}
@@ -337,13 +343,16 @@ class TraceForest(object):
 
     def stitch_bridge(self, descr_number, addr_to):
         bridge = self.get_trace_by_addr(addr_to)
-        assert bridge is not None, ("0x%x well no trace to be found" % addr_to)
-        # TODO bridge.parent = trace
+        assert bridge.descr_nmr == 0, "a bridge can only be stitched once"
         bridge.descr_nmr = descr_number
-        #
         self.stitches[descr_number] = bridge.unique_id
-        #
-        # TODO trace.bridges.append(bridge)
+        assert bridge is not None, ("no trace to be found for addr 0x%x" % addr_to)
+        trace = self.descr_nmr_to_trace.get(descr_number, None)
+        if not trace:
+            sys.stderr.write("link to trace of descr 0x%x not found!\n" % descr_number)
+        else:
+            bridge.parent = trace
+            trace.bridges.append(bridge)
 
     def get_stitch_target(self, descr_nmr):
         assert isinstance(descr_nmr, int)
