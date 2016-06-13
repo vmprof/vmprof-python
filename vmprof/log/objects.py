@@ -306,8 +306,8 @@ class TraceForest(object):
         self.patches = []
         self.keep = keep_data
         self.stitches = {}
-        # a mapping from source file name -> [(lineno, line)]
-        self.source_lines = defaultdict(list)
+        # a mapping from source file name -> {lineno: (indent, line)}
+        self.source_lines = defaultdict(dict)
         self.descr_nmr_to_trace = {}
 
     def extract_source_code_lines(self):
@@ -322,9 +322,18 @@ class TraceForest(object):
                         file_contents[file] = data.splitlines()
                 split_lines = file_contents[file]
                 saved_lines = self.source_lines[file]
-                for range in iter_ranges(lines):
-                    for r in range:
-                        saved_lines.append((r, split_lines[r-1]))
+                for int_range in iter_ranges(lines):
+                    for r in int_range:
+                        line = split_lines[r-1]
+                        data = line.lstrip()
+                        diff = len(line) - len(data)
+                        indent = diff
+                        for i in range(0, diff+1):
+                            if line[i] == '\t':
+                                indent += 7
+                        if PY3:
+                            data = data.encode('utf-8')
+                        saved_lines[r] = (indent, data)
 
     def get_trace(self, id):
         return self.traces.get(id, None)
@@ -381,21 +390,15 @@ class TraceForest(object):
             marks.append(data)
 
             marks.append(struct.pack('<H', len(lines)))
-            for lineno, line in lines:
-                data = line.lstrip()
-                diff = len(line) - len(data)
-                indent = diff
-                for i in range(0, diff):
-                    if line[i] == '\t':
-                        indent += 7
-                if PY3:
-                    data = data.encode('utf-8')
-                marks.append(struct.pack('<HBI', lineno, indent, len(data)))
-                marks.append(data)
+            for lineno, (indent, line) in lines.items():
+                marks.append(struct.pack('<HBI', lineno, indent, len(line)))
+                marks.append(line)
         return b''.join(marks)
 
-    def add_source_code_line(self, filename, lineno, line):
-        self.source_lines[filename].append((lineno, line))
+    def add_source_code_line(self, filename, lineno, indent, line):
+        dict = self.source_lines[filename]
+        assert indent not in dict
+        dict[lineno] = (indent, line)
 
 def main():
     parser = argparse.ArgumentParser()
