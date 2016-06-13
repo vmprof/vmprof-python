@@ -345,8 +345,15 @@ static int close_profile(void)
 
     close(proc_file);
     proc_file = -1;
-    /* don't close() the file descriptor from here */
+
+#if ENABLE_GZIP
+    /* This doesn't close() the original file descriptor */
+    close(profile_file);
+#else
+    /* Don't close() the original file descriptor from here */
+#endif
     profile_file = -1;
+
     return 0;
 }
 

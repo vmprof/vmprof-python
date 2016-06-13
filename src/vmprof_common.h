@@ -11,6 +11,8 @@ static int opened_profile(char *interp_name, int memory);
 static struct profbuf_s *volatile current_codes;
 #endif
 
+#define ENABLE_GZIP (defined(__unix__) || defined(__APPLE__))
+
 #define MAX_STACK_DEPTH   \
     ((SINGLE_BUF_SIZE - sizeof(struct prof_stacktrace_s)) / sizeof(void *))
 
@@ -32,6 +34,34 @@ typedef struct prof_stacktrace_s {
     void *stack[];
 } prof_stacktrace_s;
 
+#if ENABLE_GZIP
+#include "tinygzip.c"
+static int pipe_gzip(int fd)
+{
+    int pipefds[2];
+
+    if (pipe(pipefds) == -1)
+        return -1;
+
+    pid_t pid = fork();
+    switch (pid) {
+    case -1:
+        close(pipefds[0]);
+        close(pipefds[1]);
+        return -1;
+    case 0:
+        close(pipefds[1]);
+        if (tinygz(pipefds[0], fd)) {
+            perror("gzip");
+            exit(1);
+        }
+        exit(0);
+    default:
+        close(pipefds[0]);
+        return pipefds[1];
+    }
+}
+#endif
 
 RPY_EXTERN
 char *vmprof_init(int fd, double interval, int memory, char *interp_name)
@@ -50,13 +80,23 @@ char *vmprof_init(int fd, double interval, int memory, char *interp_name)
     if (memory)
         return "memory tracking not supported on non-linux";
 #endif
+
     assert(fd >= 0);
+#if ENABLE_GZIP
+    int gzfd = pipe_gzip(fd);
+    if (gzfd < 0)
+        goto err;
+    profile_file = gzfd;
+#else
     profile_file = fd;
-    if (opened_profile(interp_name, memory) < 0) {
-        profile_file = -1;
-        return strerror(errno);
-    }
+#endif
+    if (opened_profile(interp_name, memory) < 0)
+        goto err;
     return NULL;
+
+err:
+    profile_file = -1;
+    return strerror(errno);
 }
 
 static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int max_depth)
