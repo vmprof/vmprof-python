@@ -173,4 +173,4 @@ def read_source_code(forest, trace, fileobj):
         lineno = read_le_u16(fileobj)
         indent = read_byte(fileobj)
         text = read_string(fileobj, True)
-        forest.add_source_code_line(filename, lineno, " " * indent + text)
+        forest.add_source_code_line(filename, lineno, indent, text)

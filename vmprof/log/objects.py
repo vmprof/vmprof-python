@@ -310,6 +310,10 @@ class TraceForest(object):
         self.source_lines = defaultdict(dict)
         self.descr_nmr_to_trace = {}
 
+    def get_source_line(self, filename, lineno):
+        lines = self.source_lines.get(filename, None)
+        return lines.get(lineno, (None, None))
+
     def extract_source_code_lines(self):
         file_contents = {}
         for _, trace in self.traces.items():
