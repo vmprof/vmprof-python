@@ -1,5 +1,4 @@
 from __future__ import print_function
-import array
 import re
 import struct
 import subprocess
@@ -10,25 +9,7 @@ PY3 = sys.version_info[0] >= 3
 
 WORD_SIZE = struct.calcsize('L')
 
-def read_word(fileobj):
-    """Read a single long from `fileobj`."""
-    b = fileobj.read(WORD_SIZE)
-    r = int(struct.unpack('l', b)[0])
-    return r
-
-def read_words(fileobj, nwords):
-    """Read `nwords` longs from `fileobj`."""
-    r = array.array('l')
-    b = fileobj.read(WORD_SIZE * nwords)
-    if PY3:
-        r.frombytes(b)
-    else:
-        r.fromstring(b)
-    return r
-
-def read_string(fileobj):
-    lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])
-    return fileobj.read(lgt)
+from vmprof.binary import read_word, read_string, read_words
 
 def read_trace(fileobj, depth, version):
     if version == VERSION_TAG:
@@ -46,6 +27,7 @@ MARKER_VIRTUAL_IP = b'\x02'
 MARKER_TRAILER = b'\x03'
 MARKER_INTERP_NAME = b'\x04'
 MARKER_HEADER = b'\x05'
+
 
 VERSION_BASE = 0
 VERSION_THREAD_ID = 1

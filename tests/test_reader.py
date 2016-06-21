@@ -1,7 +1,8 @@
 
 import struct, py
-from vmprof.reader import read_one_marker, FileReadError, read_header,\
-    MARKER_HEADER, BufferTooSmallError, FileObjWrapper
+from vmprof import reader
+from vmprof.reader import (read_one_marker, FileReadError, read_header,
+    MARKER_HEADER, BufferTooSmallError, FileObjWrapper, ReaderStatus)
 
 class FileObj(object):
     def __init__(self, lst=None):
@@ -55,3 +56,4 @@ def test_read_header():
     status = read_header(f, exc.value.get_buf())
     assert status.version == 13
     assert status.interp_name == "foointerp"
+
