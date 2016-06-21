@@ -312,6 +312,8 @@ class TraceForest(object):
 
     def get_source_line(self, filename, lineno):
         lines = self.source_lines.get(filename, None)
+        if not lines:
+            return None, None
         return lines.get(lineno, (None, None))
 
     def extract_source_code_lines(self):
