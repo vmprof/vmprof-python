@@ -75,21 +75,30 @@ def get_url(host, path):
 
 
 def upload_jitlog(jitlog, args):
-    data = read_jitlog_data(args.jitlog)
-    trace_forest = parse_jitlog(data)
-    upload_to(args.web_url, "api/jitlog/", data, auth=args.web_auth)
+    host = args.web_url
+    if jitlog.endswith("zip"):
+        filename = jitlog
+    else:
+        filename = compress_file(jitlog)
+    with open(filename, 'rb') as fd:
+        url = get_url(host, "api/jitlog//")
+        r = requests.post(url, files={ 'file': fd })
+        checksum = r.text[1:-1]
+        sys.stderr.write("PyPy JIT log: %s/#/%s/traces\n" % (host.rstrip("/"), checksum))
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("profile")
     parser.add_argument("--web-url", default='http://vmprof.com', help='Target host')
     parser.add_argument("--web-auth", default=None, help='Authtoken for your acount on the server')
-    parser.add_argument("--jitlog", action='store_true', default=None, help='The specified "profile" only contains the jitlog')
+    parser.add_argument("--jitlog", default=None,
+                        help='The specified "profile" only contains the jitlog')
     args = parser.parse_args()
 
     trace_forest = None
     if args.jitlog:
-        upload_jitlog(args.jitlog, args)
+        jitlog_path = args.jitlog
+        upload_jitlog(jitlog_path, args)
     else:
         stats = vmprof.read_profile(args.profile)
         jitlog_path = args.profile + ".jitlog"
@@ -97,8 +106,8 @@ def main():
             upload_jitlog(jitlog_path, args)
         sys.stderr.write("Compiling and uploading to %s...\n" % args.web_url)
 
-    upload(stats, args.profile, [], args.web_url,
-                 args.web_auth, trace_forest)
+        upload(stats, args.profile, [], args.web_url,
+                     args.web_auth, trace_forest)
 
 
 if __name__ == '__main__':

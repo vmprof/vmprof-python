@@ -55,11 +55,9 @@ def main():
         prof_file = tempfile.NamedTemporaryFile(delete=False)
         prof_name = prof_file.name
 
-    if args.jitlog:
-        assert hasattr(vmprof, 'enable_jitlog'), "note: jitlog is only available on pypy"
 
     vmprof.enable(prof_file.fileno(), args.period, args.mem)
-    if args.jitlog:
+    if args.jitlog and hasattr(vmprof, 'enable_jitlog'):
         # note that this file descr is then handled by jitlog
         fd = os.open(prof_name + '.jitlog', os.O_WRONLY | os.O_TRUNC | os.O_CREAT)
         vmprof.enable_jitlog(fd)
