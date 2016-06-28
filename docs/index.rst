@@ -141,9 +141,8 @@ Example `config.ini` file::
 API
 ===
 
-
 There is also an API that can bring more details to the table,
-but consider it unstable. The current API usage is as follows::
+but consider it unstable. The current API usage is as follows:
 
 Module level functions
 ----------------------
@@ -240,3 +239,10 @@ The machinery to gather the information has been the focus of the initial
 phase of vmprof development and now it is working well: we are currently
 focusing on the frontend to make sure we can process and display the info in
 useful ways.
+
+Links
+=====
+
+* `vmprof-flamegraph <https://pypi.python.org/pypi/vmprof-flamegraph>`_
+  Convert vmprof data into text format for
+  `flamegraph <http://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html>`_
