@@ -33,6 +33,7 @@ setup(
     url='https://github.com/vmprof/vmprof-python',
     install_requires=[
         'requests',
+        'six',
     ],
     entry_points = {
         'console_scripts': [
