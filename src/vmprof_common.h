@@ -44,11 +44,9 @@ char *vmprof_init(int fd, double interval, int memory, char *interp_name)
         return "out of memory";
 #if defined(__unix__) || defined(__APPLE__)
     current_codes = NULL;
-#endif
-
-#if !defined(__unix__)
+#else
     if (memory)
-        return "memory tracking not supported on non-linux";
+        return "memory tracking only supported on unix";
 #endif
     assert(fd >= 0);
     profile_file = fd;
