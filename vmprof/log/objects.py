@@ -357,6 +357,7 @@ class TraceForest(object):
         return trace
 
     def stitch_bridge(self, descr_number, addr_to):
+        assert isinstance(descr_number, int)
         bridge = self.get_trace_by_addr(addr_to)
         assert bridge.descr_nmr == 0, "a bridge can only be stitched once"
         bridge.descr_nmr = descr_number

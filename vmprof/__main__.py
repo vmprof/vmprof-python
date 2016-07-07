@@ -71,7 +71,7 @@ def main():
             raise
     vmprof.disable()
     if args.jitlog and hasattr(vmprof, 'disable_jitlog'):
-        vmprof.disable_jitlog(fd)
+        vmprof.disable_jitlog()
     prof_file.close()
     show_stats(prof_name, output_mode, args)
     if output_mode != OUTPUT_FILE:

@@ -32,7 +32,7 @@ if not IS_PYPY:
     def enable_jitlog(fileno):
         raise ValueError("Jitlog cannot be enabled on CPython")
 
-    def disable_jitlog(fileno):
+    def disable_jitlog():
         raise ValueError("Jitlog cannot be disabled on CPython")
 
 else:
@@ -54,5 +54,5 @@ else:
         """
         _vmprof.enable_jitlog(fileno)
 
-    def disable_jitlog(fileno):
-        _vmprof.disable_jitlog(fileno)
+    def disable_jitlog():
+        _vmprof.disable_jitlog()
