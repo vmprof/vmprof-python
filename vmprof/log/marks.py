@@ -1,3 +1,4 @@
+from __future__ import print_function
 from vmprof.log import constants as const
 from vmprof.log import merge_point
 from vmprof.log.objects import FlatOp, MergePoint
@@ -6,6 +7,8 @@ from vmprof.binary import (read_word, read_string,
         read_le_s64, read_bytes, read_byte,
         read_char)
 import base64
+import sys
+import re
 
 VERSIONS = {}
 
@@ -87,6 +90,8 @@ def read_resop(forest, trace, fileobj):
     op = FlatOp(opnum, opname, args, result, None, -1)
     trace.add_instr(op)
 
+TOKEN_REGEX = re.compile("TargetToken\((\d+)\)")
+
 @version(1)
 def read_resop_descr(forest, trace, fileobj):
     assert trace is not None
@@ -101,7 +106,11 @@ def read_resop_descr(forest, trace, fileobj):
     opname = forest.resops[opnum]
     op = FlatOp(opnum, opname, args, result, descr, descr_number)
     trace.add_instr(op)
-
+    if opname == "label":
+        match = TOKEN_REGEX.match(descr)
+        if match:
+            token_number = int(match.group(1))
+            forest.label_tokens[token_number] = trace
 
 @version(1)
 def read_asm_addr(forest, trace, fileobj):
@@ -157,8 +166,16 @@ def read_stitch_bridge(forest, trace, fileobj):
 def read_jitlog_counter(forest, trace, fileobj):
     addr = read_le_addr(fileobj)
     count = read_le_u64(fileobj)
-    trace = forest.get_trace_by_addr(addr)
+    trace = forest.label_tokens.get(addr, None)
+    if not trace:
+        # assert type == 'b'
+        trace = forest.descr_nmr_to_trace.get(addr, None)
+    if not trace:
+        print("trace with %d was executed %d times" \
+              " but was not recorded in the log", file=sys.stderr)
+        return False
     trace.counter += count
+    return True
 
 @version(1)
 def read_abort_trace(forest, trace, fileobj):

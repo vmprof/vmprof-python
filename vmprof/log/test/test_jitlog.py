@@ -184,4 +184,22 @@ def test_iter_ranges():
     assert list(iter_ranges([-1,2])) == [r(-1,2+1)]
     assert list(iter_ranges([0,1,100,101,102,300,301])) == [r(0,2),r(100,103),r(300,302)]
 
+def test_read_jitlog_counter():
+    forest = TraceForest(1)
+    ta = forest.add_trace('loop', 0)
+    tb = forest.add_trace('bridge', 1)
+    forest.label_tokens[0x1] = ta
+    forest.descr_nmr_to_trace[22] = tb
+    fw = FileObjWrapper(FileObj([encode_addr(0x0), encode_u64(20)]))
+    assert marks.read_jitlog_counter(forest, None, fw) == False, \
+            "must not find trace"
+    fw = FileObjWrapper(FileObj([encode_addr(0x16), encode_u64(44),
+                                 encode_addr(0x1), encode_u64(20), ]))
+    assert marks.read_jitlog_counter(forest, None, fw) == True, \
+            "must find trace by descr number"
+    assert marks.read_jitlog_counter(forest, None, fw) == True, \
+            "must find trace by label token"
+    assert ta.counter == 20
+    assert tb.counter == 44
+
 

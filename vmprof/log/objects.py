@@ -306,6 +306,7 @@ class TraceForest(object):
         self.patches = []
         self.keep = keep_data
         self.stitches = {}
+        self.label_tokens = {}
         # a mapping from source file name -> {lineno: (indent, line)}
         self.source_lines = defaultdict(dict)
         self.descr_nmr_to_trace = {}
