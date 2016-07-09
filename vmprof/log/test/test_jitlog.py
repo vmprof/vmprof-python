@@ -3,7 +3,7 @@ from vmprof import reader
 from vmprof.log import constants as const
 from vmprof.log import marks
 from vmprof.log.objects import (FlatOp, TraceForest, Trace,
-        MergePoint, iter_ranges)
+        MergePoint, PointInTrace, iter_ranges)
 from vmprof.binary import (encode_addr, encode_str, encode_s64,
     encode_u64)
 from tests.test_reader import FileObj
@@ -186,28 +186,34 @@ def test_iter_ranges():
 
 def test_read_jitlog_counter():
     forest = TraceForest(1)
-    ta = forest.add_trace('loop', 0)
-    tb = forest.add_trace('bridge', 1)
-    forest.label_tokens[0x1] = ta
-    forest.descr_nmr_to_trace[22] = tb
+    ta = forest.add_trace('loop', 1)
+    ta.start_mark(const.MARK_TRACE_ASM)
+    op = FlatOp(0, 'hello', '', '?', 0, 2)
+    ta.add_instr(op)
+    tb = forest.add_trace('bridge', 22)
     fw = FileObjWrapper(FileObj([encode_addr(0x0), 'l', encode_u64(20)]))
     assert marks.read_jitlog_counter(forest, None, fw) == False, \
             "must not find trace"
-    fw = FileObjWrapper(FileObj([encode_addr(0x16), 'b', encode_u64(44),
-                                 encode_addr(0x1), 'e', encode_u64(20), ]))
-    assert marks.read_jitlog_counter(forest, None, fw) == True, \
-            "must find trace by descr number"
-    assert marks.read_jitlog_counter(forest, None, fw) == True, \
-            "must find trace by label token"
-    assert ta.counter == 20
-    assert tb.counter == 44
+    fw = FileObjWrapper(FileObj([encode_addr(1), 'e', encode_u64(145),
+                                 encode_addr(2), 'l', encode_u64(45),
+                                 encode_addr(22), 'b', encode_u64(100),
+                                ]))
+    # read the entry, the label, and the bridge
+    assert marks.read_jitlog_counter(forest, None, fw) == True
+    assert marks.read_jitlog_counter(forest, None, fw) == True
+    assert marks.read_jitlog_counter(forest, None, fw) == True
+    assert ta.counter == 145
+    assert ta.point_counters[0] == 45
+    assert tb.counter == 100
 
-def test_read_jitlog_counter():
+def test_point_in_trace():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
-    trace.add_instr(FlatOp(0, 'hello', '', '?', 0, 0))
+    trace.start_mark(const.MARK_TRACE_ASM)
+    op = FlatOp(0, 'hello', '', '?', 0, 0)
+    trace.add_instr(op)
     trace.add_up_enter_count(10)
-    point_in_trace = trace.get_point_in_trace_by_descr(0)
+    point_in_trace = forest.get_point_in_trace_by_descr(0)
     point_in_trace.add_up_enter_count(20)
 
     assert trace.counter == 10
