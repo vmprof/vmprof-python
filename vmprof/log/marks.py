@@ -106,11 +106,6 @@ def read_resop_descr(forest, trace, fileobj):
     opname = forest.resops[opnum]
     op = FlatOp(opnum, opname, args, result, descr, descr_number)
     trace.add_instr(op)
-    if opname == "label":
-        match = TOKEN_REGEX.match(descr)
-        if match:
-            token_number = int(match.group(1))
-            forest.label_tokens[token_number] = trace
 
 @version(1)
 def read_asm_addr(forest, trace, fileobj):
@@ -165,17 +160,27 @@ def read_stitch_bridge(forest, trace, fileobj):
 @version(1)
 def read_jitlog_counter(forest, trace, fileobj):
     addr = read_le_addr(fileobj)
+    type = read_char(fileobj)
     count = read_le_u64(fileobj)
-    trace = forest.label_tokens.get(addr, None)
-    if not trace:
-        # assert type == 'b'
-        trace = forest.descr_nmr_to_trace.get(addr, None)
-    if not trace:
-        print("trace with %d was executed %d times" \
-              " but was not recorded in the log", file=sys.stderr)
-        return False
-    trace.counter += count
-    return True
+    # entry: gets the globally numbered addr of the loop
+    # bridge: gets the addr of the fail descr
+    # label: gets the addr of the loop token
+    trace = forest.get_trace_by_id(addr)
+    if trace:
+        trace.add_up_enter_count(count)
+        return True
+    else:
+        assert type == 'b' or type == 'l'
+        point_in_trace = forest.get_point_in_trace_by_descr(addr)
+        if point_in_trace:
+            if type == 'b':
+                point_in_trace.trace.add_up_enter_count(count)
+            else:
+                point_in_trace.add_up_enter_count(count)
+            return True
+    print("trace with 0x%x (type '%c' was executed %d times" \
+          " but was not recorded in the log" % (addr, type, count), file=sys.stderr)
+    return False
 
 @version(1)
 def read_abort_trace(forest, trace, fileobj):
