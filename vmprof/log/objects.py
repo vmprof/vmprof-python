@@ -15,6 +15,7 @@ class FlatOp(object):
         self.descr = descr
         self.descr_number = descr_number
         self.core_dump = None
+        self.index = -1
 
     def is_debug(self):
         return False
@@ -128,10 +129,10 @@ class Stage(object):
         return self.ops[-1]
 
     def append_op(self, op):
+        op.index = len(self.ops)
         self.ops.append(op)
 
     def get_ops(self, debug=False):
-        """ creates an iterator around the operations """
         for op in self.ops:
             if not debug and not op.is_debug():
                 yield op
@@ -149,10 +150,14 @@ class Trace(object):
         # this saves a quadrupel for each
         self.my_patches = None
         self.counter = 0
+        self.point_counters = {}
         self.merge_point_files = defaultdict(list)
         self.parent = None
         self.bridges = []
         self.descr_nmr = 0 # the descr this trace is attached to
+
+    def add_up_enter_count(self, count):
+        self.counter += count
 
     def get_stitched_descr_number(self):
         return self.descr_nmr
@@ -300,6 +305,14 @@ class PointInTrace(object):
         self.trace = trace
         self.op = op
 
+    def add_up_enter_count(self, count):
+        counters = self.trace.point_counters
+        i = self.op.index
+        if i not in counters:
+            counters[i] = count
+        else:
+            counters[i] += count
+
 class TraceForest(object):
     def __init__(self, version, keep_data=True):
         self.version = version
@@ -361,6 +374,7 @@ class TraceForest(object):
         return self.traces.get(id, None)
 
     def add_trace(self, trace_type, unique_id):
+        """ Create a new trace object and attach it to the forest """
         trace = Trace(self, trace_type, self.timepos, unique_id)
         self.traces[unique_id] = trace
         self.last_trace = trace

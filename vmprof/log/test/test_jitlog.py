@@ -190,11 +190,11 @@ def test_read_jitlog_counter():
     tb = forest.add_trace('bridge', 1)
     forest.label_tokens[0x1] = ta
     forest.descr_nmr_to_trace[22] = tb
-    fw = FileObjWrapper(FileObj([encode_addr(0x0), encode_u64(20)]))
+    fw = FileObjWrapper(FileObj([encode_addr(0x0), 'l', encode_u64(20)]))
     assert marks.read_jitlog_counter(forest, None, fw) == False, \
             "must not find trace"
-    fw = FileObjWrapper(FileObj([encode_addr(0x16), encode_u64(44),
-                                 encode_addr(0x1), encode_u64(20), ]))
+    fw = FileObjWrapper(FileObj([encode_addr(0x16), 'b', encode_u64(44),
+                                 encode_addr(0x1), 'e', encode_u64(20), ]))
     assert marks.read_jitlog_counter(forest, None, fw) == True, \
             "must find trace by descr number"
     assert marks.read_jitlog_counter(forest, None, fw) == True, \
@@ -202,4 +202,14 @@ def test_read_jitlog_counter():
     assert ta.counter == 20
     assert tb.counter == 44
 
+def test_read_jitlog_counter():
+    forest = TraceForest(1)
+    trace = forest.add_trace('loop', 0)
+    trace.add_instr(FlatOp(0, 'hello', '', '?', 0, 0))
+    trace.add_up_enter_count(10)
+    point_in_trace = trace.get_point_in_trace_by_descr(0)
+    point_in_trace.add_up_enter_count(20)
+
+    assert trace.counter == 10
+    assert trace.point_counters[0] == 20
 
