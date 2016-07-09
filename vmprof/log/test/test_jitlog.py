@@ -191,12 +191,12 @@ def test_read_jitlog_counter():
     op = FlatOp(0, 'hello', '', '?', 0, 2)
     ta.add_instr(op)
     tb = forest.add_trace('bridge', 22)
-    fw = FileObjWrapper(FileObj([encode_addr(0x0), 'l', encode_u64(20)]))
+    fw = FileObjWrapper(FileObj([encode_addr(0x0), b'l', encode_u64(20)]))
     assert marks.read_jitlog_counter(forest, None, fw) == False, \
             "must not find trace"
-    fw = FileObjWrapper(FileObj([encode_addr(1), 'e', encode_u64(145),
-                                 encode_addr(2), 'l', encode_u64(45),
-                                 encode_addr(22), 'b', encode_u64(100),
+    fw = FileObjWrapper(FileObj([encode_addr(1), b'e', encode_u64(145),
+                                 encode_addr(2), b'l', encode_u64(45),
+                                 encode_addr(22), b'b', encode_u64(100),
                                 ]))
     # read the entry, the label, and the bridge
     assert marks.read_jitlog_counter(forest, None, fw) == True
