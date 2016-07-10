@@ -387,11 +387,12 @@ class TraceForest(object):
         bridge.descr_nmr = descr_number
         self.stitches[descr_number] = bridge.unique_id
         assert bridge is not None, ("no trace to be found for addr 0x%x" % addr_to)
-        point_in_trace = self.descr_nmr_to_point_in_trace.get(descr_number, (None, None))
+        point_in_trace = self.get_point_in_trace_by_descr(descr_number)
         if not point_in_trace:
             sys.stderr.write("link to trace of descr 0x%x not found!\n" % descr_number)
         else:
-            bridge.parent = point_in_trace.trace
+            trace = point_in_trace.trace
+            bridge.parent = trace
             trace.bridges.append(bridge)
 
     def get_stitch_target(self, descr_nmr):
