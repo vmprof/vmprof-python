@@ -85,7 +85,8 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
                 len = PyString_GET_SIZE(frame->f_code->co_lnotab);
             #endif
 
-            for (int j = 0; j<len; j+=2) {
+            int j;
+            for (j = 0; j<len; j+=2) {
                 addr += lnotab[j];
                 if (addr>frame->f_lasti) {
                     break;
