@@ -14,7 +14,8 @@ continuously taking samples of the call stack of the running program, at a
 given frequency. This is similar to tools like `vtune`_ or `gperftools`_: the
 main difference is that those tools target C and C-like languages and are not
 very helpful to profile higher-level languages which run on top of a virtual
-machine, while vmprof is designed specifically for them.
+machine, while vmprof is designed specifically for them. vmprof is also thread
+safe and will correctly display the information regardless of usage of threads.
 
 There are three primary modes. The recommended one is to use our server
 infrastructure for a web-based visualization of the result::
@@ -140,17 +141,16 @@ Example `config.ini` file::
 API
 ===
 
-
 There is also an API that can bring more details to the table,
-but consider it unstable. The current API usage is as follows::
+but consider it unstable. The current API usage is as follows:
 
 Module level functions
 ----------------------
 
-* ``vmprof.enable(fileno, period=0.099, memory=False)`` - enable writing ``vmprof`` data to a
-  file described by a fileno file descriptor. Timeout is in float seconds. The
-  minimal available resolution is 4ms, we're working on improving that
-  (note the default is 9.9ms). Passing ``memory=True`` will provide additional
+* ``vmprof.enable(fileno, period=0.00099, memory=False)`` - enable writing ``vmprof`` data to a
+  file described by a fileno file descriptor. Period is in float seconds. The
+  minimal available resolution is around 1ms, we're working on improving that
+  (note the default is 0.99ms). Passing ``memory=True`` will provide additional
   data in the form of total RSS of the process memory interspersed with
   tracebacks.
 
@@ -239,3 +239,10 @@ The machinery to gather the information has been the focus of the initial
 phase of vmprof development and now it is working well: we are currently
 focusing on the frontend to make sure we can process and display the info in
 useful ways.
+
+Links
+=====
+
+* `vmprof-flamegraph <https://pypi.python.org/pypi/vmprof-flamegraph>`_
+  Convert vmprof data into text format for
+  `flamegraph <http://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html>`_

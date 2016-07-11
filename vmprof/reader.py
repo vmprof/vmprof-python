@@ -3,26 +3,31 @@ import re
 import struct
 import subprocess
 import sys
-
+from six.moves import xrange
 
 PY3 = sys.version_info[0] >= 3
 
 WORD_SIZE = struct.calcsize('L')
 
-def read_word(fileobj):
-    b = fileobj.read(WORD_SIZE)
-    r = int(struct.unpack('l', b)[0])
-    return r
+from vmprof.binary import read_word, read_string, read_words
 
-def read_string(fileobj):
-    lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])
-    return fileobj.read(lgt)
+def read_trace(fileobj, depth, version):
+    if version == VERSION_TAG:
+        assert depth & 1 == 0
+        depth = depth // 2
+        kinds_and_pcs = read_words(fileobj, depth * 2)
+        # kinds_and_pcs is a list of [kind1, pc1, kind2, pc2, ...]
+        return [wrap_kind(kinds_and_pcs[i], kinds_and_pcs[i+1])
+                for i in xrange(len(kinds_and_pcs), None, 2)]
+    else:
+        return read_words(fileobj, depth)
 
 MARKER_STACKTRACE = b'\x01'
 MARKER_VIRTUAL_IP = b'\x02'
 MARKER_TRAILER = b'\x03'
 MARKER_INTERP_NAME = b'\x04'
 MARKER_HEADER = b'\x05'
+
 
 VERSION_BASE = 0
 VERSION_THREAD_ID = 1
@@ -120,17 +125,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         assert count == 1
         depth = read_word(fileobj)
         assert depth <= 2**16, 'stack strace depth too high'
-        trace = []
-        if status.version == VERSION_TAG:
-            assert depth & 1 == 0
-            depth = depth // 2
-        for j in range(depth):
-            if status.version == VERSION_TAG:
-                kind = read_word(fileobj)
-            else:
-                kind = VMPROF_CODE_TAG
-            pc = read_word(fileobj)
-            trace.append(wrap_kind(kind, pc))
+        trace = read_trace(fileobj, depth, status.version)
         if status.version >= VERSION_THREAD_ID:
             thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
         else:
@@ -200,20 +195,11 @@ def read_prof(fileobj, virtual_ips_only=False): #
             assert count == 1
             depth = read_word(fileobj)
             assert depth <= 2**16, 'stack strace depth too high'
-            trace = []
             if virtual_ips_only:
                 fileobj.read(WORD_SIZE * depth)
+                trace = []
             else:
-                if version == VERSION_TAG:
-                    assert depth & 1 == 0
-                    depth = depth // 2
-                for j in range(depth):
-                    if version == VERSION_TAG:
-                        kind = read_word(fileobj)
-                    else:
-                        kind = VMPROF_CODE_TAG
-                    pc = read_word(fileobj)
-                    trace.append(wrap_kind(kind, pc))
+                trace = read_trace(fileobj, depth, version)
             if version >= VERSION_THREAD_ID:
                 thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:

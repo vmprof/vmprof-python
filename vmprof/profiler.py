@@ -27,10 +27,11 @@ class ProfilerContext(object):
         self.done = True
 
 
-def read_profile(prof_filename):
-    prof = open(str(prof_filename), 'rb')
+def read_profile(prof_file):
+    if not hasattr(prof_file, 'read'):
+        prof_file = open(str(prof_file), 'rb')
 
-    period, profiles, virtual_symbols, interp_name = read_prof(prof)
+    period, profiles, virtual_symbols, interp_name = read_prof(prof_file)
 
     jit_frames = {}
     d = dict(virtual_symbols)

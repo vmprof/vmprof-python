@@ -1,8 +1,11 @@
+sudo: required
+dist: trusty
 language: python
 
 python:
   - 2.7
   - 3.4
+  - 3.5
 
 cache: apt
 
@@ -11,13 +14,14 @@ before_install:
   - sudo apt-get install -y python-dev
   - sudo apt-get install -y libdwarf-dev
   - sudo apt-get install -y libelfg0-dev
-  - sudo apt-get install -y libunwind7-dev
+  - sudo apt-get install -y libunwind8-dev
 
 install:
   - pip install .
 
 script:
   - py.test tests/ -vrs
+  - py.test vmprof/ -vrs
 
 notifications:
   irc:

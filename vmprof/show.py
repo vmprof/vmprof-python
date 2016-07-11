@@ -95,17 +95,17 @@ class PrettyPrinter(object):
                     p3.append(color(os.path.basename(filename), color.WHITE, bold=True) + ":")
                     p3.append(color("{}".format(funline), color.WHITE))
                     p3 = ''.join(p3)
-                    p5 = color("{:>2}".format(level), color.BLUE)
 
                 elif parts == 1:
                     block_type, funname = node.name.split(':')
                     p2 = color("JIT code", color.RED, bold=True)
                     p2b = color('.' * level * self._indent, color.RED, bold=False)
                     p3 = color(funname, color.WHITE, bold=False)
-                    p5 = color("{:>2}".format(level), color.RED, bold=False)
 
                 else:
-                    raise Exception("fail!")
+                    p2 = color(node.name, color.WHITE)
+                    p2b = color(('.' * level * self._indent), color.WHITE)
+                    p3 = "<unknown>"
 
                 p1 = color("{:>5}%".format(perc), color.WHITE, bold=True)
                 p4 = color("{}%".format(perc_of_parent), color.WHITE, bold=True)

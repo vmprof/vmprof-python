@@ -44,11 +44,9 @@ char *vmprof_init(int fd, double interval, int memory, char *interp_name)
         return "out of memory";
 #if defined(__unix__) || defined(__APPLE__)
     current_codes = NULL;
-#endif
-
-#if !defined(__unix__)
+#else
     if (memory)
-        return "memory tracking not supported on non-linux";
+        return "memory tracking only supported on unix";
 #endif
     assert(fd >= 0);
     profile_file = fd;
@@ -96,4 +94,21 @@ static int opened_profile(char *interp_name, int memory)
     header.interp_name[3] = namelen;
     memcpy(&header.interp_name[4], interp_name, namelen);
     return _write_all((char*)&header, 5 * sizeof(long) + 4 + namelen);
+}
+
+// for whatever reason python-dev decided to hide that one
+#if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
+                                 /* this was abruptly un-defined in 3.5.1 */
+    extern void *volatile _PyThreadState_Current;
+       /* XXX simple volatile access is assumed atomic */
+#  define _Py_atomic_load_relaxed(pp)  (*(pp))
+#endif
+ 
+PyThreadState* get_current_thread_state(void)
+{
+#if PY_MAJOR_VERSION >= 3
+    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
+#else
+    return _PyThreadState_Current;
+#endif
 }
