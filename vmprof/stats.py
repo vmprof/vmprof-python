@@ -34,6 +34,8 @@ class Stats(object):
         return [(self._get_name(k), v) for (k, v) in six.iteritems(self.functions)]
 
     def _get_name(self, addr):
+        if addr < 0:
+            return "line:%d" % (-addr)
         if self.adr_dict is not None:
             return self.adr_dict.get(addr, '<unknown code>')
 

@@ -5,7 +5,9 @@
 static int profile_file = -1;
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
-static int opened_profile(char *interp_name, int memory);
+static int profile_lines = 0;
+
+static int opened_profile(char *interp_name, int memory, int lines);
 
 #if defined(__unix__) || defined(__APPLE__)
 static struct profbuf_s *volatile current_codes;
@@ -24,6 +26,10 @@ static struct profbuf_s *volatile current_codes;
 #define VERSION_THREAD_ID '\x01'
 #define VERSION_TAG '\x02'
 #define VERSION_MEMORY '\x03'
+#define VERSION_MODE_AWARE '\x04'
+
+#define PROFILE_MEMORY '\x01'
+#define PROFILE_LINES  '\x02'
 
 typedef struct prof_stacktrace_s {
     char padding[sizeof(long) - 1];
@@ -34,7 +40,7 @@ typedef struct prof_stacktrace_s {
 
 
 RPY_EXTERN
-char *vmprof_init(int fd, double interval, int memory, char *interp_name)
+char *vmprof_init(int fd, double interval, int memory, int lines, char *interp_name)
 {
     if (interval < 1e-6 || interval >= 1.0)
         return "bad value for 'interval'";
@@ -50,7 +56,7 @@ char *vmprof_init(int fd, double interval, int memory, char *interp_name)
 #endif
     assert(fd >= 0);
     profile_file = fd;
-    if (opened_profile(interp_name, memory) < 0) {
+    if (opened_profile(interp_name, memory, lines) < 0) {
         profile_file = -1;
         return strerror(errno);
     }
@@ -61,6 +67,35 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
 {
     int depth = 0;
 
+    if (profile_lines) {
+        char *lnotab;
+        #if PY_MAJOR_VERSION >= 3
+            lnotab = PyBytes_AS_STRING(frame->f_code->co_lnotab);
+        #else
+            lnotab = PyString_AS_STRING(frame->f_code->co_lnotab);
+        #endif
+        if (lnotab != NULL) {
+            long line = (long)frame->f_lineno;
+            int addr = 0;
+
+            int len;
+            #if PY_MAJOR_VERSION >= 3
+                len = PyBytes_GET_SIZE(frame->f_code->co_lnotab);
+            #else
+                len = PyString_GET_SIZE(frame->f_code->co_lnotab);
+            #endif
+
+            for (int j = 0; j<len; j+=2) {
+                addr += lnotab[j];
+                if (addr>frame->f_lasti) {
+                    break;
+                }
+                line += lnotab[j+1];
+            }
+            result[depth++] = (void*) line;
+        }
+    }
+
     while (frame && depth < max_depth) {
         result[depth++] = (void*)CODE_ADDR_TO_UID(frame->f_code);
         frame = frame->f_back;
@@ -70,7 +105,7 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
 
 static int _write_all(const char *buf, size_t bufsize);
 
-static int opened_profile(char *interp_name, int memory)
+static int opened_profile(char *interp_name, int memory, int lines)
 {
     struct {
         long hdr[5];
@@ -86,14 +121,12 @@ static int opened_profile(char *interp_name, int memory)
     header.hdr[4] = 0;
     header.interp_name[0] = MARKER_HEADER;
     header.interp_name[1] = '\x00';
-    if (memory) {
-        header.interp_name[2] = VERSION_MEMORY;
-    } else {
-        header.interp_name[2] = VERSION_THREAD_ID;
-    }
-    header.interp_name[3] = namelen;
-    memcpy(&header.interp_name[4], interp_name, namelen);
-    return _write_all((char*)&header, 5 * sizeof(long) + 4 + namelen);
+    header.interp_name[2] = VERSION_MODE_AWARE;
+    header.interp_name[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES;
+
+    header.interp_name[4] = namelen;
+    memcpy(&header.interp_name[5], interp_name, namelen);
+    return _write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
 }
 
 // for whatever reason python-dev decided to hide that one

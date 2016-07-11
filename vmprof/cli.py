@@ -49,6 +49,11 @@ def build_argparser():
         help='Do memory profiling as well',
     )
     parser.add_argument(
+        '--lines',
+        action="store_true",
+        help='Store lines execution stats',
+    )
+    parser.add_argument(
         '--jitlog',
         action='store_true',
         help='Upload the jitlog to remote server (defaults to vmprof.com)',
