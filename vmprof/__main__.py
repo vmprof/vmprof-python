@@ -58,7 +58,7 @@ def main():
     if args.jitlog:
         assert hasattr(vmprof, 'enable_jitlog'), "note: jitlog is only available on pypy"
 
-    vmprof.enable(prof_file.fileno(), args.period, args.mem)
+    vmprof.enable(prof_file.fileno(), args.period, args.mem, args.lines)
     if args.jitlog:
         # note that this file descr is then handled by jitlog
         fd = os.open(prof_name + '.jitlog', os.O_WRONLY | os.O_TRUNC | os.O_CREAT)

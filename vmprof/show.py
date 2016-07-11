@@ -98,9 +98,15 @@ class PrettyPrinter(object):
 
                 elif parts == 1:
                     block_type, funname = node.name.split(':')
-                    p2 = color("JIT code", color.RED, bold=True)
-                    p2b = color('.' * level * self._indent, color.RED, bold=False)
-                    p3 = color(funname, color.WHITE, bold=False)
+                    if "line" == block_type:
+                        lineno = int(funname)
+                        p2 = color("Line %d" % lineno, color.RED, bold=True)
+                        p2b = color('.' * level * self._indent, color.RED, bold=False)
+                        p3 = ""
+                    else:
+                        p2 = color("JIT code", color.RED, bold=True)
+                        p2b = color('.' * level * self._indent, color.RED, bold=False)
+                        p3 = color(funname, color.WHITE, bold=False)
 
                 else:
                     p2 = color(node.name, color.WHITE)
