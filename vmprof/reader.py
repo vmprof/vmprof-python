@@ -122,7 +122,7 @@ def read_header(fileobj, buffer_so_far=None):
     assert_error(marker == MARKER_HEADER, "expected header")
     version, = struct.unpack("!h", fileobj.read(2))
 
-    if version == VERSION_MODE_AWARE:
+    if version >= VERSION_MODE_AWARE:
         mode = ord(fileobj.read(1))
         profile_memory = (mode & PROFILE_MEMORY) != 0
         profile_lines = (mode & PROFILE_LINES) != 0
@@ -208,7 +208,7 @@ def read_prof(fileobj, virtual_ips_only=False): #
         if marker == MARKER_HEADER:
             assert not version, "multiple headers"
             version, = struct.unpack("!h", fileobj.read(2))
-            if version == VERSION_MODE_AWARE:
+            if version >= VERSION_MODE_AWARE:
                 mode = ord(fileobj.read(1))
                 profile_memory = (mode & PROFILE_MEMORY) != 0
                 profile_lines = (mode & PROFILE_LINES) != 0
