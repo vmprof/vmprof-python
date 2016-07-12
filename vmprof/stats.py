@@ -35,6 +35,7 @@ class Stats(object):
 
     def _get_name(self, addr):
         if addr < 0:
+            # address can be negative if it is a line number
             return "line:%d" % (-addr)
         if self.adr_dict is not None:
             return self.adr_dict.get(addr, '<unknown code>')

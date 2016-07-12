@@ -23,6 +23,8 @@ def read_trace(fileobj, depth, version, profile_lines=False):
     else:
         trace = read_words(fileobj, depth)
         if profile_lines and len(trace) > 0:
+            # For the line profiling mode the first item in the trace is a line number.
+            # Make it a negative number to distinguish from the addresses.
             trace[0] = -trace[0]
         return trace
 
