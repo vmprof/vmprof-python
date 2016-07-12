@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include "vmprof_compat.h"
 
 #define MAX_FUNC_NAME 1024
 
@@ -77,22 +78,13 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
 
         // NOTE: the profiling overhead can be reduced by storing co_lnotab in the dump and
         // moving this computation to the reader instead of doing it here.
-        char *lnotab;
-        #if PY_MAJOR_VERSION >= 3
-            lnotab = PyBytes_AS_STRING(frame->f_code->co_lnotab);
-        #else
-            lnotab = PyString_AS_STRING(frame->f_code->co_lnotab);
-        #endif
+        char *lnotab = PyStr_AS_STRING(frame->f_code->co_lnotab);
+
         if (lnotab != NULL) {
             long line = (long)frame->f_lineno;
             int addr = 0;
 
-            int len;
-            #if PY_MAJOR_VERSION >= 3
-                len = PyBytes_GET_SIZE(frame->f_code->co_lnotab);
-            #else
-                len = PyString_GET_SIZE(frame->f_code->co_lnotab);
-            #endif
+            int len = PyStr_GET_SIZE(frame->f_code->co_lnotab);
 
             int j;
             for (j = 0; j<len; j+=2) {
