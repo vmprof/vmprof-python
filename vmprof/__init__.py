@@ -1,5 +1,7 @@
 import os
+import subprocess
 import sys
+import contextlib
 
 from . import cli
 
@@ -47,3 +49,28 @@ else:
             be broken.
         """
         _vmprof.enable_jitlog(fileno)
+
+
+@contextlib.contextmanager
+def profile(outfile, pipecmd=None, period=DEFAULT_PERIOD, memory=False):
+    """Utility context manager which calls vmprof.enable() and vmprof.disable().
+
+    outfile is path to output file.
+
+    This function support compression via pipe command::
+
+        with vmprof.profile("out.prof.gz", pipecmd=["/usr/bin/gzip", "-4"]):
+            main()
+    """
+    with open(outfile, 'wb') as of:
+        proc = None
+        fileno = of.fileno()
+        if pipecmd is not None:
+            proc = subprocess.Popen(pipecmd, bufsize=-1, stdin=subprocess.PIPE, stdout=of.fileno())
+            fileno = proc.stdin.fileno()
+        enable(fileno, period, memory)
+        yield
+        disable()
+        if proc:
+            proc.stdin.close()
+            proc.wait()
