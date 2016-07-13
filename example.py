@@ -1,4 +1,4 @@
-
+import vmprof
 def test_1():
     return [a for a in range(1000000)]
 
@@ -14,5 +14,7 @@ def main():
     return test_1() + test_2()
 
 
-if __name__ == "__main__":
+with vmprof.profile("perf.data"):
+    main()
+with vmprof.profile("perf.data.gz", ["gzip", "-2"]):
     main()

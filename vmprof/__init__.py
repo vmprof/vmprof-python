@@ -69,8 +69,10 @@ def profile(outfile, pipecmd=None, period=DEFAULT_PERIOD, memory=False):
             proc = subprocess.Popen(pipecmd, bufsize=-1, stdin=subprocess.PIPE, stdout=of.fileno())
             fileno = proc.stdin.fileno()
         enable(fileno, period, memory)
-        yield
-        disable()
-        if proc:
-            proc.stdin.close()
-            proc.wait()
+        try:
+            yield
+        finally:
+            disable()
+            if proc:
+                proc.stdin.close()
+                proc.wait()
