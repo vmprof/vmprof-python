@@ -68,37 +68,38 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
 {
     int depth = 0;
 
-    if (profile_lines) {
-        // In the line profiling mode we save a line number of the topmost frame as
-        // the first result item.
-        // Actual line number isn't stored in the frame directly (f_lineno points to the
-        // beginning of the frame), so we need to compute it from f_lasti and f_code->co_lnotab.
-        // Here is explained what co_lnotab is:
-        //    https://svn.python.org/projects/python/trunk/Objects/lnotab_notes.txt
-
-        // NOTE: the profiling overhead can be reduced by storing co_lnotab in the dump and
-        // moving this computation to the reader instead of doing it here.
-        char *lnotab = PyStr_AS_STRING(frame->f_code->co_lnotab);
-
-        if (lnotab != NULL) {
-            long line = (long)frame->f_lineno;
-            int addr = 0;
-
-            int len = PyStr_GET_SIZE(frame->f_code->co_lnotab);
-
-            int j;
-            for (j = 0; j<len; j+=2) {
-                addr += lnotab[j];
-                if (addr>frame->f_lasti) {
-                    break;
-                }
-                line += lnotab[j+1];
-            }
-            result[depth++] = (void*) line;
-        }
-    }
-
     while (frame && depth < max_depth) {
+        if (profile_lines) {
+            // In the line profiling mode we save a line number for every frame.
+            // Actual line number isn't stored in the frame directly (f_lineno points to the
+            // beginning of the frame), so we need to compute it from f_lasti and f_code->co_lnotab.
+            // Here is explained what co_lnotab is:
+            //    https://svn.python.org/projects/python/trunk/Objects/lnotab_notes.txt
+
+            // NOTE: the profiling overhead can be reduced by storing co_lnotab in the dump and
+            // moving this computation to the reader instead of doing it here.
+            char *lnotab = PyStr_AS_STRING(frame->f_code->co_lnotab);
+
+            if (lnotab != NULL) {
+                long line = (long)frame->f_lineno;
+                int addr = 0;
+
+                int len = PyStr_GET_SIZE(frame->f_code->co_lnotab);
+
+                int j;
+                for (j = 0; j<len; j+=2) {
+                    addr += lnotab[j];
+                    if (addr>frame->f_lasti) {
+                        break;
+                    }
+                    line += lnotab[j+1];
+                }
+                result[depth++] = (void*) line;
+            } else {
+                result[depth++] = (void*) 0;
+            }
+        }
+
         result[depth++] = (void*)CODE_ADDR_TO_UID(frame->f_code);
         frame = frame->f_back;
     }

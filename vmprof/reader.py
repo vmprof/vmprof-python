@@ -22,10 +22,12 @@ def read_trace(fileobj, depth, version, profile_lines=False):
                 for i in xrange(len(kinds_and_pcs), None, 2)]
     else:
         trace = read_words(fileobj, depth)
-        if profile_lines and len(trace) > 0:
-            # For the line profiling mode the first item in the trace is a line number.
-            # Make it a negative number to distinguish from the addresses.
-            trace[0] = -trace[0]
+
+        if profile_lines:
+            for i in range(0, len(trace), 2):
+                # In the line profiling mode even items in the trace are line numbers.
+                # Every line number corresponds to the following frame, represented by an address.
+                trace[i] = -trace[i]
         return trace
 
 MARKER_STACKTRACE = b'\x01'

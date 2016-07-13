@@ -164,14 +164,10 @@ def test_line_profiling():
     tmpfile.close()
 
     def walk(tree):
+        assert len(tree.lines) >= len(tree.children)
 
-        has_children = False
         for v in six.itervalues(tree.children):
                 walk(v)
-                has_children = True
-
-        if not has_children:
-            assert tree.name.startswith('line')  # leaves of the tree should be lines
 
     with open(tmpfile.name, 'rb') as f:
         period, profiles, virtual_symbols, interp_name = read_prof_bit_by_bit(f)
