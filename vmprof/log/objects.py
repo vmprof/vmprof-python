@@ -159,6 +159,11 @@ class Trace(object):
     def add_up_enter_count(self, count):
         self.counter += count
 
+    def get_counter_points(self):
+        d = {'counter': self.counter}
+        d.update(self.point_counters)
+        return d
+
     def get_stitched_descr_number(self):
         return self.descr_nmr
 
