@@ -3,6 +3,9 @@
 #define MAX_FUNC_NAME 1024
 
 static int profile_file = -1;
+#if !DISABLE_GZIP
+static pid_t gzip_subproc_pid = -1;
+#endif
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
 static int opened_profile(char *interp_name, int memory);
@@ -33,7 +36,7 @@ typedef struct prof_stacktrace_s {
 } prof_stacktrace_s;
 
 #if !DISABLE_GZIP
-static int pipe_gzip(int fd)
+static int pipe_gzip(int out_fd, int *gzip_out_fd, int *subproc_pid)
 {
     int pipefds[2];
 
@@ -48,10 +51,10 @@ static int pipe_gzip(int fd)
         return -1;
     case 0:
         dup2(pipefds[0], STDIN_FILENO);
-        dup2(fd, STDOUT_FILENO);
+        dup2(out_fd, STDOUT_FILENO);
         close(pipefds[0]);
         close(pipefds[1]);
-        close(fd);
+        close(out_fd);
         /* Try system gzip */
         execlp("gzip", "gzip", NULL);
         perror("gzip");
@@ -61,8 +64,10 @@ static int pipe_gzip(int fd)
         /* TODO: How do we avoid "hang" in the parent process in this case? */
         exit(1);
     default:
+        *subproc_pid = pid;
         close(pipefds[0]);
-        return pipefds[1];
+        *gzip_out_fd = pipefds[1];
+        return 0;
     }
 }
 #endif
@@ -85,10 +90,8 @@ char *vmprof_init(int fd, double interval, int memory, char *interp_name)
 
     assert(fd >= 0);
 #if !DISABLE_GZIP
-    int gzfd = pipe_gzip(fd);
-    if (gzfd < 0)
+    if (pipe_gzip(fd, &profile_file, &gzip_subproc_pid) < 0)
         goto err;
-    profile_file = gzfd;
 #else
     profile_file = fd;
 #endif

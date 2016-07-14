@@ -327,6 +327,7 @@ static int close_profile(void)
 #if !DISABLE_GZIP
     /* This doesn't close() the original file descriptor */
     close(profile_file);
+    waitpid(gzip_subproc_pid, NULL, 0);
 #else
     /* Don't close() the original file descriptor from here */
 #endif
