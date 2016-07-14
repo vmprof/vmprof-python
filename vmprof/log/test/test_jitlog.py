@@ -227,18 +227,15 @@ def test_counter_points():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
     d = trace.get_counter_points()
-    assert 'counter' in d
-    assert d['counter'] == 0
+    assert d['enter'] == 0
     assert len(d) == 1
     trace.counter = 100
     d = trace.get_counter_points()
-    assert 'counter' in d
-    assert d['counter'] == 100
+    assert d['enter'] == 100
     assert len(d) == 1
     pit = PointInTrace(trace, FakeOp(10))
     pit.add_up_enter_count(55)
     d = trace.get_counter_points()
-    assert 'counter' in d
     assert d[10] == 55
     assert len(d) == 2
 

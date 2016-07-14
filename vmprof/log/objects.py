@@ -160,7 +160,7 @@ class Trace(object):
         self.counter += count
 
     def get_counter_points(self):
-        d = {'counter': self.counter}
+        d = {'enter': self.counter}
         d.update(self.point_counters)
         return d
 
