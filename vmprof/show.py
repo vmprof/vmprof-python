@@ -1,7 +1,11 @@
 from __future__ import absolute_import
 
+import inspect
+import linecache
 import os
 import six
+import sys
+
 import vmprof
 import argparse
 
@@ -137,14 +141,124 @@ def main():
         default=2,
         help='The indention per level within the call graph.')
 
+    parser.add_argument('--lines', dest='lines', action='store_true')
+    parser.set_defaults(lines=False)
+
+    parser.add_argument('--filter', dest='filter', type=str, default=None)
+
     args = parser.parse_args()
 
-    pp = PrettyPrinter(
-        prune_percent=args.prune_percent,
-        prune_level=args.prune_level,
-        indent=args.indent)
+    if args.lines:
+        pp = LinesPrinter(filter=args.filter)
+    else:
+        pp = PrettyPrinter(
+            prune_percent=args.prune_percent,
+            prune_level=args.prune_level,
+            indent=args.indent)
 
     pp.show(args.profile)
+
+class LinesPrinter(object):
+    def __init__(self, filter=None):
+        self.filter = filter
+
+    def show(self, profile):
+        """
+        Read and display a vmprof profile file.
+
+        :param profile: The filename of the vmprof profile file to display.
+        :type profile: str
+        """
+        try:
+            stats = vmprof.read_profile(profile)
+        except Exception as e:
+            print("Fatal: could not read vmprof profile file '{}': {}".format(profile, e))
+            return
+
+        tree = stats.get_tree()
+
+        for (filename, funline, funname), line_stats in self.lines_stat(tree):
+            if self.filter is None or funname.find(self.filter) != -1:
+                self.show_func(filename, funline, funname, line_stats)
+
+
+    def lines_stat(self, tree):
+        funcs = {}
+
+        def walk(node, d):
+            if node is None:
+                return
+
+            parts = node.name.count(':')
+            if parts == 3:
+                block_type, funname, funline, filename = node.name.split(':')
+
+                lines = d.setdefault((filename, int(funline), funname), {})
+
+                for l, cnt in six.iteritems(node.lines):
+                    lines[l] = lines.get(l, 0) + cnt
+
+            for c in six.itervalues(node.children):
+                walk(c, d)
+
+        walk(tree, funcs)
+
+        return six.iteritems(funcs)
+
+    def show_func(self, filename, start_lineno, func_name, timings, stream=None, stripzeros=False):
+        """ Show results for a single function.
+        """
+        if stream is None:
+            stream = sys.stdout
+
+        template = '%6s %8s %8s  %-s'
+        d = {}
+        total_hits = 0.0
+
+        linenos = []
+        for lineno, nhits in six.iteritems(timings):
+            total_hits += nhits
+            linenos.append(lineno)
+
+        if stripzeros and total_hits == 0:
+            return
+
+        stream.write("Total hits: %g s\n" % total_hits)
+        if os.path.exists(filename) or filename.startswith("<ipython-input-"):
+            stream.write("File: %s\n" % filename)
+            stream.write("Function: %s at line %s\n" % (func_name, start_lineno))
+            if os.path.exists(filename):
+                # Clear the cache to ensure that we get up-to-date results.
+                linecache.clearcache()
+            all_lines = linecache.getlines(filename)
+            sublines = inspect.getblock(all_lines[start_lineno-1:])
+        else:
+            stream.write("\n")
+            stream.write("Could not find file %s\n" % filename)
+            stream.write("Are you sure you are running this program from the same directory\n")
+            stream.write("that you ran the profiler from?\n")
+            stream.write("Continuing without the function's contents.\n")
+            # Fake empty lines so we can see the timings, if not the code.
+            nlines = max(linenos) - min(min(linenos), start_lineno) + 1
+            sublines = [''] * nlines
+        for lineno, nhits in six.iteritems(timings):
+            d[lineno] = (nhits, '%5.1f' % (100* nhits / total_hits))
+        linenos = range(start_lineno, start_lineno + len(sublines))
+        empty = ('', '')
+        header = template % ('Line #', 'Hits', '% Hits',
+            'Line Contents')
+        stream.write("\n")
+        stream.write(header)
+        stream.write("\n")
+        stream.write('=' * len(header))
+        stream.write("\n")
+        for lineno, line in zip(linenos, sublines):
+            nhits, percent = d.get(lineno, empty)
+            txt = template % (lineno, nhits, percent,
+                              line.rstrip('\n').rstrip('\r'))
+            stream.write(txt)
+            stream.write("\n")
+        stream.write("\n")
 
 
 if __name__ == '__main__':
