@@ -32,6 +32,40 @@ typedef struct prof_stacktrace_s {
     void *stack[];
 } prof_stacktrace_s;
 
+#if !DISABLE_GZIP
+static int pipe_gzip(int fd)
+{
+    int pipefds[2];
+
+    if (pipe(pipefds) == -1)
+        return -1;
+
+    pid_t pid = fork();
+    switch (pid) {
+    case -1:
+        close(pipefds[0]);
+        close(pipefds[1]);
+        return -1;
+    case 0:
+        dup2(pipefds[0], STDIN_FILENO);
+        dup2(fd, STDOUT_FILENO);
+        close(pipefds[0]);
+        close(pipefds[1]);
+        close(fd);
+        /* Try system gzip */
+        execlp("gzip", "gzip", NULL);
+        perror("gzip");
+        /* Fall back to Python gzip module */
+        execlp("python", "python", "-m", "gzip", NULL);
+        perror("python -m gzip");
+        /* TODO: How do we avoid "hang" in the parent process in this case? */
+        exit(1);
+    default:
+        close(pipefds[0]);
+        return pipefds[1];
+    }
+}
+#endif
 
 RPY_EXTERN
 char *vmprof_init(int fd, double interval, int memory, char *interp_name)
@@ -48,13 +82,23 @@ char *vmprof_init(int fd, double interval, int memory, char *interp_name)
     if (memory)
         return "memory tracking only supported on unix";
 #endif
+
     assert(fd >= 0);
+#if !DISABLE_GZIP
+    int gzfd = pipe_gzip(fd);
+    if (gzfd < 0)
+        goto err;
+    profile_file = gzfd;
+#else
     profile_file = fd;
-    if (opened_profile(interp_name, memory) < 0) {
-        profile_file = -1;
-        return strerror(errno);
-    }
+#endif
+    if (opened_profile(interp_name, memory) < 0)
+        goto err;
     return NULL;
+
+err:
+    profile_file = -1;
+    return strerror(errno);
 }
 
 static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int max_depth)

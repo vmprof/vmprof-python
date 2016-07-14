@@ -4,12 +4,15 @@ import struct
 import subprocess
 import sys
 from six.moves import xrange
-
-PY3 = sys.version_info[0] >= 3
-
-WORD_SIZE = struct.calcsize('L')
+import io
+import gzip
 
 from vmprof.binary import read_word, read_string, read_words
+
+PY3  = sys.version_info[0] >= 3
+WORD_SIZE = struct.calcsize('L')
+SEEK_RELATIVE = 1
+
 
 def read_trace(fileobj, depth, version):
     if version == VERSION_TAG:
@@ -21,6 +24,7 @@ def read_trace(fileobj, depth, version):
                 for i in xrange(len(kinds_and_pcs), None, 2)]
     else:
         return read_words(fileobj, depth)
+
 
 MARKER_STACKTRACE = b'\x01'
 MARKER_VIRTUAL_IP = b'\x02'
@@ -41,11 +45,13 @@ VMPROF_JITTING_TAG = 4
 VMPROF_GC_TAG = 5
 VMPROF_ASSEMBLER_TAG = 6
 
+
 class AssemblerCode(int):
     pass
 
 class JittedCode(int):
     pass
+
 
 def wrap_kind(kind, pc):
     if kind == VMPROF_ASSEMBLER_TAG:
@@ -54,6 +60,15 @@ def wrap_kind(kind, pc):
         return JittedCode(pc)
     assert kind == VMPROF_CODE_TAG
     return pc
+
+
+def gunzip(fileobj):
+    is_gzipped = fileobj.read(2) == b'\037\213'
+    fileobj.seek(-2, SEEK_RELATIVE)
+    if is_gzipped:
+        fileobj = io.BufferedReader(gzip.GzipFile(fileobj=fileobj))
+    return fileobj
+
 
 class BufferTooSmallError(Exception):
     def get_buf(self):
@@ -149,6 +164,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
     return False
 
 def read_prof_bit_by_bit(fileobj):
+    fileobj = gunzip(fileobj)
     # note that we don't want to use all of this on normal files, since it'll
     # cost us quite a bit in memory and performance and parsing 200M files in
     # CPython is slow (pypy does better, use pypy)
@@ -168,7 +184,9 @@ def read_prof_bit_by_bit(fileobj):
             buf = e.get_buf()
     return status.period, status.profiles, status.virtual_ips, status.interp_name
 
-def read_prof(fileobj, virtual_ips_only=False): #
+def read_prof(fileobj, virtual_ips_only=False):
+    fileobj = gunzip(fileobj)
+
     assert read_word(fileobj) == 0 # header count
     assert read_word(fileobj) == 3 # header size
     assert read_word(fileobj) == 0
