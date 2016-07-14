@@ -20,13 +20,12 @@ else:
                            ],
                             extra_compile_args=extra_compile_args,
                             libraries=[])]
-   
 
 setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.2.7",
+    version="0.3.0",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
