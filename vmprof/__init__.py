@@ -1,5 +1,10 @@
 import os
 import sys
+import subprocess
+try:
+    from shutil import which
+except ImportError:
+    from backports.shutil_which import which
 
 from . import cli
 
@@ -24,10 +29,12 @@ if not IS_PYPY:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
-        _vmprof.enable(fileno, period, memory)
+        gz_fileno = _gzip(fileno)
+        _vmprof.enable(gz_fileno, period, memory)
 
     def disable():
         _vmprof.disable()
+        _gzip_finish()
 
 else:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, warn=True):
@@ -36,14 +43,41 @@ else:
         if warn and sys.pypy_version_info[:3] < (4, 1, 0):
             print ("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
             raise Exception("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
-        _vmprof.enable(fileno, period)
+        gz_fileno = _gzip(fileno)
+        _vmprof.enable(gz_fileno, period)
 
     def disable():
         _vmprof.disable()
+        _gzip_finish()
 
     def enable_jitlog(fileno):
         """ Should be a different file than the one provided
             to vmprof.enable(...). Otherwise the profiling data might
             be broken.
         """
-        _vmprof.enable_jitlog(fileno)
+        gz_fileno = _gzip(fileno)
+        _vmprof.enable_jitlog(gz_fileno)
+
+
+_gzip_procs = []
+
+def _gzip(fileno):
+    """Spawn a gzip subprocess that writes compressed profile data to `fileno`.
+
+    Return the subprocess' input fileno.
+    """
+    # Prefer system gzip and fall back to Python's gzip module
+    if which("gzip"):
+        gzip_cmd = ["gzip", "-", "-4"]
+    else:
+        gzip_cmd = ["python", "-m", "gzip"]
+    proc = subprocess.Popen(gzip_cmd, stdin=subprocess.PIPE,
+                            stdout=fileno, bufsize=-1, close_fds=True)
+    _gzip_procs.append(proc)
+    return proc.stdin.fileno()
+
+def _gzip_finish():
+    for proc in _gzip_procs:
+        proc.stdin.close()
+        proc.wait()
+    _gzip_procs[:] = []

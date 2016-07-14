@@ -323,16 +323,8 @@ static int close_profile(void)
         return -1;
 
     teardown_rss();
-
-#if !DISABLE_GZIP
-    /* This doesn't close() the original file descriptor */
-    close(profile_file);
-    waitpid(gzip_subproc_pid, NULL, 0);
-#else
-    /* Don't close() the original file descriptor from here */
-#endif
+    /* don't close() the file descriptor from here */
     profile_file = -1;
-
     return 0;
 }
 

@@ -1,7 +1,10 @@
 from setuptools import setup, find_packages, Extension
 import os, sys
 
-if '__pypy__' in sys.builtin_module_names:
+PY3  = sys.version_info[0] >= 3
+IS_PYPY = '__pypy__' in sys.builtin_module_names
+
+if IS_PYPY:
     ext_modules = [] # built-in
 else:
     if sys.platform != 'win32':
@@ -20,7 +23,11 @@ else:
                            ],
                             extra_compile_args=extra_compile_args,
                             libraries=[])]
-   
+
+if PY3:
+    extra_install_requires = []
+else:
+    extra_install_requires = ["backports.shutil_which"]
 
 setup(
     name='vmprof',
@@ -34,7 +41,7 @@ setup(
     install_requires=[
         'requests',
         'six',
-    ],
+    ] + extra_install_requires,
     entry_points = {
         'console_scripts': [
             'vmprofshow = vmprof.show:main'

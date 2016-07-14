@@ -3,9 +3,6 @@
 #define MAX_FUNC_NAME 1024
 
 static int profile_file = -1;
-#if !DISABLE_GZIP
-static pid_t gzip_subproc_pid = -1;
-#endif
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
 static int opened_profile(char *interp_name, int memory);
@@ -35,42 +32,6 @@ typedef struct prof_stacktrace_s {
     void *stack[];
 } prof_stacktrace_s;
 
-#if !DISABLE_GZIP
-static int pipe_gzip(int out_fd, int *gzip_out_fd, int *subproc_pid)
-{
-    int pipefds[2];
-
-    if (pipe(pipefds) == -1)
-        return -1;
-
-    pid_t pid = fork();
-    switch (pid) {
-    case -1:
-        close(pipefds[0]);
-        close(pipefds[1]);
-        return -1;
-    case 0:
-        dup2(pipefds[0], STDIN_FILENO);
-        dup2(out_fd, STDOUT_FILENO);
-        close(pipefds[0]);
-        close(pipefds[1]);
-        close(out_fd);
-        /* Try system gzip */
-        execlp("gzip", "gzip", NULL);
-        perror("gzip");
-        /* Fall back to Python gzip module */
-        execlp("python", "python", "-m", "gzip", NULL);
-        perror("python -m gzip");
-        /* TODO: How do we avoid "hang" in the parent process in this case? */
-        exit(1);
-    default:
-        *subproc_pid = pid;
-        close(pipefds[0]);
-        *gzip_out_fd = pipefds[1];
-        return 0;
-    }
-}
-#endif
 
 RPY_EXTERN
 char *vmprof_init(int fd, double interval, int memory, char *interp_name)
@@ -87,21 +48,13 @@ char *vmprof_init(int fd, double interval, int memory, char *interp_name)
     if (memory)
         return "memory tracking only supported on unix";
 #endif
-
     assert(fd >= 0);
-#if !DISABLE_GZIP
-    if (pipe_gzip(fd, &profile_file, &gzip_subproc_pid) < 0)
-        goto err;
-#else
     profile_file = fd;
-#endif
-    if (opened_profile(interp_name, memory) < 0)
-        goto err;
+    if (opened_profile(interp_name, memory) < 0) {
+        profile_file = -1;
+        return strerror(errno);
+    }
     return NULL;
-
-err:
-    profile_file = -1;
-    return strerror(errno);
 }
 
 static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int max_depth)
