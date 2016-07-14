@@ -1,4 +1,3 @@
-
 def test_1():
     return [a for a in range(1000000)]
 
@@ -13,6 +12,10 @@ def main():
 
     return test_1() + test_2()
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
+    # When using `python -m vmprof` command
     main()
+    # When using vmprofi API.
+    #import vmprof
+    #with vmprof.profile("perf.data.gz", ["gzip", "-2"]):
+    #    main()

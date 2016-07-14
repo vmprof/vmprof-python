@@ -53,6 +53,14 @@ def build_argparser():
         action='store_true',
         help='Upload the jitlog to remote server (defaults to vmprof.com)',
     )
+    parser.add_argument(
+        '--gzip',
+        nargs='?',
+        type=int,
+        const=4,
+        metavar='level',
+        help="Compress output file with gzip with specified level",
+    )
     output_mode_args = parser.add_mutually_exclusive_group()
     output_mode_args.add_argument(
         '--web',
@@ -62,8 +70,8 @@ def build_argparser():
     output_mode_args.add_argument(
         '--output', '-o',
         metavar='file.prof',
-        type=argparse.FileType('w+b'),
-        help='Save profiling data to file'
+        type=argparse.FileType('wb'),
+        help='Save profiling data to file',
     )
 
     return parser

@@ -1,5 +1,7 @@
+import os
 import runpy
-import sys, os
+import subprocess
+import sys
 import tempfile
 
 import vmprof
@@ -40,6 +42,7 @@ def upload_stats(stats, forest, args):
 
 def main():
     args = vmprof.cli.parse_args(sys.argv[1:])
+    proc = None
 
     if args.web:
         output_mode = OUTPUT_WEB
@@ -51,14 +54,23 @@ def main():
     if output_mode == OUTPUT_FILE:
         prof_file = args.output
         prof_name = prof_file.name
+        fileno = prof_file.fileno()
+        if args.gzip:
+            cmd = ['/usr/bin/gzip', "-" + str(args.gzip)]
+            proc = subprocess.Popen(cmd, bufsize=-1,
+                                    stdin=subprocess.PIPE,
+                                    stdout=prof_file.fileno(),
+                                    close_fds=True)
+            fileno = proc.stdin.fileno()
     else:
         prof_file = tempfile.NamedTemporaryFile(delete=False)
         prof_name = prof_file.name
+        fileno = prof_file.fileno()
 
     if args.jitlog:
         assert hasattr(vmprof, 'enable_jitlog'), "note: jitlog is only available on pypy"
 
-    vmprof.enable(prof_file.fileno(), args.period, args.mem)
+    vmprof.enable(fileno, args.period, args.mem)
     if args.jitlog:
         # note that this file descr is then handled by jitlog
         fd = os.open(prof_name + '.jitlog', os.O_WRONLY | os.O_TRUNC | os.O_CREAT)
@@ -74,6 +86,9 @@ def main():
     vmprof.disable()
     if args.jitlog and hasattr(vmprof, 'disable_jitlog'):
         vmprof.disable_jitlog(fd)
+    if proc:
+        proc.stdin.close()
+        proc.wait()
     prof_file.close()
     show_stats(prof_name, output_mode, args)
     if output_mode != OUTPUT_FILE:

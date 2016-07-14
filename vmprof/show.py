@@ -1,9 +1,10 @@
 from __future__ import absolute_import
 
+import argparse
 import os
 import six
+import sys
 import vmprof
-import argparse
 
 
 class color(six.text_type):
@@ -145,7 +146,10 @@ def main():
         prune_level=args.prune_level,
         indent=args.indent)
 
-    pp.show(args.profile)
+    file = args.profile
+    if file == '-':
+        file = open(sys.stdin.fileno(), 'rb')
+    pp.show(file)
 
 
 if __name__ == '__main__':
