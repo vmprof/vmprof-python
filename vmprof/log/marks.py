@@ -170,6 +170,12 @@ def read_jitlog_counter(forest, trace, fileobj):
         trace.add_up_enter_count(count)
         return True
     else:
+        if type == 'e':
+            # it can happen that jitlog counters are present,
+            # even though there is no trace to be found.
+            # vm starts up (bootstrapping creates 1-2 trace),
+            # jitlog is enabled afterwards
+            return False
         assert type == 'b' or type == 'l'
         point_in_trace = forest.get_point_in_trace_by_descr(addr)
         if point_in_trace:
