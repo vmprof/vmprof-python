@@ -67,3 +67,25 @@ oberstet@thinkpad-t430s:~/scm/vmprof-python$ vmprofshow vmprof_cpuburn.dat
   0.5% ........ _next_rand  0.5%  tests/cpuburn.py:14
   0.0% ........ JIT code  0.0%  0x7fa7dba583b0
 ```
+
+
+## Line profiling
+
+vmprof supports line profiling mode, which enables collecting and showing the statistics for separate lines
+inside functions.
+
+To enable collection of lines statistics add `--lines` argument to vmprof.
+
+```console
+python -m vmprof --lines -o <output-file> <your program> <your program args>
+```
+
+To see line statistics for all functions add the `--lines` argument to vmprofshow:
+```console
+vmprofshow --lines <output-file>
+```
+
+To see line statistics for a specific function use the `--filter` argument with the function name:
+```console
+vmprofshow --lines --filter <function-name> <output-file>
+```

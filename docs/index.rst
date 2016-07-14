@@ -122,6 +122,9 @@ After ``-m vmprof`` you can specify some options:
 * ``-n`` - enable all C frames, only useful if you have a debug build of
   PyPy or CPython.
 
+* ``--lines`` - enable line profiling mode. This mode adds some overhead to profiling, but in addition to function calls
+it marks the execution of the specific lines inside functions.
+
 * ``-o file`` - save logs for later
 
 * ``--help`` - display help
