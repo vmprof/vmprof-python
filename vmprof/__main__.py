@@ -56,7 +56,7 @@ def main():
         prof_name = prof_file.name
 
 
-    vmprof.enable(prof_file.fileno(), args.period, args.mem)
+    vmprof.enable(prof_file.fileno(), args.period, args.mem, args.lines)
     if args.jitlog and hasattr(vmprof, 'enable_jitlog'):
         # note that this file descr is then handled by jitlog
         fd = os.open(prof_name + '.jitlog', os.O_WRONLY | os.O_TRUNC | os.O_CREAT)

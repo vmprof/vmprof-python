@@ -51,9 +51,12 @@ def test_read_header():
     f = FileObj([0, 3, 0, 100, 0, MARKER_HEADER])
     exc = py.test.raises(BufferTooSmallError, read_header, f)
     f.write(struct.pack("!h", 13))
+    f.write(struct.pack("b", 3))
     f.write(struct.pack("b", 9))
     f.write(b"foointerp")
     status = read_header(f, exc.value.get_buf())
     assert status.version == 13
+    assert status.profile_lines == True
+    assert status.profile_memory == True
     assert status.interp_name == "foointerp"
 

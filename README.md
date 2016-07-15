@@ -67,3 +67,43 @@ oberstet@thinkpad-t430s:~/scm/vmprof-python$ vmprofshow vmprof_cpuburn.dat
   0.5% ........ _next_rand  0.5%  tests/cpuburn.py:14
   0.0% ........ JIT code  0.0%  0x7fa7dba583b0
 ```
+
+
+## Line profiling
+
+vmprof supports line profiling mode, which enables collecting and showing the statistics for separate lines
+inside functions.
+
+To enable collection of lines statistics add `--lines` argument to vmprof:
+
+```console
+python -m vmprof --lines -o <output-file> <your program> <your program args>
+```
+
+Or pass `lines=True` argument to `vmprof.enable` function, when calling vmprof from code.
+
+To see line statistics for all functions add the `--lines` argument to `vmprofshow`:
+```console
+vmprofshow --lines <output-file>
+```
+
+To see line statistics for a specific function use the `--filter` argument with the function name:
+```console
+vmprofshow --lines --filter <function-name> <output-file>
+```
+
+You will see the result:
+```console
+macbook-pro-4:vmprof-python traff$ vmprofshow --lines --filter _next_rand vmprof_cpuburn.dat
+Total hits: 1170 s
+File: tests/cpuburn.py
+Function: _next_rand at line 14
+
+Line #     Hits   % Hits  Line Contents
+=======================================
+    14       38      3.2      def _next_rand(self):
+    15                            # http://rosettacode.org/wiki/Linear_congruential_generator
+    16      835     71.4          self._rand = (1103515245 * self._rand + 12345) & 0x7fffffff
+    17      297     25.4          return self._rand
+```
+
