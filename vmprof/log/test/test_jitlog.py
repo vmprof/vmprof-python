@@ -219,3 +219,23 @@ def test_point_in_trace():
     assert trace.counter == 10
     assert trace.point_counters[0] == 20
 
+class FakeOp(object):
+    def __init__(self, i):
+        self.index = i
+
+def test_counter_points():
+    forest = TraceForest(1)
+    trace = forest.add_trace('loop', 0)
+    d = trace.get_counter_points()
+    assert d['enter'] == 0
+    assert len(d) == 1
+    trace.counter = 100
+    d = trace.get_counter_points()
+    assert d['enter'] == 100
+    assert len(d) == 1
+    pit = PointInTrace(trace, FakeOp(10))
+    pit.add_up_enter_count(55)
+    d = trace.get_counter_points()
+    assert d[10] == 55
+    assert len(d) == 2
+
