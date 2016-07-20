@@ -1,5 +1,6 @@
 from __future__ import print_function
 import re
+import os
 import struct
 import subprocess
 import sys
@@ -11,7 +12,6 @@ from vmprof.binary import read_word, read_string, read_words
 
 PY3  = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')
-SEEK_RELATIVE = 1
 
 
 def read_trace(fileobj, depth, version):
@@ -64,7 +64,7 @@ def wrap_kind(kind, pc):
 
 def gunzip(fileobj):
     is_gzipped = fileobj.read(2) == b'\037\213'
-    fileobj.seek(-2, SEEK_RELATIVE)
+    fileobj.seek(-2, os.SEEK_CUR)
     if is_gzipped:
         fileobj = io.BufferedReader(gzip.GzipFile(fileobj=fileobj))
     return fileobj

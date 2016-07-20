@@ -29,7 +29,7 @@ if not IS_PYPY:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
-        gz_fileno = _gzip(fileno)
+        gz_fileno = _gzip_start(fileno)
         _vmprof.enable(gz_fileno, period, memory)
 
     def disable():
@@ -43,7 +43,7 @@ else:
         if warn and sys.pypy_version_info[:3] < (4, 1, 0):
             print ("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
             raise Exception("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
-        gz_fileno = _gzip(fileno)
+        gz_fileno = _gzip_start(fileno)
         _vmprof.enable(gz_fileno, period)
 
     def disable():
@@ -55,13 +55,13 @@ else:
             to vmprof.enable(...). Otherwise the profiling data might
             be broken.
         """
-        gz_fileno = _gzip(fileno)
+        gz_fileno = _gzip_start(fileno)
         _vmprof.enable_jitlog(gz_fileno)
 
 
 _gzip_procs = []
 
-def _gzip(fileno):
+def _gzip_start(fileno):
     """Spawn a gzip subprocess that writes compressed profile data to `fileno`.
 
     Return the subprocess' input fileno.
@@ -72,7 +72,8 @@ def _gzip(fileno):
     else:
         gzip_cmd = ["python", "-m", "gzip"]
     proc = subprocess.Popen(gzip_cmd, stdin=subprocess.PIPE,
-                            stdout=fileno, bufsize=-1, close_fds=True)
+                            stdout=fileno, bufsize=-1,
+                            close_fds=(sys.platform != "win32"))
     _gzip_procs.append(proc)
     return proc.stdin.fileno()
 
