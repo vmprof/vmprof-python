@@ -32,10 +32,6 @@ if not IS_PYPY:
         gz_fileno = _gzip_start(fileno)
         _vmprof.enable(gz_fileno, period, memory)
 
-    def disable():
-        _vmprof.disable()
-        _gzip_finish()
-
 else:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, warn=True):
         if not isinstance(period, float):
@@ -46,10 +42,6 @@ else:
         gz_fileno = _gzip_start(fileno)
         _vmprof.enable(gz_fileno, period)
 
-    def disable():
-        _vmprof.disable()
-        _gzip_finish()
-
     def enable_jitlog(fileno):
         """ Should be a different file than the one provided
             to vmprof.enable(...). Otherwise the profiling data might
@@ -57,6 +49,13 @@ else:
         """
         gz_fileno = _gzip_start(fileno)
         _vmprof.enable_jitlog(gz_fileno)
+
+def disable():
+    try:
+        _vmprof.disable()
+        _gzip_finish()
+    except IOError as e:
+        raise Exception("Error while writing profile: " + str(e))
 
 
 _gzip_procs = []

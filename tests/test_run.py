@@ -151,3 +151,13 @@ def test_memory_measurment():
         function_bar()
 
     s = prof.get_stats()
+
+def test_gzip_problem():
+    tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    vmprof.enable(tmpfile.fileno())
+    vmprof._gzip_procs[0].kill()
+    function_foo()
+    with py.test.raises(Exception) as exc_info:
+        vmprof.disable()
+        assert "Error while writing profile" in str(exc_info)
+    tmpfile.close()
