@@ -6,7 +6,7 @@ from vmprof.log.objects import (FlatOp, TraceForest, Trace,
         MergePoint, PointInTrace, iter_ranges)
 from vmprof.binary import (encode_addr, encode_str, encode_s64,
     encode_u64)
-from tests.test_reader import FileObj
+from vmprof.test.test_reader import FileObj
 from vmprof.reader import (read_one_marker, FileReadError, read_header,
     FileObjWrapper)
 import base64

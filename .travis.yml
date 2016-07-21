@@ -20,7 +20,6 @@ install:
   - pip install .
 
 script:
-  - py.test tests/ -vrs
   - py.test vmprof/ -vrs
 
 notifications:
