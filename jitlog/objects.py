@@ -2,7 +2,7 @@ import sys
 import struct
 import argparse
 from collections import defaultdict
-from vmprof.log import constants as const, merge_point
+from jitlog import constants as const, merge_point
 
 PY3 = sys.version_info[0] >= 3
 

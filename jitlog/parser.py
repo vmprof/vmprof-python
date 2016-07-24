@@ -1,6 +1,6 @@
 import sys
-from vmprof.log import constants as const, marks
-from vmprof.log.objects import TraceForest
+from jitlog import constants as const, marks
+from jitlog.objects import TraceForest
 if sys.version_info[0] >= 3:
     from io import StringIO
 else:

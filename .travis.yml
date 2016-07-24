@@ -21,6 +21,7 @@ install:
 
 script:
   - py.test vmprof/ -vrs
+  - py.test jitlog/ -vrs
 
 notifications:
   irc:

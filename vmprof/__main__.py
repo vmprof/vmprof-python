@@ -2,7 +2,10 @@ import runpy
 import sys, os
 import tempfile
 
-import vmprof
+try:
+    import _jitlog
+except ImportError:
+    _jitlog = None
 from vmprof.log.parser import parse_jitlog
 
 
@@ -18,12 +21,12 @@ def show_stats(filename, output_mode, args):
     stats = vmprof.read_profile(filename)
     forest = None
     jitlog_filename = filename + '.jitlog'
-    if os.path.exists(jitlog_filename):
-        forest = parse_jitlog(jitlog_filename)
 
     if output_mode == OUTPUT_CLI:
         vmprof.cli.show(stats)
     elif output_mode == OUTPUT_WEB:
+        if os.path.exists(jitlog_filename):
+            forest = parse_jitlog(jitlog_filename)
         upload_stats(stats, forest, args)
 
 
@@ -57,10 +60,9 @@ def main():
 
 
     vmprof.enable(prof_file.fileno(), args.period, args.mem, args.lines)
-    if args.jitlog and hasattr(vmprof, 'enable_jitlog'):
-        # note that this file descr is then handled by jitlog
+    if args.jitlog and _jitlog:
         fd = os.open(prof_name + '.jitlog', os.O_WRONLY | os.O_TRUNC | os.O_CREAT)
-        vmprof.enable_jitlog(fd)
+        _jitlog.enable(fd)
 
     try:
         sys.argv = [args.program] + args.args
@@ -70,8 +72,8 @@ def main():
         if not isinstance(e, (KeyboardInterrupt, SystemExit)):
             raise
     vmprof.disable()
-    if args.jitlog and hasattr(vmprof, 'disable_jitlog'):
-        vmprof.disable_jitlog()
+    if args.jitlog and _jitlog:
+        _jitlog.disable()
     prof_file.close()
     show_stats(prof_name, output_mode, args)
     if output_mode != OUTPUT_FILE:

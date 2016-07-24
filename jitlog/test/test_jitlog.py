@@ -1,8 +1,8 @@
 import struct, py, sys
 from vmprof import reader
-from vmprof.log import constants as const
-from vmprof.log import marks
-from vmprof.log.objects import (FlatOp, TraceForest, Trace,
+from jitlog import constants as const
+from jitlog import marks
+from jitlog.objects import (FlatOp, TraceForest, Trace,
         MergePoint, PointInTrace, iter_ranges)
 from vmprof.binary import (encode_addr, encode_str, encode_s64,
     encode_u64)
@@ -122,49 +122,49 @@ def test_merge_point_extract_source_code():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(MergePoint({0x1:'vmprof/log/test/data/code.py', 0x2: 2}))
+    trace.add_instr(MergePoint({0x1:'jitlog/test/data/code.py', 0x2: 2}))
     trace.add_instr(FlatOp(0, 'INT_ADD', ['i1','i2'], 'i3'))
     forest.extract_source_code_lines()
-    assert forest.source_lines['vmprof/log/test/data/code.py'][2] == (4, b'return a + b')
+    assert forest.source_lines['jitlog/test/data/code.py'][2] == (4, b'return a + b')
 
 def test_merge_point_extract_multiple_lines():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
+    trace.add_instr(MergePoint({0x1: 'jitlog/test/data/code.py', 0x2: 5}))
     trace.add_instr(FlatOp(0, 'INT_MUL', ['i1','i2'], 'i3'))
-    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 7}))
+    trace.add_instr(MergePoint({0x1: 'jitlog/test/data/code.py', 0x2: 7}))
     forest.extract_source_code_lines()
-    assert forest.source_lines['vmprof/log/test/data/code.py'][5] == (4, b'c = a * 2')
-    assert forest.source_lines['vmprof/log/test/data/code.py'][6] == (8, b'd = c * 3')
-    assert forest.source_lines['vmprof/log/test/data/code.py'][7] == (4, b'return d + 5')
+    assert forest.source_lines['jitlog/test/data/code.py'][5] == (4, b'c = a * 2')
+    assert forest.source_lines['jitlog/test/data/code.py'][6] == (8, b'd = c * 3')
+    assert forest.source_lines['jitlog/test/data/code.py'][7] == (4, b'return d + 5')
 
 def test_merge_point_duplicate_source_lines():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
-    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
-    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
-    trace.add_instr(MergePoint({0x1: 'vmprof/log/test/data/code.py', 0x2: 5}))
+    trace.add_instr(MergePoint({0x1: 'jitlog/test/data/code.py', 0x2: 5}))
+    trace.add_instr(MergePoint({0x1: 'jitlog/test/data/code.py', 0x2: 5}))
+    trace.add_instr(MergePoint({0x1: 'jitlog/test/data/code.py', 0x2: 5}))
+    trace.add_instr(MergePoint({0x1: 'jitlog/test/data/code.py', 0x2: 5}))
     forest.extract_source_code_lines()
-    assert forest.source_lines['vmprof/log/test/data/code.py'][5] == (4, b'c = a * 2')
-    assert len(forest.source_lines['vmprof/log/test/data/code.py']) == 1
+    assert forest.source_lines['jitlog/test/data/code.py'][5] == (4, b'c = a * 2')
+    assert len(forest.source_lines['jitlog/test/data/code.py']) == 1
 
 def test_merge_point_encode():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0)
     trace.start_mark(const.MARK_TRACE_OPT)
-    trace.add_instr(MergePoint({0x1:'vmprof/log/test/data/code.py', 0x2: 5}))
+    trace.add_instr(MergePoint({0x1:'jitlog/test/data/code.py', 0x2: 5}))
     trace.add_instr(FlatOp(0, 'INT_MUL', ['i1','i2'], 'i3'))
-    trace.add_instr(MergePoint({0x1:'vmprof/log/test/data/code.py', 0x2: 7}))
-    trace.add_instr(MergePoint({0x1:'vmprof/log/test/data/code2.py', 0x2: 3}))
+    trace.add_instr(MergePoint({0x1:'jitlog/test/data/code.py', 0x2: 7}))
+    trace.add_instr(MergePoint({0x1:'jitlog/test/data/code2.py', 0x2: 3}))
     forest.extract_source_code_lines()
     binary = trace.forest.encode_source_code_lines()
-    parta = b'\x22\x1d\x00\x00\x00vmprof/log/test/data/code2.py' \
+    parta = b'\x22\x19\x00\x00\x00jitlog/test/data/code2.py' \
             b'\x01\x00' \
             b'\x03\x00\x07\x13\x00\x00\x00self.unique = False'
-    partb = b'\x22\x1c\x00\x00\x00vmprof/log/test/data/code.py' \
+    partb = b'\x22\x18\x00\x00\x00jitlog/test/data/code.py' \
             b'\x03\x00' \
             b'\x05\x00\x04\x09\x00\x00\x00c = a * 2' \
             b'\x06\x00\x08\x09\x00\x00\x00d = c * 3' \
