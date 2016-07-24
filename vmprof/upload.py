@@ -1,10 +1,8 @@
-import gzip
 import sys
 import json
 import argparse
 import os
 import requests
-import tempfile
 import vmprof
 from vmprof.log.parser import read_jitlog_data, parse_jitlog
 from vmprof.stats import Stats

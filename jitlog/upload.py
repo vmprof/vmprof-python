@@ -1,4 +1,5 @@
 import gzip
+import tempfile
 
 def compress_file(filename):
     fileno, name = tempfile.mkstemp(prefix='jit', suffix='.log.zip')

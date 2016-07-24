@@ -59,4 +59,6 @@ docs/_build/
 target/
 
 *.dat
+*.swp
+*.swo
 
