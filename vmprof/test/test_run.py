@@ -5,6 +5,9 @@
 import py
 import sys
 import tempfile
+
+import six
+
 import vmprof
 from vmprof.reader import read_prof_bit_by_bit
 from vmprof.stats import Stats
@@ -151,3 +154,27 @@ def test_memory_measurment():
         function_bar()
 
     s = prof.get_stats()
+
+
+def test_line_profiling():
+    tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    vmprof.enable(tmpfile.fileno(), lines=True)  # enable lines profiling
+    function_foo()
+    vmprof.disable()
+    tmpfile.close()
+
+    def walk(tree):
+        assert len(tree.lines) >= len(tree.children)
+
+        for v in six.itervalues(tree.children):
+                walk(v)
+
+    with open(tmpfile.name, 'rb') as f:
+        period, profiles, virtual_symbols, interp_name = read_prof_bit_by_bit(f)
+        stats = Stats(profiles, virtual_symbols, interp_name)
+        walk(stats.get_tree())
+
+
+
+if __name__ == '__main__':
+    test_line_profiling()

@@ -34,6 +34,7 @@ setup(
         'requests',
         'six',
     ],
+    tests_require=['pytest'],
     entry_points = {
         'console_scripts': [
             'vmprofshow = vmprof.show:main'

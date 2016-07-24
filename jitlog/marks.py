@@ -1,7 +1,7 @@
 from __future__ import print_function
-from vmprof.log import constants as const
-from vmprof.log import merge_point
-from vmprof.log.objects import FlatOp, MergePoint
+from jitlog import constants as const
+from jitlog import merge_point
+from jitlog.objects import FlatOp, MergePoint
 from vmprof.binary import (read_word, read_string,
         read_le_u16, read_le_addr, read_le_u64,
         read_le_s64, read_bytes, read_byte,

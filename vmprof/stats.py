@@ -84,11 +84,16 @@ class Stats(object):
                 if isinstance(profile[0][i], AssemblerCode):
                     continue # just ignore it for now
                 addr = profile[0][i]
-                if addr == last_addr:
-                    continue # ignore duplicates
-                last_addr = addr
-                name = self._get_name(addr)
-                cur = cur.add_child(addr, name)
+
+                if addr <= 0:
+                    # negative address means line number
+                    cur.lines[-addr] = cur.lines.get(-addr, 0) + 1
+                else:
+                    if addr == last_addr:
+                        continue  # ignore duplicates
+                    last_addr = addr
+                    name = self._get_name(addr)
+                    cur = cur.add_child(addr, name)
             if isinstance(addr, JittedCode):
                 cur.meta['jit'] = cur.meta.get('jit', 0) + 1
         # get the first "interesting" node, that is after vmprof and pypy
@@ -135,6 +140,7 @@ class Node(object):
         self.count = count # starts at 1
         self.jitcodes = {}
         self.meta = {}
+        self.lines = {}
 
     def __getitem__(self, item):
         if isinstance(item, int):

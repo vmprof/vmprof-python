@@ -13,6 +13,7 @@ static int setup_rss(void)
 static int teardown_rss(void) {
     close(proc_file);
     proc_file = -1;
+    return 0;
 }
 
 static long get_current_proc_rss(void)
