@@ -74,17 +74,11 @@ def encode_le_s32(value):
 def encode_le_u32(value):
     return struct.pack('<I', value)
 
-def encode_s64(value):
+def encode_le_s64(value):
     return struct.pack('<q', value)
 
-def encode_u64(value):
+def encode_le_u64(value):
     return struct.pack('<Q', value)
-
-def encode_addr(val):
-    return struct.pack("l", val)
-
-def encode_le_addr(val):
-    return struct.pack(UNPACK_CHAR, val)
 
 def encode_str(val):
     if PY3:

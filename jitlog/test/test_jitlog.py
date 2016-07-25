@@ -5,8 +5,7 @@ from jitlog import marks
 from jitlog.parser import _parse_jitlog
 from jitlog.objects import (FlatOp, TraceForest, Trace,
         MergePoint, PointInTrace, iter_ranges)
-from vmprof.binary import (encode_addr, encode_str, encode_s64,
-    encode_u64, encode_le_u32)
+from vmprof.binary import (encode_str, encode_le_u64, encode_le_u32)
 from vmprof.test.test_reader import FileObj
 from vmprof.reader import FileObjWrapper
 import base64
@@ -38,9 +37,9 @@ def test_read_resop():
     assert forest.resops[0xfe00] == 'me'
 
 def test_asm_addr():
-    fobj = FileObj([const.MARK_START_TRACE, encode_u64(0x15), encode_str('loop'), encode_u64(0),
-                    const.MARK_TRACE, encode_u64(0x15),
-                    const.MARK_ASM_ADDR, encode_u64(0xAFFE), encode_u64(0xFEED)
+    fobj = FileObj([const.MARK_START_TRACE, encode_le_u64(0x15), encode_str('loop'), encode_le_u64(0),
+                    const.MARK_TRACE, encode_le_u64(0x15),
+                    const.MARK_ASM_ADDR, encode_le_u64(0xAFFE), encode_le_u64(0xFEED)
                    ])
     fw = FileObjWrapper(fobj)
     forest = construct_forest(fw)
@@ -52,8 +51,8 @@ def test_asm_positions():
     descr_nmr = struct.pack("l", 0)
     fobj = FileObj([const.MARK_RESOP_META, b"\x02\x00",
                     b"\xff\x00\x04\x00\x00\x00fire\x00\xfe\x02\x00\x00\x00on",
-                    const.MARK_START_TRACE, encode_s64(0xffaa), encode_str('loop'), encode_s64(0),
-                    const.MARK_TRACE, encode_s64(0xffaa),
+                    const.MARK_START_TRACE, encode_le_u64(0xffaa), encode_str('loop'), encode_le_u64(0),
+                    const.MARK_TRACE, encode_le_u64(0xffaa),
                     const.MARK_INPUT_ARGS, b"\x05\x00\x00\x00i1,i2", # input args
                     const.MARK_RESOP_DESCR, b"\xff\x00\x10\x00\x00\x00i3,i2,i1,descr()" + descr_nmr, # resop
                     const.MARK_ASM, b"\x04\x00\x08\x00\x00\x00DEADBEEF", # resop
@@ -99,20 +98,20 @@ def test_patch_asm_timeval():
     trace.get_core_dump(1) == "abcd432112"
 
 def test_counters():
-    descr_nmr = encode_addr(10)
+    descr_nmr = encode_le_u64(10)
 
     addr_len = struct.pack("<i", 8)
     fobj = FileObj([const.MARK_RESOP_META + b"\x01\x00\xff\x00", encode_str("python"),
-                    const.MARK_START_TRACE, encode_s64(0xffaa), encode_str('loop'), encode_s64(0),
-                    const.MARK_TRACE, encode_s64(0xffaa),
+                    const.MARK_START_TRACE, encode_le_u64(0xffaa), encode_str('loop'), encode_le_u64(0),
+                    const.MARK_TRACE, encode_le_u64(0xffaa),
                     const.MARK_INPUT_ARGS, encode_str("i1,i2"), # input args
                     const.MARK_RESOP_DESCR, b"\xff\x00", encode_str("i3,i2,i1,descr()") + descr_nmr, # resop
                     const.MARK_ASM, b"\x04\x00", encode_str("DEADBEEF"), # coredump
-                    const.MARK_ASM_ADDR, encode_addr(0xabcdef), encode_addr(0xabcdff),
-                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcdef), b'l', 15,
-                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcdef), b'l', 0,
-                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcdef), b'l', 15,
-                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcfff), b'l', 5, # not counted to 0xabcdef
+                    const.MARK_ASM_ADDR, encode_le_u64(0xabcdef), encode_le_u64(0xabcdff),
+                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcdef), b'l', 15,
+                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcdef), b'l', 0,
+                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcdef), b'l', 15,
+                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcfff), b'l', 5, # not counted to 0xabcdef
                    ])
     fw = FileObjWrapper(fobj)
     forest = construct_forest(fw)
@@ -192,12 +191,12 @@ def test_read_jitlog_counter():
     op = FlatOp(0, 'hello', '', '?', 0, 2)
     ta.add_instr(op)
     tb = forest.add_trace('bridge', 22, 101)
-    fw = FileObjWrapper(FileObj([encode_addr(0x0), b'l', encode_u64(20)]))
+    fw = FileObjWrapper(FileObj([encode_le_u64(0x0), b'l', encode_le_u64(20)]))
     assert marks.read_jitlog_counter(forest, None, fw) == False, \
             "must not find trace"
-    fw = FileObjWrapper(FileObj([encode_addr(1), b'e', encode_u64(145),
-                                 encode_addr(2), b'l', encode_u64(45),
-                                 encode_addr(22), b'b', encode_u64(100),
+    fw = FileObjWrapper(FileObj([encode_le_u64(1), b'e', encode_le_u64(145),
+                                 encode_le_u64(2), b'l', encode_le_u64(45),
+                                 encode_le_u64(22), b'b', encode_le_u64(100),
                                 ]))
     # read the entry, the label, and the bridge
     assert marks.read_jitlog_counter(forest, None, fw) == True
