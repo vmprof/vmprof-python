@@ -4,7 +4,6 @@ import argparse
 import os
 import requests
 import vmprof
-import upload
 from jitlog.parser import read_jitlog_data, parse_jitlog
 from vmprof.stats import Stats
 from vmprof.stats import EmptyProfileFile
