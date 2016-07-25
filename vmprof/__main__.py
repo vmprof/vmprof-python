@@ -1,6 +1,7 @@
 import runpy
 import sys, os
 import tempfile
+    from vmprof.upload import upload as upload_vmprofile
 
 try:
     import _jitlog
@@ -31,14 +32,13 @@ def show_stats(filename, output_mode, args):
 
 
 def upload_stats(stats, forest, args):
-    import vmprof.upload
     name = args.program
     argv = " ".join(args.args)
     host = args.web_url
     auth = args.web_auth
     #
     sys.stderr.write("Compiling and uploading to %s...\n" % (args.web_url,))
-    vmprof.upload.upload(stats, name, argv, host, auth, forest)
+    upload_vmprofile(stats, name, argv, host, auth, forest)
 
 
 def main():

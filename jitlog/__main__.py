@@ -1,23 +1,17 @@
 import runpy
 import sys, os
 import tempfile
+import argparse
+from jitlog.upload import upload as jitlog_upload
+from vmprof.service import get_url
 
 try:
     import _jitlog
 except ImportError:
     _jitlog = None
 
-def upload_stats(stats, forest, args):
-    import vmprof.upload
-    name = args.program
-    argv = " ".join(args.args)
-    host = args.web_url
-    auth = args.web_auth
-    #
-    sys.stderr.write("Compiling and uploading to %s...\n" % (args.web_url,))
-    vmprof.upload.upload(stats, name, argv, host, auth, forest)
-
 def build_argparser():
+    # TODO merge with arguments of vmprof.cli
     parser = argparse.ArgumentParser(
         description='Jitlog',
         prog="jitlog"
@@ -61,13 +55,15 @@ def build_argparser():
 def main():
     parser = build_argparser()
     args = parser.parse_args(sys.argv[1:])
+    web = args.web
 
-    if args.web:
-        output_mode = OUTPUT_WEB
-    elif args.output:
-        output_mode = OUTPUT_FILE
+    if not _jitlog:
+        if '__pypy__' in sys.builtin_module_names:
+            sys.stderr.write("No _jitlog module. This PyPy version is too old!\n")
+        else:
+            sys.stderr.write("No _jitlog module. Use PyPy instead of CPython!\n")
 
-    if output_mode == OUTPUT_FILE:
+    if not web:
         prof_file = args.output
         prof_name = prof_file.name
     else:
@@ -75,10 +71,8 @@ def main():
         prof_name = prof_file.name
 
 
-    vmprof.enable(prof_file.fileno(), args.period, args.mem, args.lines)
     fd = os.open(prof_name, os.O_WRONLY | os.O_TRUNC | os.O_CREAT)
     _jitlog.enable(fd)
-    # not need to close fd, will be closed in _jitlog.disable()
 
     try:
         sys.argv = [args.program] + args.args
@@ -87,9 +81,11 @@ def main():
     except BaseException as e:
         if not isinstance(e, (KeyboardInterrupt, SystemExit)):
             raise
+    # not need to close fd, will be here
     _jitlog.disable()
+
     if output_mode == OUTPUT_WEB:
-        upload(prof_name, output_mode, args)
+        jitlog_upload(prof_name, args)
     if output_mode != OUTPUT_FILE:
         os.unlink(prof_name)
 

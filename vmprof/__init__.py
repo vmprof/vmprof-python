@@ -28,13 +28,6 @@ if not IS_PYPY:
 
     def disable():
         _vmprof.disable()
-
-    def enable_jitlog(fileno):
-        raise ValueError("Jitlog cannot be enabled on CPython")
-
-    def disable_jitlog():
-        raise ValueError("Jitlog cannot be disabled on CPython")
-
 else:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, warn=True):
         if not isinstance(period, float):
