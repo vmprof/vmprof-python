@@ -1,5 +1,13 @@
+import os
+import sys
 import gzip
 import tempfile
+import requests
+try:
+    from urlparse import urlparse
+except ImportError:
+    # python 3
+    from urllib.parse import urlparse
 
 def compress_file(filename):
     fileno, name = tempfile.mkstemp(prefix='jit', suffix='.log.zip')
@@ -18,5 +26,6 @@ def upload(filepath, url):
     with open(zfilepath, 'rb') as fd:
         r = requests.post(url, files={ 'file': fd })
         checksum = r.text[1:-1]
-        sys.stderr.write("PyPy JIT log: %s/#/%s/traces\n" % (host.rstrip("/"), checksum))
+        netloc = urlparse(url).netloc
+        sys.stderr.write("PyPy JIT log: http://%s/#/%s/traces\n" % (netloc, checksum))
 

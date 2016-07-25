@@ -3,7 +3,7 @@ import sys, os
 import tempfile
 import argparse
 from jitlog.upload import upload as jitlog_upload
-from vmprof.service import get_url
+from vmprofservice import get_url
 
 try:
     import _jitlog
@@ -84,9 +84,8 @@ def main():
     # not need to close fd, will be here
     _jitlog.disable()
 
-    if output_mode == OUTPUT_WEB:
-        jitlog_upload(prof_name, args)
-    if output_mode != OUTPUT_FILE:
+    if web:
+        jitlog_upload(prof_name, get_url(args.web_url, "api/jitlog//"))
         os.unlink(prof_name)
 
 main()
