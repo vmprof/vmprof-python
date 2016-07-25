@@ -1,7 +1,7 @@
 import runpy
 import sys, os
 import tempfile
-    from vmprof.upload import upload as upload_vmprofile
+from vmprof.upload import upload as upload_vmprofile
 
 try:
     import _jitlog
