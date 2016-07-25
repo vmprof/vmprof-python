@@ -327,7 +327,7 @@ class PointInTrace(object):
 
 class TraceForest(object):
     def __init__(self, version, is_32bit=False):
-        self.WORD_SIZE = 4 if is_32bit else 8
+        self.word_size = 4 if is_32bit else 8
         self.version = version
         self.roots = []
         self.traces = {}
@@ -336,7 +336,6 @@ class TraceForest(object):
         self.resops = {}
         self.timepos = 0
         self.patches = []
-        self.keep = keep_data
         self.stitches = {}
         self.filepath = None
         # a mapping from source file name -> {lineno: (indent, line)}
@@ -393,8 +392,8 @@ class TraceForest(object):
         return self.traces.get(id, None)
 
     def read_le_addr(self, fileobj):
-        b = fileobj.read(self.WORD_SIZE)
-        if self.WORD_SIZE == 4:
+        b = fileobj.read(self.word_size)
+        if self.word_size == 4:
             return int(struct.unpack('i', b)[0])
         else:
             return int(struct.unpack('q', b)[0])

@@ -2,13 +2,13 @@ import struct, py, sys
 from vmprof import reader
 from jitlog import constants as const
 from jitlog import marks
+from jitlog.parser import _parse_jitlog
 from jitlog.objects import (FlatOp, TraceForest, Trace,
         MergePoint, PointInTrace, iter_ranges)
 from vmprof.binary import (encode_addr, encode_str, encode_s64,
-    encode_u64)
+    encode_u64, encode_le_u32)
 from vmprof.test.test_reader import FileObj
-from vmprof.reader import (read_one_marker, FileReadError, read_header,
-    FileObjWrapper)
+from vmprof.reader import FileObjWrapper
 import base64
 import vmprof
 
@@ -38,9 +38,9 @@ def test_read_resop():
     assert forest.resops[0xfe00] == 'me'
 
 def test_asm_addr():
-    fobj = FileObj([const.MARK_START_TRACE, encode_s64(0x15), encode_str('loop'), encode_s64(0),
-                    const.MARK_TRACE, encode_s64(0x15),
-                    const.MARK_ASM_ADDR, encode_addr(0xAFFE), encode_addr(0xFEED)
+    fobj = FileObj([const.MARK_START_TRACE, encode_u64(0x15), encode_str('loop'), encode_u64(0),
+                    const.MARK_TRACE, encode_u64(0x15),
+                    const.MARK_ASM_ADDR, encode_u64(0xAFFE), encode_u64(0xFEED)
                    ])
     fw = FileObjWrapper(fobj)
     forest = construct_forest(fw)
@@ -239,4 +239,19 @@ def test_counter_points():
     d = trace.get_counter_points()
     assert d[10] == 55
     assert len(d) == 2
+
+def test_32bit_log_header():
+    fobj = FileObj([const.MARK_JITLOG_HEADER+ b"\x01\x00\x01"])
+    forest = _parse_jitlog(fobj)
+    assert forest.version == 1
+    assert forest.word_size == 4
+
+def test_32bit_read_trace():
+    fobj = FileObj([const.MARK_JITLOG_HEADER+ b"\x01\x00\x01",
+                    const.MARK_START_TRACE, encode_le_u32(0x15), encode_str('loop'), encode_le_u32(0),
+                   ])
+    forest = _parse_jitlog(fobj)
+    assert forest.version == 1
+    assert forest.word_size == 4
+    assert len(forest.traces) == 1
 
