@@ -61,7 +61,7 @@ class FlatOp(object):
         if descr is None:
             descr = ''
         else:
-            descr = ', @' + descr
+            descr = ', @' + str(descr)
         return '%s%s(%s%s)' % (suffix, self.opname,
                                 ', '.join(self.args), descr)
 
@@ -232,7 +232,8 @@ class Trace(object):
         if op.has_descr():
             dict = self.forest.descr_nmr_to_point_in_trace
             nmr = op.get_descr_nmr()
-            assert nmr > 0x0, "descr must not be 0x0"
+            if nmr == 0x0:
+                sys.stderr.write("descr in trace %s should not be 0x0\n" % self)
             dict[nmr] = PointInTrace(self, op)
 
         if isinstance(op, MergePoint):
@@ -396,8 +397,8 @@ class TraceForest(object):
         self.traces[unique_id] = trace
         self.last_trace = trace
         if trace_type == 'bridge':
-            assert trace_nmr in self.descr_nmr_to_point_in_trace, \
-                    "descr 0x%x must be known, but is not" % trace_nmr
+            if trace_nmr in self.descr_nmr_to_point_in_trace:
+                sys.stderr.write("descr 0x%x must be known, but it is not\n" % trace_nmr)
 
         return trace
 

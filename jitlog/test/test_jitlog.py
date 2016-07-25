@@ -10,6 +10,7 @@ from vmprof.test.test_reader import FileObj
 from vmprof.reader import (read_one_marker, FileReadError, read_header,
     FileObjWrapper)
 import base64
+import vmprof
 
 PY3 = sys.version_info[0] >= 3
 
@@ -23,7 +24,7 @@ def construct_forest(fileobj):
             trace = forest.last_trace
             read(forest, trace, fileobj)
             forest.time_tick()
-    except:
+    except vmprof.reader.BufferTooSmallError:
         pass
     return forest
 
@@ -108,10 +109,10 @@ def test_counters():
                     const.MARK_RESOP_DESCR, b"\xff\x00", encode_str("i3,i2,i1,descr()") + descr_nmr, # resop
                     const.MARK_ASM, b"\x04\x00", encode_str("DEADBEEF"), # coredump
                     const.MARK_ASM_ADDR, encode_addr(0xabcdef), encode_addr(0xabcdff),
-                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcdef), 15,
-                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcdef), 0,
-                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcdef), 15,
-                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcfff), 5, # not counted to 0xabcdef
+                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcdef), b'l', 15,
+                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcdef), b'l', 0,
+                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcdef), b'l', 15,
+                    const.MARK_JITLOG_COUNTER, encode_addr(0xabcfff), b'l', 5, # not counted to 0xabcdef
                    ])
     fw = FileObjWrapper(fobj)
     forest = construct_forest(fw)
@@ -120,7 +121,7 @@ def test_counters():
 
 def test_merge_point_extract_source_code():
     forest = TraceForest(1)
-    trace = forest.add_trace('loop', 0)
+    trace = forest.add_trace('loop', 0, 0)
     trace.start_mark(const.MARK_TRACE_OPT)
     trace.add_instr(MergePoint({0x1:'jitlog/test/data/code.py', 0x2: 2}))
     trace.add_instr(FlatOp(0, 'INT_ADD', ['i1','i2'], 'i3'))
@@ -129,7 +130,7 @@ def test_merge_point_extract_source_code():
 
 def test_merge_point_extract_multiple_lines():
     forest = TraceForest(1)
-    trace = forest.add_trace('loop', 0)
+    trace = forest.add_trace('loop', 0, 0)
     trace.start_mark(const.MARK_TRACE_OPT)
     trace.add_instr(MergePoint({0x1: 'jitlog/test/data/code.py', 0x2: 5}))
     trace.add_instr(FlatOp(0, 'INT_MUL', ['i1','i2'], 'i3'))
@@ -141,7 +142,7 @@ def test_merge_point_extract_multiple_lines():
 
 def test_merge_point_duplicate_source_lines():
     forest = TraceForest(1)
-    trace = forest.add_trace('loop', 0)
+    trace = forest.add_trace('loop', 0, 0)
     trace.start_mark(const.MARK_TRACE_OPT)
     trace.add_instr(MergePoint({0x1: 'jitlog/test/data/code.py', 0x2: 5}))
     trace.add_instr(MergePoint({0x1: 'jitlog/test/data/code.py', 0x2: 5}))
@@ -153,7 +154,7 @@ def test_merge_point_duplicate_source_lines():
 
 def test_merge_point_encode():
     forest = TraceForest(1)
-    trace = forest.add_trace('loop', 0)
+    trace = forest.add_trace('loop', 0, 0)
     trace.start_mark(const.MARK_TRACE_OPT)
     trace.add_instr(MergePoint({0x1:'jitlog/test/data/code.py', 0x2: 5}))
     trace.add_instr(FlatOp(0, 'INT_MUL', ['i1','i2'], 'i3'))
@@ -186,11 +187,11 @@ def test_iter_ranges():
 
 def test_read_jitlog_counter():
     forest = TraceForest(1)
-    ta = forest.add_trace('loop', 1)
+    ta = forest.add_trace('loop', 1, 0)
     ta.start_mark(const.MARK_TRACE_ASM)
     op = FlatOp(0, 'hello', '', '?', 0, 2)
     ta.add_instr(op)
-    tb = forest.add_trace('bridge', 22)
+    tb = forest.add_trace('bridge', 22, 101)
     fw = FileObjWrapper(FileObj([encode_addr(0x0), b'l', encode_u64(20)]))
     assert marks.read_jitlog_counter(forest, None, fw) == False, \
             "must not find trace"
@@ -208,12 +209,12 @@ def test_read_jitlog_counter():
 
 def test_point_in_trace():
     forest = TraceForest(1)
-    trace = forest.add_trace('loop', 0)
+    trace = forest.add_trace('loop', 0, 0)
     trace.start_mark(const.MARK_TRACE_ASM)
-    op = FlatOp(0, 'hello', '', '?', 0, 0)
+    op = FlatOp(0, 'hello', '', '?', 0, 1)
     trace.add_instr(op)
     trace.add_up_enter_count(10)
-    point_in_trace = forest.get_point_in_trace_by_descr(0)
+    point_in_trace = forest.get_point_in_trace_by_descr(1)
     point_in_trace.add_up_enter_count(20)
 
     assert trace.counter == 10
@@ -225,7 +226,7 @@ class FakeOp(object):
 
 def test_counter_points():
     forest = TraceForest(1)
-    trace = forest.add_trace('loop', 0)
+    trace = forest.add_trace('loop', 0, 0)
     d = trace.get_counter_points()
     assert d['enter'] == 0
     assert len(d) == 1

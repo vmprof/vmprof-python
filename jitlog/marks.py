@@ -47,7 +47,7 @@ def read_start_trace(forest, trace, fileobj):
     trace_nmr = read_le_s64(fileobj)
     #
     assert trace_id not in forest.traces
-    forest.add_trace(trace_type, trace_id)
+    forest.add_trace(trace_type, trace_id, trace_nmr)
 
 @version(1)
 def read_trace(forest, trace, fileobj):
