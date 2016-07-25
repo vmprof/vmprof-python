@@ -326,7 +326,8 @@ class PointInTrace(object):
         return "point in trace %s, op %s" % (self.trace, self.op)
 
 class TraceForest(object):
-    def __init__(self, version, keep_data=True):
+    def __init__(self, version, is_32bit=False):
+        self.WORD_SIZE = 4 if is_32bit else 8
         self.version = version
         self.roots = []
         self.traces = {}
@@ -390,6 +391,13 @@ class TraceForest(object):
 
     def get_trace_by_id(self, id):
         return self.traces.get(id, None)
+
+    def read_le_addr(self, fileobj):
+        b = fileobj.read(self.WORD_SIZE)
+        if self.WORD_SIZE == 4:
+            return int(struct.unpack('i', b)[0])
+        else:
+            return int(struct.unpack('q', b)[0])
 
     def add_trace(self, trace_type, unique_id, trace_nmr):
         """ Create a new trace object and attach it to the forest """

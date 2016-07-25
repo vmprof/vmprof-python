@@ -56,10 +56,6 @@ def read_string(fileobj, little_endian=False):
         lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])
     return fileobj.read(lgt)
 
-def read_le_addr(fileobj):
-    b = fileobj.read(WORD_SIZE)
-    return int(struct.unpack(UNPACK_CHAR, b)[0])
-
 def read_le_u16(fileobj):
     return int(struct.unpack('<H', fileobj.read(2))[0])
 

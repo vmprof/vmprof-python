@@ -24,7 +24,8 @@ def parse_jitlog(filename, data=None):
 def _parse_jitlog(fileobj):
     is_jit_log = fileobj.read(1) == const.MARK_JITLOG_HEADER
     version = ord(fileobj.read(1)) | (ord(fileobj.read(1)) << 8)
-    forest = TraceForest(version)
+    is_32bit = ord(fileobj.read(1))
+    forest = TraceForest(version, is_32bit)
     assert is_jit_log, "Missing header. Data might not be a jitlog!"
     assert version >= JITLOG_MIN_VERSION, \
             "Version does not match. Log is version %d%d is not satisfied" % \

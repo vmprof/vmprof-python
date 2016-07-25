@@ -3,7 +3,7 @@ from jitlog import constants as const
 from jitlog import merge_point
 from jitlog.objects import FlatOp, MergePoint
 from vmprof.binary import (read_word, read_string,
-        read_le_u16, read_le_addr, read_le_u64,
+        read_le_u16, read_le_u64,
         read_le_s64, read_bytes, read_byte,
         read_char)
 import base64
@@ -42,9 +42,9 @@ def read_resop_meta(forest, trace, fileobj):
 
 @version(1)
 def read_start_trace(forest, trace, fileobj):
-    trace_id = read_le_s64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     trace_type = read_string(fileobj, True)
-    trace_nmr = read_le_s64(fileobj)
+    trace_nmr = forest.read_le_addr(fileobj)
     #
     assert trace_id not in forest.traces
     forest.add_trace(trace_type, trace_id, trace_nmr)
@@ -52,21 +52,21 @@ def read_start_trace(forest, trace, fileobj):
 @version(1)
 def read_trace(forest, trace, fileobj):
     assert trace is not None
-    trace_id = read_le_s64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     assert trace_id == trace.unique_id
     trace.start_mark(const.MARK_TRACE)
 
 @version(1)
 def read_trace_opt(forest, trace, fileobj):
     assert trace is not None
-    trace_id = read_le_s64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     assert trace_id == trace.unique_id
     trace.start_mark(const.MARK_TRACE_OPT)
 
 @version(1)
 def read_trace_asm(forest, trace, fileobj):
     assert trace is not None
-    trace_id = read_le_s64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     assert trace_id == trace.unique_id
     trace.start_mark(const.MARK_TRACE_ASM)
 
@@ -96,7 +96,7 @@ def read_resop_descr(forest, trace, fileobj):
     assert trace is not None
     opnum = read_le_u16(fileobj)
     args = read_string(fileobj, True).split(',')
-    descr_number = read_le_addr(fileobj)
+    descr_number = forest.read_le_addr(fileobj)
     descr = args[-1]
     result = args[0]
     args = args[1:-1]
@@ -109,8 +109,8 @@ def read_resop_descr(forest, trace, fileobj):
 @version(1)
 def read_asm_addr(forest, trace, fileobj):
     assert trace is not None
-    addr1 = read_le_addr(fileobj)
-    addr2 = read_le_addr(fileobj)
+    addr1 = forest.read_le_addr(fileobj)
+    addr2 = forest.read_le_addr(fileobj)
     trace.set_addr_bounds(addr1, addr2)
 
 @version(1)
@@ -152,13 +152,13 @@ def read_merge_point(forest, trace, fileobj):
 
 @version(1)
 def read_stitch_bridge(forest, trace, fileobj):
-    descr_number = read_le_addr(fileobj)
-    addr_tgt = read_le_addr(fileobj)
+    descr_number = forest.read_le_addr(fileobj)
+    addr_tgt = forest.read_le_addr(fileobj)
     forest.stitch_bridge(descr_number, addr_tgt)
 
 @version(1)
 def read_jitlog_counter(forest, trace, fileobj):
-    addr = read_le_addr(fileobj)
+    addr = forest.read_le_addr(fileobj)
     type = read_char(fileobj)
     count = read_le_u64(fileobj)
     # entry: gets the globally numbered addr of the loop
@@ -189,7 +189,7 @@ def read_jitlog_counter(forest, trace, fileobj):
 
 @version(1)
 def read_abort_trace(forest, trace, fileobj):
-    trace_id = read_le_u64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     # TODO?
 
 @version(1)
