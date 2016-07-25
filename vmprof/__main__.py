@@ -1,6 +1,7 @@
 import runpy
 import sys, os
 import tempfile
+import vmprof
 from vmprof.upload import upload as upload_vmprofile
 from jitlog.parser import parse_jitlog
 try:

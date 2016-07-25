@@ -1,3 +1,4 @@
+import os
 import sys
 import struct
 import argparse
@@ -230,7 +231,9 @@ class Trace(object):
         self.get_stage(self.last_mark).append_op(op)
         if op.has_descr():
             dict = self.forest.descr_nmr_to_point_in_trace
-            dict[op.get_descr_nmr()] = PointInTrace(self, op)
+            nmr = op.get_descr_nmr()
+            assert nmr > 0x0, "descr must not be 0x0"
+            dict[nmr] = PointInTrace(self, op)
 
         if isinstance(op, MergePoint):
             lineno, filename = op.get_source_line()
@@ -318,6 +321,9 @@ class PointInTrace(object):
         else:
             counters[i] += count
 
+    def __repr__(self):
+        return "point in trace %s, op %s" % (self.trace, self.op)
+
 class TraceForest(object):
     def __init__(self, version, keep_data=True):
         self.version = version
@@ -330,9 +336,15 @@ class TraceForest(object):
         self.patches = []
         self.keep = keep_data
         self.stitches = {}
+        self.filepath = None
         # a mapping from source file name -> {lineno: (indent, line)}
         self.source_lines = defaultdict(dict)
         self.descr_nmr_to_point_in_trace = {}
+
+    def unlink_jitlog(self):
+        if self.filepath and os.path.exists(self.filepath):
+            os.unlink(self.filepath)
+            self.filepath = None
 
     def get_point_in_trace_by_descr(self, descr):
         assert isinstance(descr, int)
@@ -378,11 +390,15 @@ class TraceForest(object):
     def get_trace_by_id(self, id):
         return self.traces.get(id, None)
 
-    def add_trace(self, trace_type, unique_id):
+    def add_trace(self, trace_type, unique_id, trace_nmr):
         """ Create a new trace object and attach it to the forest """
         trace = Trace(self, trace_type, self.timepos, unique_id)
         self.traces[unique_id] = trace
         self.last_trace = trace
+        if trace_type == 'bridge':
+            assert trace_nmr in self.descr_nmr_to_point_in_trace, \
+                    "descr 0x%x must be known, but is not" % trace_nmr
+
         return trace
 
     def stitch_bridge(self, descr_number, addr_to):

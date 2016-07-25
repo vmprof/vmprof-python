@@ -48,7 +48,6 @@ def read_start_trace(forest, trace, fileobj):
     #
     assert trace_id not in forest.traces
     forest.add_trace(trace_type, trace_id)
-    assert trace_id in forest.traces
 
 @version(1)
 def read_trace(forest, trace, fileobj):
@@ -184,8 +183,8 @@ def read_jitlog_counter(forest, trace, fileobj):
             else:
                 point_in_trace.add_up_enter_count(count)
             return True
-    print("trace with 0x%x (type '%c' was executed %d times" \
-          " but was not recorded in the log" % (addr, type, count), file=sys.stderr)
+    sys.stderr.write("trace with 0x%x (type '%c' was executed %d times" \
+          " but was not recorded in the log\n" % (addr, type, count))
     return False
 
 @version(1)
