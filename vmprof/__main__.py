@@ -2,12 +2,11 @@ import runpy
 import sys, os
 import tempfile
 from vmprof.upload import upload as upload_vmprofile
-
+from jitlog.parser import parse_jitlog
 try:
     import _jitlog
 except ImportError:
     _jitlog = None
-from vmprof.log.parser import parse_jitlog
 
 
 OUTPUT_CLI = 'cli'
