@@ -4,6 +4,7 @@ import tempfile
 import argparse
 from jitlog.upload import upload as jitlog_upload
 from vmprofservice import get_url
+from jitlog.parser import parse_jitlog
 
 try:
     import _jitlog
@@ -84,8 +85,11 @@ def main():
     # not need to close fd, will be here
     _jitlog.disable()
 
+    forest = parse_jitlog(prof_name)
+
     if web:
-        jitlog_upload(prof_name, get_url(args.web_url, "api/jitlog//"))
-        os.unlink(prof_name)
+        jitlog_upload(forest.filepath, get_url(args.web_url, "api/jitlog//"))
+
+    forest.unlink_jitlog()
 
 main()

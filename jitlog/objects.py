@@ -357,11 +357,18 @@ class TraceForest(object):
             return None, None
         return lines.get(lineno, (None, None))
 
+    def copy_and_add_source_code_tags(self):
+        with open(self.filepath, "ab") as fd:
+            blob = self.encode_source_code_lines()
+            fd.write(blob)
+
     def extract_source_code_lines(self):
         file_contents = {}
         for _, trace in self.traces.items():
             for file, lines in trace.merge_point_files.items():
                 if file not in file_contents:
+                    if not os.path.exists(file):
+                        continue
                     with open(file, 'rb') as fd:
                         data = fd.read()
                         if PY3:
@@ -375,7 +382,7 @@ class TraceForest(object):
                         data = line.lstrip()
                         diff = len(line) - len(data)
                         indent = diff
-                        for i in range(0, diff+1):
+                        for i in range(0, diff):
                             if line[i] == '\t':
                                 indent += 7
                         if PY3:
@@ -403,10 +410,6 @@ class TraceForest(object):
         trace = Trace(self, trace_type, self.timepos, unique_id)
         self.traces[unique_id] = trace
         self.last_trace = trace
-        if trace_type == 'bridge':
-            if trace_nmr in self.descr_nmr_to_point_in_trace:
-                sys.stderr.write("descr 0x%x must be known, but it is not\n" % trace_nmr)
-
         return trace
 
     def stitch_bridge(self, descr_number, addr_to):
