@@ -325,6 +325,25 @@ class PointInTrace(object):
     def __repr__(self):
         return "point in trace %s, op %s" % (self.trace, self.op)
 
+def decode_source(source_bytes):
+    # copied from _bootstrap_external.py
+    """Decode bytes representing source code and return the string.
+    Universal newline support is used in the decoding.
+    """
+    import _io
+    import tokenize  # To avoid bootstrap issues.
+    source_bytes_readline = _io.BytesIO(source_bytes).readline
+    encoding = tokenize.detect_encoding(source_bytes_readline)
+    newline_decoder = _io.IncrementalNewlineDecoder(None, True)
+    return newline_decoder.decode(source_bytes.decode(encoding[0]))
+
+def read_python_source(file):
+    with open(file, 'rb') as fd:
+        data = fd.read()
+        if PY3:
+            data = decode_source(data)
+        return data
+
 class TraceForest(object):
     def __init__(self, version, is_32bit=False):
         self.word_size = 4 if is_32bit else 8
@@ -369,11 +388,9 @@ class TraceForest(object):
                 if file not in file_contents:
                     if not os.path.exists(file):
                         continue
-                    with open(file, 'rb') as fd:
-                        data = fd.read()
-                        if PY3:
-                            data = data.decode('utf-8')
-                        file_contents[file] = data.splitlines()
+                    code = read_python_source(file)
+                    file_contents[file] = code.splitlines()
+
                 split_lines = file_contents[file]
                 saved_lines = self.source_lines[file]
                 for int_range in iter_ranges(lines):
@@ -385,8 +402,6 @@ class TraceForest(object):
                         for i in range(0, diff):
                             if line[i] == '\t':
                                 indent += 7
-                        if PY3:
-                            data = data.encode('utf-8')
                         saved_lines[r] = (indent, data)
 
     def get_trace(self, id):
