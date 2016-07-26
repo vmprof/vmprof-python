@@ -1,7 +1,3 @@
-====================
-vmprof documentation
-====================
-
 .. image:: _static/vmprof-logo.png
     :width: 386px 
     :align: center
@@ -9,6 +5,8 @@ vmprof documentation
 `vmprof`_ is a platform to understand and resolve performance bottlenecks in your code.
 It includes a *lightweight profiler* for `CPython`_ 2.7, `CPython`_ 3 and `PyPy`_
 and a log visualizer for `PyPy`_.
+
+The following provides more information about CPU profiles and JIT Compiler Logs:
 
 .. toctree::
    :maxdepth: 2
