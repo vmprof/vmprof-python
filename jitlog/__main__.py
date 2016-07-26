@@ -89,7 +89,6 @@ def main():
 
     if web:
         jitlog_upload(forest.filepath, get_url(args.web_url, "api/jitlog//"))
-
-    forest.unlink_jitlog()
+        forest.unlink_jitlog() # free space!!!
 
 main()
