@@ -471,7 +471,7 @@ class TraceForest(object):
             marks.append(struct.pack('<H', len(lines)))
             for lineno, (indent, line) in lines.items():
                 marks.append(struct.pack('<HBI', lineno, indent, len(line)))
-                marks.append(line)
+                marks.append(line.encode('utf-8'))
         return b''.join(marks)
 
     def add_source_code_line(self, filename, lineno, indent, line):
