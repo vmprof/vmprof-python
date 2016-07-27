@@ -29,4 +29,8 @@ def test_merge_point_extract_source_code(encoding,text,decoded,bom,tmpdir):
     file.write_binary(b''.join(l))
     trace.add_instr(MergePoint({0x1: str(file), 0x2: 2}))
     forest.extract_source_code_lines()
-    assert forest.source_lines[str(file)][2] == (0, "print(\"" + decoded + "\")")
+    line = forest.source_lines[str(file)][2]
+    if PY3:
+        assert line == (0, "print(\"" + decoded + "\")")
+    else:
+        assert line == (0, "print(\"" + text + "\")")
