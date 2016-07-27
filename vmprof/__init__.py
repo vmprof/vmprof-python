@@ -36,8 +36,9 @@ else:
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         if warn and sys.pypy_version_info[:3] < (4, 1, 0):
-            print("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing\n")
             raise Exception("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
+        if warn and memory:
+            print("Memory profiling is currently unsupported for PyPy. Running without memory statistics.")
         if warn and lines:
             print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
         gz_fileno = _gzip_start(fileno)
