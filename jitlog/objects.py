@@ -1,8 +1,9 @@
+import os
 import sys
 import struct
 import argparse
 from collections import defaultdict
-from vmprof.log import constants as const, merge_point
+from jitlog import constants as const, merge_point
 
 PY3 = sys.version_info[0] >= 3
 
@@ -15,6 +16,7 @@ class FlatOp(object):
         self.descr = descr
         self.descr_number = descr_number
         self.core_dump = None
+        self.index = -1
 
     def is_debug(self):
         return False
@@ -59,7 +61,7 @@ class FlatOp(object):
         if descr is None:
             descr = ''
         else:
-            descr = ', @' + descr
+            descr = ', @' + str(descr)
         return '%s%s(%s%s)' % (suffix, self.opname,
                                 ', '.join(self.args), descr)
 
@@ -128,10 +130,10 @@ class Stage(object):
         return self.ops[-1]
 
     def append_op(self, op):
+        op.index = len(self.ops)
         self.ops.append(op)
 
     def get_ops(self, debug=False):
-        """ creates an iterator around the operations """
         for op in self.ops:
             if not debug and not op.is_debug():
                 yield op
@@ -149,10 +151,19 @@ class Trace(object):
         # this saves a quadrupel for each
         self.my_patches = None
         self.counter = 0
+        self.point_counters = {}
         self.merge_point_files = defaultdict(list)
         self.parent = None
         self.bridges = []
         self.descr_nmr = 0 # the descr this trace is attached to
+
+    def add_up_enter_count(self, count):
+        self.counter += count
+
+    def get_counter_points(self):
+        d = {'enter': self.counter}
+        d.update(self.point_counters)
+        return d
 
     def get_stitched_descr_number(self):
         return self.descr_nmr
@@ -219,7 +230,11 @@ class Trace(object):
     def add_instr(self, op):
         self.get_stage(self.last_mark).append_op(op)
         if op.has_descr():
-            self.forest.descr_nmr_to_trace[op.get_descr_nmr()] = self
+            dict = self.forest.descr_nmr_to_point_in_trace
+            nmr = op.get_descr_nmr()
+            if nmr == 0x0:
+                sys.stderr.write("descr in trace %s should not be 0x0\n" % self)
+            dict[nmr] = PointInTrace(self, op)
 
         if isinstance(op, MergePoint):
             lineno, filename = op.get_source_line()
@@ -294,9 +309,46 @@ def iter_ranges(numbers):
             last = i
     yield range(first, last+1)
 
+class PointInTrace(object):
+    def __init__(self, trace, op):
+        self.trace = trace
+        self.op = op
+
+    def add_up_enter_count(self, count):
+        counters = self.trace.point_counters
+        i = self.op.index
+        if i not in counters:
+            counters[i] = count
+        else:
+            counters[i] += count
+
+    def __repr__(self):
+        return "point in trace %s, op %s" % (self.trace, self.op)
+
+def decode_source(source_bytes):
+    # copied from _bootstrap_external.py
+    """Decode bytes representing source code and return the string.
+    Universal newline support is used in the decoding.
+    """
+    import _io
+    import tokenize  # To avoid bootstrap issues.
+    source_bytes_readline = _io.BytesIO(source_bytes).readline
+    encoding = tokenize.detect_encoding(source_bytes_readline)
+    newline_decoder = _io.IncrementalNewlineDecoder(None, True)
+    return newline_decoder.decode(source_bytes.decode(encoding[0]))
+
+def read_python_source(file):
+    with open(file, 'rb') as fd:
+        data = fd.read()
+        if PY3:
+            data = decode_source(data)
+        return data
+
 class TraceForest(object):
-    def __init__(self, version, keep_data=True):
+    def __init__(self, version, is_32bit=False, machine=None):
+        self.word_size = 4 if is_32bit else 8
         self.version = version
+        self.machine = machine
         self.roots = []
         self.traces = {}
         self.addrs = {}
@@ -304,11 +356,20 @@ class TraceForest(object):
         self.resops = {}
         self.timepos = 0
         self.patches = []
-        self.keep = keep_data
         self.stitches = {}
+        self.filepath = None
         # a mapping from source file name -> {lineno: (indent, line)}
         self.source_lines = defaultdict(dict)
-        self.descr_nmr_to_trace = {}
+        self.descr_nmr_to_point_in_trace = {}
+
+    def unlink_jitlog(self):
+        if self.filepath and os.path.exists(self.filepath):
+            os.unlink(self.filepath)
+            self.filepath = None
+
+    def get_point_in_trace_by_descr(self, descr):
+        assert isinstance(descr, int)
+        return self.descr_nmr_to_point_in_trace.get(descr, None)
 
     def get_source_line(self, filename, lineno):
         lines = self.source_lines.get(filename, None)
@@ -316,16 +377,21 @@ class TraceForest(object):
             return None, None
         return lines.get(lineno, (None, None))
 
+    def copy_and_add_source_code_tags(self):
+        with open(self.filepath, "ab") as fd:
+            blob = self.encode_source_code_lines()
+            fd.write(blob)
+
     def extract_source_code_lines(self):
         file_contents = {}
         for _, trace in self.traces.items():
             for file, lines in trace.merge_point_files.items():
                 if file not in file_contents:
-                    with open(file, 'rb') as fd:
-                        data = fd.read()
-                        if PY3:
-                            data = data.decode('utf-8')
-                        file_contents[file] = data.splitlines()
+                    if not os.path.exists(file):
+                        continue
+                    code = read_python_source(file)
+                    file_contents[file] = code.splitlines()
+
                 split_lines = file_contents[file]
                 saved_lines = self.source_lines[file]
                 for int_range in iter_ranges(lines):
@@ -334,11 +400,9 @@ class TraceForest(object):
                         data = line.lstrip()
                         diff = len(line) - len(data)
                         indent = diff
-                        for i in range(0, diff+1):
+                        for i in range(0, diff):
                             if line[i] == '\t':
                                 indent += 7
-                        if PY3:
-                            data = data.encode('utf-8')
                         saved_lines[r] = (indent, data)
 
     def get_trace(self, id):
@@ -350,22 +414,32 @@ class TraceForest(object):
     def get_trace_by_id(self, id):
         return self.traces.get(id, None)
 
-    def add_trace(self, trace_type, unique_id):
+    def read_le_addr(self, fileobj):
+        b = fileobj.read(self.word_size)
+        if self.word_size == 4:
+            return int(struct.unpack('i', b)[0])
+        else:
+            return int(struct.unpack('q', b)[0])
+
+    def add_trace(self, trace_type, unique_id, trace_nmr):
+        """ Create a new trace object and attach it to the forest """
         trace = Trace(self, trace_type, self.timepos, unique_id)
         self.traces[unique_id] = trace
         self.last_trace = trace
         return trace
 
     def stitch_bridge(self, descr_number, addr_to):
+        assert isinstance(descr_number, int)
         bridge = self.get_trace_by_addr(addr_to)
         assert bridge.descr_nmr == 0, "a bridge can only be stitched once"
         bridge.descr_nmr = descr_number
         self.stitches[descr_number] = bridge.unique_id
         assert bridge is not None, ("no trace to be found for addr 0x%x" % addr_to)
-        trace = self.descr_nmr_to_trace.get(descr_number, None)
-        if not trace:
+        point_in_trace = self.get_point_in_trace_by_descr(descr_number)
+        if not point_in_trace:
             sys.stderr.write("link to trace of descr 0x%x not found!\n" % descr_number)
         else:
+            trace = point_in_trace.trace
             bridge.parent = trace
             trace.bridges.append(bridge)
 
@@ -398,7 +472,7 @@ class TraceForest(object):
             marks.append(struct.pack('<H', len(lines)))
             for lineno, (indent, line) in lines.items():
                 marks.append(struct.pack('<HBI', lineno, indent, len(line)))
-                marks.append(line)
+                marks.append(line.encode('utf-8'))
         return b''.join(marks)
 
     def add_source_code_line(self, filename, lineno, indent, line):

@@ -1,4 +1,4 @@
-from vmprof.log import constants as const
+from jitlog import constants as const
 from vmprof.binary import read_string, read_le_u64
 
 class MergePointDecoder(object):

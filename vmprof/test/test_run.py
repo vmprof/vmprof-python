@@ -5,6 +5,9 @@ import py
 import sys
 import tempfile
 import gzip
+
+import six
+
 import vmprof
 from vmprof.reader import read_prof_bit_by_bit
 from vmprof.stats import Stats
@@ -155,9 +158,31 @@ def test_memory_measurment():
 def test_gzip_problem():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
     vmprof.enable(tmpfile.fileno())
-    vmprof._gzip_procs[0].kill()
+    vmprof._gzip_proc.kill()
     function_foo()
     with py.test.raises(Exception) as exc_info:
         vmprof.disable()
         assert "Error while writing profile" in str(exc_info)
     tmpfile.close()
+
+def test_line_profiling():
+    tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    vmprof.enable(tmpfile.fileno(), lines=True)  # enable lines profiling
+    function_foo()
+    vmprof.disable()
+    tmpfile.close()
+
+    def walk(tree):
+        assert len(tree.lines) >= len(tree.children)
+
+        for v in six.itervalues(tree.children):
+                walk(v)
+
+    with open(tmpfile.name, 'rb') as f:
+        period, profiles, virtual_symbols, interp_name = read_prof_bit_by_bit(f)
+        stats = Stats(profiles, virtual_symbols, interp_name)
+        walk(stats.get_tree())
+
+
+if __name__ == '__main__':
+    test_line_profiling()

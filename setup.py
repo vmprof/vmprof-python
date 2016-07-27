@@ -33,7 +33,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.2.7",
+    version="0.3.3",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
@@ -42,6 +42,7 @@ setup(
         'requests',
         'six',
     ] + extra_install_requires,
+    tests_require=['pytest'],
     entry_points = {
         'console_scripts': [
             'vmprofshow = vmprof.show:main'

@@ -1,11 +1,14 @@
-from vmprof.log import constants as const
-from vmprof.log import merge_point
-from vmprof.log.objects import FlatOp, MergePoint
+from __future__ import print_function
+from jitlog import constants as const
+from jitlog import merge_point
+from jitlog.objects import FlatOp, MergePoint
 from vmprof.binary import (read_word, read_string,
-        read_le_u16, read_le_addr, read_le_u64,
+        read_le_u16, read_le_u64,
         read_le_s64, read_bytes, read_byte,
         read_char)
 import base64
+import sys
+import re
 
 VERSIONS = {}
 
@@ -39,32 +42,31 @@ def read_resop_meta(forest, trace, fileobj):
 
 @version(1)
 def read_start_trace(forest, trace, fileobj):
-    trace_id = read_le_s64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     trace_type = read_string(fileobj, True)
-    trace_nmr = read_le_s64(fileobj)
+    trace_nmr = forest.read_le_addr(fileobj)
     #
     assert trace_id not in forest.traces
-    forest.add_trace(trace_type, trace_id)
-    assert trace_id in forest.traces
+    forest.add_trace(trace_type, trace_id, trace_nmr)
 
 @version(1)
 def read_trace(forest, trace, fileobj):
     assert trace is not None
-    trace_id = read_le_s64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     assert trace_id == trace.unique_id
     trace.start_mark(const.MARK_TRACE)
 
 @version(1)
 def read_trace_opt(forest, trace, fileobj):
     assert trace is not None
-    trace_id = read_le_s64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     assert trace_id == trace.unique_id
     trace.start_mark(const.MARK_TRACE_OPT)
 
 @version(1)
 def read_trace_asm(forest, trace, fileobj):
     assert trace is not None
-    trace_id = read_le_s64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     assert trace_id == trace.unique_id
     trace.start_mark(const.MARK_TRACE_ASM)
 
@@ -87,12 +89,14 @@ def read_resop(forest, trace, fileobj):
     op = FlatOp(opnum, opname, args, result, None, -1)
     trace.add_instr(op)
 
+TOKEN_REGEX = re.compile("TargetToken\((\d+)\)")
+
 @version(1)
 def read_resop_descr(forest, trace, fileobj):
     assert trace is not None
     opnum = read_le_u16(fileobj)
     args = read_string(fileobj, True).split(',')
-    descr_number = read_le_addr(fileobj)
+    descr_number = forest.read_le_addr(fileobj)
     descr = args[-1]
     result = args[0]
     args = args[1:-1]
@@ -102,12 +106,11 @@ def read_resop_descr(forest, trace, fileobj):
     op = FlatOp(opnum, opname, args, result, descr, descr_number)
     trace.add_instr(op)
 
-
 @version(1)
 def read_asm_addr(forest, trace, fileobj):
     assert trace is not None
-    addr1 = read_le_addr(fileobj)
-    addr2 = read_le_addr(fileobj)
+    addr1 = forest.read_le_addr(fileobj)
+    addr2 = forest.read_le_addr(fileobj)
     trace.set_addr_bounds(addr1, addr2)
 
 @version(1)
@@ -149,20 +152,44 @@ def read_merge_point(forest, trace, fileobj):
 
 @version(1)
 def read_stitch_bridge(forest, trace, fileobj):
-    descr_number = read_le_addr(fileobj)
-    addr_tgt = read_le_addr(fileobj)
+    descr_number = forest.read_le_addr(fileobj)
+    addr_tgt = forest.read_le_addr(fileobj)
     forest.stitch_bridge(descr_number, addr_tgt)
 
 @version(1)
 def read_jitlog_counter(forest, trace, fileobj):
-    addr = read_le_addr(fileobj)
+    addr = forest.read_le_addr(fileobj)
+    type = read_char(fileobj)
     count = read_le_u64(fileobj)
-    trace = forest.get_trace_by_addr(addr)
-    trace.counter += count
+    # entry: gets the globally numbered addr of the loop
+    # bridge: gets the addr of the fail descr
+    # label: gets the addr of the loop token
+    trace = forest.get_trace_by_id(addr)
+    if trace:
+        trace.add_up_enter_count(count)
+        return True
+    else:
+        if type == 'e':
+            # it can happen that jitlog counters are present,
+            # even though there is no trace to be found.
+            # vm starts up (bootstrapping creates 1-2 trace),
+            # jitlog is enabled afterwards
+            return False
+        assert type == 'b' or type == 'l'
+        point_in_trace = forest.get_point_in_trace_by_descr(addr)
+        if point_in_trace:
+            if type == 'b':
+                point_in_trace.trace.add_up_enter_count(count)
+            else:
+                point_in_trace.add_up_enter_count(count)
+            return True
+    sys.stderr.write("trace with 0x%x (type '%c' was executed %d times" \
+          " but was not recorded in the log\n" % (addr, type, count))
+    return False
 
 @version(1)
 def read_abort_trace(forest, trace, fileobj):
-    trace_id = read_le_u64(fileobj)
+    trace_id = forest.read_le_addr(fileobj)
     # TODO?
 
 @version(1)

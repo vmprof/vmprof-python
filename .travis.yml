@@ -20,8 +20,8 @@ install:
   - pip install .
 
 script:
-  - py.test tests/ -vrs
   - py.test vmprof/ -vrs
+  - py.test jitlog/ -vrs
 
 notifications:
   irc:

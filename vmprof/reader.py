@@ -14,7 +14,8 @@ PY3  = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')
 
 
-def read_trace(fileobj, depth, version):
+
+def read_trace(fileobj, depth, version, profile_lines=False):
     if version == VERSION_TAG:
         assert depth & 1 == 0
         depth = depth // 2
@@ -23,7 +24,14 @@ def read_trace(fileobj, depth, version):
         return [wrap_kind(kinds_and_pcs[i], kinds_and_pcs[i+1])
                 for i in xrange(len(kinds_and_pcs), None, 2)]
     else:
-        return read_words(fileobj, depth)
+        trace = read_words(fileobj, depth)
+
+        if profile_lines:
+            for i in range(0, len(trace), 2):
+                # In the line profiling mode even items in the trace are line numbers.
+                # Every line number corresponds to the following frame, represented by an address.
+                trace[i] = -trace[i]
+        return trace
 
 
 MARKER_STACKTRACE = b'\x01'
@@ -37,6 +45,10 @@ VERSION_BASE = 0
 VERSION_THREAD_ID = 1
 VERSION_TAG = 2
 VERSION_MEMORY = 3
+VERSION_MODE_AWARE = 4
+
+PROFILE_MEMORY = 1
+PROFILE_LINES = 2
 
 VMPROF_CODE_TAG = 1
 VMPROF_BLACKHOLE_TAG = 2
@@ -98,7 +110,8 @@ class FileObjWrapper(object):
         return s
 
 class ReaderStatus(object):
-    def __init__(self, interp_name, period, version, previous_virtual_ips=None):
+    def __init__(self, interp_name, period, version, previous_virtual_ips=None,
+                 profile_memory=False, profile_lines=False):
         if previous_virtual_ips is not None:
             self.virtual_ips = previous_virtual_ips
         else:
@@ -107,6 +120,8 @@ class ReaderStatus(object):
         self.interp_name = interp_name
         self.period = period
         self.version = version
+        self.profile_memory = profile_memory
+        self.profile_lines = profile_lines
 
 class FileReadError(Exception):
     pass
@@ -125,11 +140,20 @@ def read_header(fileobj, buffer_so_far=None):
     marker = fileobj.read(1)
     assert_error(marker == MARKER_HEADER, "expected header")
     version, = struct.unpack("!h", fileobj.read(2))
+
+    if version >= VERSION_MODE_AWARE:
+        mode = ord(fileobj.read(1))
+        profile_memory = (mode & PROFILE_MEMORY) != 0
+        profile_lines = (mode & PROFILE_LINES) != 0
+    else:
+        profile_memory = version == VERSION_MEMORY
+        profile_lines = False
+
     lgt = ord(fileobj.read(1))
     interp_name = fileobj.read(lgt)
     if PY3:
         interp_name = interp_name.decode()
-    return ReaderStatus(interp_name, period, version)
+    return ReaderStatus(interp_name, period, version, None, profile_memory, profile_lines)
 
 def read_one_marker(fileobj, status, buffer_so_far=None):
     fileobj = FileObjWrapper(fileobj, buffer_so_far)
@@ -140,12 +164,13 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         assert count == 1
         depth = read_word(fileobj)
         assert depth <= 2**16, 'stack strace depth too high'
-        trace = read_trace(fileobj, depth, status.version)
+        trace = read_trace(fileobj, depth, status.version, status.profile_lines)
+
         if status.version >= VERSION_THREAD_ID:
             thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
         else:
             thread_id = 0
-        if status.version == VERSION_MEMORY:
+        if status.profile_memory:
             mem_in_kb, = struct.unpack('l', fileobj.read(WORD_SIZE))
         else:
             mem_in_kb = 0
@@ -197,12 +222,21 @@ def read_prof(fileobj, virtual_ips_only=False):
     profiles = []
     interp_name = None
     version = 0
+    profile_memory = False
+    profile_lines = False
 
     while True:
         marker = fileobj.read(1)
         if marker == MARKER_HEADER:
             assert not version, "multiple headers"
             version, = struct.unpack("!h", fileobj.read(2))
+            if version >= VERSION_MODE_AWARE:
+                mode = ord(fileobj.read(1))
+                profile_memory = (mode & PROFILE_MEMORY) != 0
+                profile_lines = (mode & PROFILE_LINES) != 0
+            else:
+                profile_memory = version == VERSION_MEMORY
+                profile_lines = False
             lgt = ord(fileobj.read(1))
             interp_name = fileobj.read(lgt)
             if PY3:
@@ -217,12 +251,12 @@ def read_prof(fileobj, virtual_ips_only=False):
                 fileobj.read(WORD_SIZE * depth)
                 trace = []
             else:
-                trace = read_trace(fileobj, depth, version)
+                trace = read_trace(fileobj, depth, version, profile_lines)
             if version >= VERSION_THREAD_ID:
                 thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:
                 thread_id = 0
-            if version == VERSION_MEMORY:
+            if profile_memory:
                 mem_in_kb, = struct.unpack('l', fileobj.read(WORD_SIZE))
             else:
                 mem_in_kb = 0
