@@ -1,6 +1,7 @@
 import sys
 from jitlog import constants as const, marks
 from jitlog.objects import TraceForest
+from vmprof.binary import read_string
 if sys.version_info[0] >= 3:
     from io import StringIO
 else:
@@ -27,7 +28,8 @@ def _parse_jitlog(fileobj):
     is_jit_log = fileobj.read(1) == const.MARK_JITLOG_HEADER
     version = ord(fileobj.read(1)) | (ord(fileobj.read(1)) << 8)
     is_32bit = ord(fileobj.read(1))
-    forest = TraceForest(version, is_32bit)
+    machine = read_string(fileobj, True)
+    forest = TraceForest(version, is_32bit, machine)
     assert is_jit_log, "Missing header. Data might not be a jitlog!"
     assert version >= JITLOG_MIN_VERSION, \
             "Version does not match. Log is version %d%d is not satisfied" % \

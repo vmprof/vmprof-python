@@ -345,9 +345,10 @@ def read_python_source(file):
         return data
 
 class TraceForest(object):
-    def __init__(self, version, is_32bit=False):
+    def __init__(self, version, is_32bit=False, machine=None):
         self.word_size = 4 if is_32bit else 8
         self.version = version
+        self.machine = machine
         self.roots = []
         self.traces = {}
         self.addrs = {}

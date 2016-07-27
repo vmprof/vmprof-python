@@ -240,17 +240,20 @@ def test_counter_points():
     assert len(d) == 2
 
 def test_32bit_log_header():
-    fobj = FileObj([const.MARK_JITLOG_HEADER+ b"\x01\x00\x01"])
+    fobj = FileObj([const.MARK_JITLOG_HEADER+ b"\x01\x00\x01"+\
+                    encode_str('ppc64le')])
     forest = _parse_jitlog(fobj)
     assert forest.version == 1
     assert forest.word_size == 4
+    assert forest.machine == 'ppc64le'
 
 def test_32bit_read_trace():
-    fobj = FileObj([const.MARK_JITLOG_HEADER+ b"\x01\x00\x01",
+    fobj = FileObj([const.MARK_JITLOG_HEADER+ b"\x01\x00\x01"+encode_str('s390x'),
                     const.MARK_START_TRACE, encode_le_u32(0x15), encode_str('loop'), encode_le_u32(0),
                    ])
     forest = _parse_jitlog(fobj)
     assert forest.version == 1
     assert forest.word_size == 4
     assert len(forest.traces) == 1
+    assert forest.machine == 's390x'
 
