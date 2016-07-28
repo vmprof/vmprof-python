@@ -1,10 +1,10 @@
 
 """ Test the actual run
 """
-
 import py
 import sys
 import tempfile
+import gzip
 
 import six
 
@@ -22,7 +22,7 @@ if '__pypy__' in sys.builtin_module_names:
     COUNT = 100000
 else:
     COUNT = 10000
-    
+
 def function_foo():
     for k in range(1000):
         l = [a for a in xrange(COUNT)]
@@ -45,7 +45,7 @@ def test_basic():
     function_foo()
     vmprof.disable()
     tmpfile.close()
-    assert b"function_foo" in open(tmpfile.name, 'rb').read()
+    assert b"function_foo" in gzip.GzipFile(tmpfile.name).read()
 
 def test_read_bit_by_bit():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
@@ -155,6 +155,15 @@ def test_memory_measurment():
 
     s = prof.get_stats()
 
+def test_gzip_problem():
+    tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    vmprof.enable(tmpfile.fileno())
+    vmprof._gzip_proc.kill()
+    function_foo()
+    with py.test.raises(Exception) as exc_info:
+        vmprof.disable()
+        assert "Error while writing profile" in str(exc_info)
+    tmpfile.close()
 
 def test_line_profiling():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
@@ -173,7 +182,6 @@ def test_line_profiling():
         period, profiles, virtual_symbols, interp_name = read_prof_bit_by_bit(f)
         stats = Stats(profiles, virtual_symbols, interp_name)
         walk(stats.get_tree())
-
 
 
 if __name__ == '__main__':
