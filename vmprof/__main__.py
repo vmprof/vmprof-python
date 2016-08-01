@@ -63,7 +63,7 @@ def main():
     if args.jitlog and _jitlog:
         fd = os.open(prof_name + '.jitlog', os.O_WRONLY | os.O_TRUNC | os.O_CREAT)
         _jitlog.enable(fd)
-
+    # invoke the user program:
     try:
         sys.argv = [args.program] + args.args
         sys.path.insert(0, os.path.dirname(args.program))
@@ -71,9 +71,11 @@ def main():
     except BaseException as e:
         if not isinstance(e, (KeyboardInterrupt, SystemExit)):
             raise
+    #
     vmprof.disable()
     if args.jitlog and _jitlog:
         _jitlog.disable()
+
     prof_file.close()
     show_stats(prof_name, output_mode, args)
     if output_mode != OUTPUT_FILE:

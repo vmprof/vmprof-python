@@ -51,8 +51,8 @@ def build_argparser():
         help='Save profiling data to file'
     )
     output_mode_args.add_argument(
-        '--upload', '-u',
-        aaction='store_true',
+        '--upload',
+        action='store_true',
         help='Upload the file provided as the program argument'
     )
 
@@ -66,6 +66,8 @@ def main():
     if args.upload:
         # parse_jitlog will append source code to the binary
         forest = parse_jitlog(args.program)
+        forest.extract_source_code_lines()
+        forest.copy_and_add_source_code_tags()
         jitlog_upload(forest.filepath, get_url(args.web_url, "api/jitlog//"))
         sys.exit(0)
 
@@ -96,10 +98,11 @@ def main():
     # not need to close fd, will be here
     _jitlog.disable()
 
-    forest = parse_jitlog(prof_name)
-
     if web:
+        forest = parse_jitlog(prof_name)
+        forest.extract_source_code_lines()
+        forest.copy_and_add_source_code_tags()
         jitlog_upload(forest.filepath, get_url(args.web_url, "api/jitlog//"))
-        forest.unlink_jitlog() # free space!!!
+        forest.unlink_jitlog() # free space!
 
 main()

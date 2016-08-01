@@ -50,7 +50,7 @@ def read_string(fileobj, little_endian=False):
         lgt = int(struct.unpack('<i', fileobj.read(4))[0])
         data = fileobj.read(lgt)
         if PY3:
-            data = data.decode()
+            data = data.decode('utf-8')
         return data
     else:
         lgt = int(struct.unpack('l', fileobj.read(WORD_SIZE))[0])

@@ -20,8 +20,6 @@ def parse_jitlog(filename, data=None):
     fileobj = StringIO(data)
     f = _parse_jitlog(fileobj)
     f.filepath = filename
-    f.extract_source_code_lines()
-    f.copy_and_add_source_code_tags()
     return f
 
 def _parse_jitlog(fileobj):
@@ -48,8 +46,6 @@ def _parse_jitlog(fileobj):
         except KeyError:
             print("failed at", hex(fileobj.tell()), "with marker", marker)
             raise
-
-    forest.extract_source_code_lines()
 
     return forest
 
