@@ -50,6 +50,11 @@ def build_argparser():
         type=argparse.FileType('w+b'),
         help='Save profiling data to file'
     )
+    output_mode_args.add_argument(
+        '--upload', '-u',
+        aaction='store_true',
+        help='Upload the file provided as the program argument'
+    )
 
     return parser
 
@@ -57,6 +62,12 @@ def main():
     parser = build_argparser()
     args = parser.parse_args(sys.argv[1:])
     web = args.web
+
+    if args.upload:
+        # parse_jitlog will append source code to the binary
+        forest = parse_jitlog(args.program)
+        jitlog_upload(forest.filepath, get_url(args.web_url, "api/jitlog//"))
+        sys.exit(0)
 
     if not _jitlog:
         if '__pypy__' in sys.builtin_module_names:
