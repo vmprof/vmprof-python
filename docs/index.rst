@@ -1,6 +1,14 @@
+
 .. image:: _static/vmprof-logo.png
     :width: 386px 
     :align: center
+
+
+|
+|
+
+VMProf Platform
+===============
 
 `vmprof`_ is a platform to understand and resolve performance bottlenecks in your code.
 It includes a *lightweight profiler* for `CPython`_ 2.7, `CPython`_ 3 and `PyPy`_
@@ -13,6 +21,7 @@ The following provides more information about CPU profiles and JIT Compiler Logs
 
    vmprof
    jitlog
+   development
 
 .. _`CPython`: http://python.org
 .. _`PyPy`: http://pypy.org
