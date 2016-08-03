@@ -21,8 +21,19 @@ Install Microsoft Visual C++ Compiler for Python 2.7
 	
 	pip install vmprof
 
-For development:
-	pip install -e .
+## Development
+
+Setting up development can be done using the following commands:
+
+	$ virtualenv -p /usr/bin/python3 vmprof3
+	$ source vmprof3/bin/activate
+	$ python setup.py develop
+
+Now it is time to write a test and implement your feature. If you want
+your changes to affect vmprof.com, please head over to
+https://github.com/vmprof/vmprof-server and follow the setup instructions.
+
+For more more setup consult our documentation at https://vmprof.readthedocs.org
 
 ## vmprofshow
 
