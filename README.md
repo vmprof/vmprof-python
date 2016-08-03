@@ -33,7 +33,7 @@ Now it is time to write a test and implement your feature. If you want
 your changes to affect vmprof.com, please head over to
 https://github.com/vmprof/vmprof-server and follow the setup instructions.
 
-For more more setup consult our documentation at https://vmprof.readthedocs.org
+Please also consult our section for development at https://vmprof.readthedocs.org.
 
 ## vmprofshow
 
