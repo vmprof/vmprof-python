@@ -13,8 +13,7 @@ import vmprof
 
 PY3 = sys.version_info[0] >= 3
 
-def construct_forest(fileobj):
-    version = 1
+def construct_forest(fileobj, version=1):
     forest = TraceForest(version)
     try:
         while True:
@@ -43,7 +42,9 @@ def test_asm_addr():
                    ])
     fw = FileObjWrapper(fobj)
     forest = construct_forest(fw)
-    assert forest.traces[0x15].addrs == (0xAFFE, 0xFEED)
+    trace = forest.get_trace(0x15)
+    assert trace.addrs == (0xAFFE, 0xFEED)
+    assert trace.jd_name == None
 
 def test_asm_positions():
     unique_id = struct.pack("l", 0xFFAA)
@@ -257,3 +258,13 @@ def test_32bit_read_trace():
     assert len(forest.traces) == 1
     assert forest.machine == 's390x'
 
+def test_v2_start_trace():
+    fobj = FileObj([const.MARK_START_TRACE,
+            encode_le_u64(0x15),
+            encode_str('loop'),
+            encode_le_u64(0),
+            encode_str('jd_is_a_hippy'),
+            ])
+    fw = FileObjWrapper(fobj)
+    forest = construct_forest(fw, version=2)
+    assert forest.get_trace(0x15).jd_name == 'jd_is_a_hippy'
