@@ -477,7 +477,7 @@ class TraceForest(object):
 
     def add_source_code_line(self, filename, lineno, indent, line):
         dict = self.source_lines[filename]
-        assert indent not in dict
+        assert lineno not in dict
         dict[lineno] = (indent, line)
 
 def main():
