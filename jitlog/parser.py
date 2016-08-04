@@ -1,7 +1,7 @@
 import sys
 from jitlog import constants as const, marks
 from jitlog.objects import TraceForest
-from vmprof.binary import read_string
+from vmshare.binary import read_string
 if sys.version_info[0] >= 3:
     from io import StringIO
 else:

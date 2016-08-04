@@ -5,7 +5,7 @@ from jitlog import marks
 from jitlog.parser import _parse_jitlog
 from jitlog.objects import (FlatOp, TraceForest, Trace,
         MergePoint, PointInTrace, iter_ranges)
-from vmprof.binary import (encode_str, encode_le_u64, encode_le_u32)
+from vmshare.binary import (encode_str, encode_le_u64, encode_le_u32)
 from vmprof.test.test_reader import FileObj
 from vmprof.reader import FileObjWrapper
 import base64

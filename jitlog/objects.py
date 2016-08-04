@@ -139,8 +139,9 @@ class Stage(object):
                 yield op
 
 class Trace(object):
-    def __init__(self, forest, trace_type, tick, unique_id):
+    def __init__(self, forest, trace_type, tick, unique_id, jd_name=None):
         self.forest = forest
+        self.jd_name = jd_name
         self.type = trace_type
         self.inputargs = []
         assert self.type in ('loop', 'bridge')
@@ -421,9 +422,9 @@ class TraceForest(object):
         else:
             return int(struct.unpack('q', b)[0])
 
-    def add_trace(self, trace_type, unique_id, trace_nmr):
+    def add_trace(self, trace_type, unique_id, trace_nmr, jd_name=None):
         """ Create a new trace object and attach it to the forest """
-        trace = Trace(self, trace_type, self.timepos, unique_id)
+        trace = Trace(self, trace_type, self.timepos, unique_id, jd_name)
         self.traces[unique_id] = trace
         self.last_trace = trace
         return trace
