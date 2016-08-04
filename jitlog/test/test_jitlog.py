@@ -151,6 +151,11 @@ def test_merge_point_duplicate_source_lines():
     assert forest.source_lines['jitlog/test/data/code.py'][5] == (4, 'c = a * 2')
     assert len(forest.source_lines['jitlog/test/data/code.py']) == 1
 
+def test_add_source_code_lines_to_forest():
+    forest = TraceForest(1)
+    forest.add_source_code_line("x.py", 12, 12, "x = 1")
+    forest.add_source_code_line("x.py", 13, 12, "y = 1")
+
 def test_merge_point_encode():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0, 0)
