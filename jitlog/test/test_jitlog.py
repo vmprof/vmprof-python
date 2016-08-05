@@ -196,6 +196,8 @@ def test_read_jitlog_counter():
     ta.start_mark(const.MARK_TRACE_ASM)
     op = FlatOp(0, 'hello', '', '?', 0, 2)
     ta.add_instr(op)
+    op2 = FlatOp(0, 'increment_debug_counter', '', '?', 0, 2)
+    ta.add_instr(op2)
     tb = forest.add_trace('bridge', 22, 101)
     fw = FileObjWrapper(FileObj([encode_le_u64(0x0), b'l', encode_le_u64(20)]))
     assert marks.read_jitlog_counter(forest, None, fw) == False, \
@@ -209,7 +211,7 @@ def test_read_jitlog_counter():
     assert marks.read_jitlog_counter(forest, None, fw) == True
     assert marks.read_jitlog_counter(forest, None, fw) == True
     assert ta.counter == 145
-    assert ta.point_counters[0] == 45
+    assert ta.point_counters[1] == 45
     assert tb.counter == 100
 
 def test_point_in_trace():
@@ -220,10 +222,11 @@ def test_point_in_trace():
     trace.add_instr(op)
     trace.add_up_enter_count(10)
     point_in_trace = forest.get_point_in_trace_by_descr(1)
+    point_in_trace.set_inc_op(FakeOp(1))
     point_in_trace.add_up_enter_count(20)
 
     assert trace.counter == 10
-    assert trace.point_counters[0] == 20
+    assert trace.point_counters[1] == 20
 
 class FakeOp(object):
     def __init__(self, i):
@@ -233,16 +236,18 @@ def test_counter_points():
     forest = TraceForest(1)
     trace = forest.add_trace('loop', 0, 0)
     d = trace.get_counter_points()
-    assert d['enter'] == 0
+    assert d[0] == 0
     assert len(d) == 1
     trace.counter = 100
     d = trace.get_counter_points()
-    assert d['enter'] == 100
+    assert d[0] == 100
     assert len(d) == 1
     pit = PointInTrace(trace, FakeOp(10))
-    pit.add_up_enter_count(55)
+    assert not pit.add_up_enter_count(55)
+    pit.set_inc_op(FakeOp(11))
+    assert pit.add_up_enter_count(55)
     d = trace.get_counter_points()
-    assert d[10] == 55
+    assert d[11] == 55
     assert len(d) == 2
 
 def test_32bit_log_header():
