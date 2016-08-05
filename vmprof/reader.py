@@ -8,7 +8,7 @@ from six.moves import xrange
 import io
 import gzip
 
-from vmprof.binary import read_word, read_string, read_words
+from vmshare.binary import read_word, read_string, read_words
 
 PY3  = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')

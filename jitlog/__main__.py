@@ -3,7 +3,7 @@ import sys, os
 import tempfile
 import argparse
 from jitlog.upload import upload as jitlog_upload
-from vmprofservice import get_url
+from vmshare import get_url
 from jitlog.parser import parse_jitlog
 
 try:
@@ -27,6 +27,14 @@ def build_argparser():
         help='program arguments'
     )
 
+    parser.add_argument('--query', '-q', dest='query',
+        help='Select traces and pretty print them. ' \
+             'Example: -i <file> -q "\'my_func\' in name" ' \
+             'The query API can be found on https://vmprof.readthedocs.org'
+    )
+    parser.add_argument('--input', '-i', dest='input',
+        help='Specify the file to read from. Use with in combination with --query'
+    )
     parser.add_argument(
         '--web-auth',
         help='Authtoken for your acount on the server, works only when --web is used'
@@ -62,6 +70,14 @@ def main():
     parser = build_argparser()
     args = parser.parse_args(sys.argv[1:])
     web = args.web
+
+    if args.input:
+        assert args.query is not None, "Using -i requires you to specify -q"
+        forest = parse_jitlog(args.input)
+        q = query.new_unsafe_query(args.query)
+        objs = q(forest)
+        pretty_printer.write(sys.stdout, objs)
+        sys.exit(0)
 
     if args.upload:
         # parse_jitlog will append source code to the binary

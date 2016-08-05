@@ -7,7 +7,7 @@ import vmprof
 from jitlog.parser import read_jitlog_data, parse_jitlog
 from vmprof.stats import Stats
 from vmprof.stats import EmptyProfileFile
-from vmprofservice import get_url
+from vmshare import get_url
 import jitlog
 
 PY3 = sys.version_info[0] >= 3
