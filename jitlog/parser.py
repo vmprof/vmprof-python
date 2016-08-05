@@ -2,10 +2,7 @@ import sys
 from jitlog import constants as const, marks
 from jitlog.objects import TraceForest
 from vmshare.binary import read_string
-if sys.version_info[0] >= 3:
-    from io import StringIO
-else:
-    from StringIO import StringIO
+from io import BytesIO
 
 JITLOG_MIN_VERSION = 1
 JITLOG_VERSION = 1
@@ -17,7 +14,7 @@ def read_jitlog_data(filename):
 def parse_jitlog(filename, data=None):
     if data is None:
         data = read_jitlog_data(filename)
-    fileobj = StringIO(data)
+    fileobj = BytesIO(data)
     f = _parse_jitlog(fileobj)
     f.filepath = filename
     return f

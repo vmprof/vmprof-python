@@ -28,7 +28,6 @@ class StrMergePointDecoder(MergePointDecoder):
 
 def get_decoder(sem_type, gen_type, version):
     assert 0 <= sem_type <= const.MP_OPCODE[0]
-    assert version == 1
     if gen_type == "s":
         return StrMergePointDecoder(sem_type)
     else:

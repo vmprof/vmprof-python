@@ -80,34 +80,47 @@ def read_input_args(forest, trace, fileobj):
     argnames = read_string(fileobj, True).split(',')
     trace.set_inputargs(argnames)
 
-@mark_parser(1)
+@mark_parser(
+    1,
+    (2, "encodes guard failure arguments"),
+)
 def read_resop(forest, trace, fileobj):
     assert trace is not None
     opnum = read_le_u16(fileobj)
     args = read_string(fileobj, True).split(',')
+    failargs = None
+    if 2 <= forest.version:
+        failargs = read_string(fileobj, True).split(',')
     result = args[0]
     args = args[1:]
     assert opnum in forest.resops, "opnum is not known: " + str(opnum) + \
                   " at binary pos " + str(hex(fileobj.tell()))
     opname = forest.resops[opnum]
-    op = FlatOp(opnum, opname, args, result, None, -1)
+
+    op = FlatOp(opnum, opname, args, result, None, -1, failargs=failargs)
     trace.add_instr(op)
 
 TOKEN_REGEX = re.compile("TargetToken\((\d+)\)")
 
-@mark_parser(1)
+@mark_parser(
+    1,
+    (2, "encodes guard failure arguments"),
+)
 def read_resop_descr(forest, trace, fileobj):
     assert trace is not None
     opnum = read_le_u16(fileobj)
     args = read_string(fileobj, True).split(',')
     descr_number = forest.read_le_addr(fileobj)
+    failargs = None
+    if 2 <= forest.version:
+        failargs = read_string(fileobj, True).split(',')
     descr = args[-1]
     result = args[0]
     args = args[1:-1]
     assert opnum in forest.resops, "opnum is not known: " + str(opnum) + \
                   " at binary pos " + str(hex(fileobj.tell()))
     opname = forest.resops[opnum]
-    op = FlatOp(opnum, opname, args, result, descr, descr_number)
+    op = FlatOp(opnum, opname, args, result, descr, descr_number, failargs=failargs)
     trace.add_instr(op)
 
 @mark_parser(1)

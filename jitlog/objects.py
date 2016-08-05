@@ -8,7 +8,8 @@ from jitlog import constants as const, merge_point
 PY3 = sys.version_info[0] >= 3
 
 class FlatOp(object):
-    def __init__(self, opnum, opname, args, result, descr=None, descr_number=None):
+    def __init__(self, opnum, opname, args, result,
+                 descr=None, descr_number=None, failargs=None):
         self.opnum = opnum
         self.opname = opname
         self.args = args
@@ -16,7 +17,11 @@ class FlatOp(object):
         self.descr = descr
         self.descr_number = descr_number
         self.core_dump = None
+        self.failargs = failargs
         self.index = -1
+
+    def getname(self):
+        return self.opname
 
     def is_debug(self):
         return False
@@ -82,6 +87,9 @@ class MergePoint(FlatOp):
         assert isinstance(values, dict)
         self.values = values
 
+    def getname(self):
+        return None
+
     def is_debug(self):
         return True
 
@@ -129,6 +137,11 @@ class Stage(object):
             return None
         return self.ops[-1]
 
+    def get_op(self, i):
+        if i < 0 or len(self.ops) <= i:
+            return None
+        return self.ops[i]
+
     def append_op(self, op):
         op.index = len(self.ops)
         self.ops.append(op)
@@ -162,7 +175,7 @@ class Trace(object):
         self.counter += count
 
     def get_counter_points(self):
-        d = {'enter': self.counter}
+        d = {0: self.counter}
         d.update(self.point_counters)
         return d
 
@@ -215,6 +228,8 @@ class Trace(object):
                 return
         self.last_mark = mark_name
         assert mark_name is not None
+        if mark_name in self.stages:
+            return self.stages[mark_name]
         tick = self.forest.timepos
         stage = Stage(mark_name, tick)
         self.stages[mark_name] = stage
@@ -229,13 +244,25 @@ class Trace(object):
         flatop.set_core_dump(rel_pos, dump)
 
     def add_instr(self, op):
-        self.get_stage(self.last_mark).append_op(op)
+        stage = self.get_stage(self.last_mark)
+        stage.append_op(op)
         if op.has_descr():
-            dict = self.forest.descr_nmr_to_point_in_trace
             nmr = op.get_descr_nmr()
             if nmr == 0x0:
                 sys.stderr.write("descr in trace %s should not be 0x0\n" % self)
-            dict[nmr] = PointInTrace(self, op)
+            else:
+                dict = self.forest.descr_nmr_to_point_in_trace
+                # a label could already reside in that position
+                if nmr not in dict:
+                    dict[nmr] = PointInTrace(self, op)
+        if op.getname() == "increment_debug_counter":
+            prev_op = stage.get_op(op.index-1)
+            # look for the previous operation, it is a label saved
+            # in descr_nmr_to_point_in_trace
+            if prev_op:
+                descr_nmr = prev_op.get_descr_nmr()
+                pit = self.forest.get_point_in_trace_by_descr(descr_nmr)
+                pit.set_inc_op(op)
 
         if isinstance(op, MergePoint):
             lineno, filename = op.get_source_line()
@@ -314,14 +341,20 @@ class PointInTrace(object):
     def __init__(self, trace, op):
         self.trace = trace
         self.op = op
+        self.inc_op = None
+
+    def set_inc_op(self, op):
+        if self.inc_op is None:
+            self.inc_op = op
 
     def add_up_enter_count(self, count):
+        if not self.inc_op:
+            return False# this is a label!
         counters = self.trace.point_counters
-        i = self.op.index
-        if i not in counters:
-            counters[i] = count
-        else:
-            counters[i] += count
+        i = self.inc_op.index
+        c = counters.get(i, 0)
+        counters[i] = c + count
+        return True
 
     def __repr__(self):
         return "point in trace %s, op %s" % (self.trace, self.op)
