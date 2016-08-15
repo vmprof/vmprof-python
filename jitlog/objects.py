@@ -458,6 +458,7 @@ class TraceForest(object):
     def add_trace(self, trace_type, unique_id, trace_nmr, jd_name=None):
         """ Create a new trace object and attach it to the forest """
         trace = Trace(self, trace_type, self.timepos, unique_id, jd_name)
+        trace.stamp = len(self.traces)
         self.traces[unique_id] = trace
         self.last_trace = trace
         return trace
