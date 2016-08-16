@@ -24,6 +24,9 @@ class FileObj(object):
     def write(self, s):
         self.s += s
 
+    def tell(self):
+        return 0
+
 def test_fileobj():
     f = FileObj()
     f.write(b'foo')

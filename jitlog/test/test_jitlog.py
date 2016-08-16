@@ -1,7 +1,9 @@
 import struct, py, sys
+import pytest
 from vmprof import reader
 from jitlog import constants as const
 from jitlog import marks
+from jitlog.parser import ParseException
 from jitlog.parser import _parse_jitlog
 from jitlog.objects import (FlatOp, TraceForest, Trace,
         MergePoint, PointInTrace, iter_ranges)
@@ -278,3 +280,31 @@ def test_v2_start_trace():
     fw = FileObjWrapper(fobj)
     forest = construct_forest(fw, version=2)
     assert forest.get_trace(0x15).jd_name == 'jd_is_a_hippy'
+
+def test_exception_recover():
+    # weird file provided, fails without returning anything
+    fobj = FileObj([0x0])
+    with pytest.raises(ParseException):
+        _parse_jitlog(fobj)
+
+    # incomplete log, bails and adds exception
+    fobj = FileObj([const.MARK_JITLOG_HEADER,
+                    b'\x01\x00\x00', encode_str('x86_64'),
+                   b'\x00'
+                   ])
+    f = _parse_jitlog(fobj)
+    assert hasattr(f, 'exc')
+    assert "marker unknown" in f.exc.args[0]
+
+    # some valid data, but most of it missing
+    fobj = FileObj([const.MARK_JITLOG_HEADER,
+                    b'\x01\x00\x00', encode_str('x86_64'),
+                    const.MARK_START_TRACE, encode_le_u64(0xffaa), encode_str('loop'), encode_le_u64(0),
+                    const.MARK_TRACE, encode_le_u64(0xffaa),
+                    const.MARK_START_TRACE # uff, trace ends here, data missing
+                   ])
+    f = _parse_jitlog(fobj)
+    assert len(f.traces) == 1
+    assert hasattr(f, 'exc')
+
+
