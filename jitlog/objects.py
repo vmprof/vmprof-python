@@ -515,6 +515,20 @@ class TraceForest(object):
         assert lineno not in dict
         dict[lineno] = (indent, line)
 
+    def redirect_assembler(self, descr_number, new_descr_nmr, addr_to):
+        assert isinstance(descr_number, int)
+        trace = self.get_trace_by_addr(addr_to)
+        trace.descr_nmr = descr_number
+        self.stitches[descr_number] = trace.unique_id
+        point_in_trace = self.get_point_in_trace_by_descr(descr_number)
+        if not point_in_trace:
+            sys.stderr.write("redirect asm: link to trace of descr 0x%x not found!\n" % descr_number)
+        else:
+            parent = point_in_trace.trace
+            trace.parent = parent
+            parent.bridges.append(trace)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("jitlog")

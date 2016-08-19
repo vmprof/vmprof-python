@@ -15,8 +15,9 @@ import vmprof
 
 PY3 = sys.version_info[0] >= 3
 
-def construct_forest(fileobj, version=1):
-    forest = TraceForest(version)
+def construct_forest(fileobj, version=1, forest=None):
+    if forest is None:
+        forest = TraceForest(version)
     try:
         while True:
             marker = fileobj.read(1)
@@ -307,4 +308,29 @@ def test_exception_recover():
     assert len(f.traces) == 1
     assert hasattr(f, 'exc')
 
-
+def test_v3_redirect_assembler():
+    # prepare a forest that already got two traces,
+    # the first with call assembler and the target of
+    # call assembler already included. then a read mark
+    # redirect assembler is emulated.
+    forest = TraceForest(3)
+    trace = forest.add_trace('loop', 0, 0)
+    trace.start_mark(const.MARK_TRACE_OPT)
+    op = FlatOp(0, 'call_assembler_i', '', 'i0', 0, 15)
+    trace.add_instr(op)
+    #
+    trace2 = forest.add_trace('loop', 16, 0)
+    trace2.start_mark(const.MARK_TRACE_OPT)
+    trace2.set_addr_bounds(42,44)
+    #
+    fobj = FileObj([const.MARK_REDIRECT_ASSEMBLER,
+                    encode_le_u64(15),
+                    encode_le_u64(16),
+                    encode_le_u64(42),
+                    ])
+    fw = FileObjWrapper(fobj)
+    forest = construct_forest(fw, forest=forest)
+    asm = forest.get_trace(16)
+    parent = forest.get_trace(0)
+    assert asm.parent == parent
+    assert len(parent.bridges) == 1

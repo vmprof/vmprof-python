@@ -218,3 +218,11 @@ def read_source_code(forest, trace, fileobj):
         indent = read_byte(fileobj)
         text = read_string(fileobj, True)
         forest.add_source_code_line(filename, lineno, indent, text)
+
+@mark_parser(3)
+def read_redirect_assembler(forest, trace, fileobj):
+    descr_nmr = forest.read_le_addr(fileobj)
+    new_descr_nmr = forest.read_le_addr(fileobj)
+    target = forest.read_le_addr(fileobj)
+    #
+    forest.redirect_assembler(descr_nmr, new_descr_nmr, target)
