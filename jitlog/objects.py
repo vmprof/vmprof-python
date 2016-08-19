@@ -281,6 +281,13 @@ class Trace(object):
             raise NotImplementedError("jit log sets address bounds to a location another trace already is resident of")
         self.forest.addrs[a] = self
 
+    def is_assembled(self):
+        """ return True if the jit log indicated to have assembled this trace """
+        return self.addrs[0] != -1
+
+    def get_addrs(self):
+        return tuple(self.addrs)
+
     def contains_addr(self, addr):
         return self.addrs[0] <= addr <= self.addrs[1]
 
