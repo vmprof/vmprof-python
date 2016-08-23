@@ -27,7 +27,7 @@ def read_trace(fileobj, depth, version, profile_lines=False):
         trace = read_words(fileobj, depth)
 
         if profile_lines:
-            for i in range(0, len(trace), 2):
+            for i in xrange(0, len(trace), 2):
                 # In the line profiling mode even items in the trace are line numbers.
                 # Every line number corresponds to the following frame, represented by an address.
                 trace[i] = -trace[i]
