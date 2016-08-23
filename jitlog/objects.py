@@ -326,6 +326,16 @@ class Trace(object):
             pass
         return 'unknown'
 
+    def get_failing_guard(self):
+        """ return the resoperation (FlatOp) for the descr this trace is attached to """
+        if self.descr_nmr != 0:
+            point_in_trace = self.forest.get_point_in_trace_by_descr(self.descr_nmr)
+            if not point_in_trace:
+                return None
+            else:
+                return point_in_trace.op
+        return None
+
 def iter_ranges(numbers):
     if len(numbers) == 0:
         raise StopIteration
