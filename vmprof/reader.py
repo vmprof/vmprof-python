@@ -22,7 +22,7 @@ def read_trace(fileobj, depth, version, profile_lines=False):
         kinds_and_pcs = read_words(fileobj, depth * 2)
         # kinds_and_pcs is a list of [kind1, pc1, kind2, pc2, ...]
         return [wrap_kind(kinds_and_pcs[i], kinds_and_pcs[i+1])
-                for i in xrange(len(kinds_and_pcs), None, 2)]
+                for i in xrange(0, len(kinds_and_pcs), 2)]
     else:
         trace = read_words(fileobj, depth)
 
