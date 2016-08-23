@@ -347,7 +347,5 @@ def test_failing_guard():
     trace2.set_addr_bounds(42,44)
     #
     forest.stitch_bridge(15, 42)
-
     assert trace2.get_failing_guard() == op
-
 

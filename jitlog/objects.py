@@ -169,7 +169,7 @@ class Trace(object):
         self.merge_point_files = defaultdict(list)
         self.parent = None
         self.bridges = []
-        self.descr_nmr = 0 # the descr this trace is attached to
+        self.descr_number = 0 # the descr this trace is attached to
 
     def add_up_enter_count(self, count):
         self.counter += count
@@ -180,7 +180,7 @@ class Trace(object):
         return d
 
     def get_stitched_descr_number(self):
-        return self.descr_nmr
+        return self.descr_number
 
     def get_parent(self):
         return self.parent
@@ -258,10 +258,10 @@ class Trace(object):
         if op.getname() == "increment_debug_counter":
             prev_op = stage.get_op(op.index-1)
             # look for the previous operation, it is a label saved
-            # in descr_nmr_to_point_in_trace
+            # in descr_number_to_point_in_trace
             if prev_op:
-                descr_nmr = prev_op.get_descr_nmr()
-                pit = self.forest.get_point_in_trace_by_descr(descr_nmr)
+                descr_number = prev_op.get_descr_nmr()
+                pit = self.forest.get_point_in_trace_by_descr(descr_number)
                 pit.set_inc_op(op)
 
         if isinstance(op, MergePoint):
@@ -328,8 +328,8 @@ class Trace(object):
 
     def get_failing_guard(self):
         """ return the resoperation (FlatOp) for the descr this trace is attached to """
-        if self.descr_nmr != 0:
-            point_in_trace = self.forest.get_point_in_trace_by_descr(self.descr_nmr)
+        if self.descr_number != 0:
+            point_in_trace = self.forest.get_point_in_trace_by_descr(self.descr_number)
             if not point_in_trace:
                 return None
             else:
@@ -412,6 +412,7 @@ class TraceForest(object):
         # a mapping from source file name -> {lineno: (indent, line)}
         self.source_lines = defaultdict(dict)
         self.descr_nmr_to_point_in_trace = {}
+        self.exc = None # holds an exception object if an error occured
 
     def unlink_jitlog(self):
         if self.filepath and os.path.exists(self.filepath):
@@ -483,8 +484,8 @@ class TraceForest(object):
     def stitch_bridge(self, descr_number, addr_to):
         assert isinstance(descr_number, int)
         bridge = self.get_trace_by_addr(addr_to)
-        assert bridge.descr_nmr == 0, "a bridge can only be stitched once"
-        bridge.descr_nmr = descr_number
+        assert bridge.descr_number == 0, "a bridge can only be stitched once"
+        bridge.descr_number = descr_number
         self.stitches[descr_number] = bridge.unique_id
         assert bridge is not None, ("no trace to be found for addr 0x%x" % addr_to)
         point_in_trace = self.get_point_in_trace_by_descr(descr_number)
@@ -495,9 +496,9 @@ class TraceForest(object):
             bridge.parent = trace
             trace.bridges.append(bridge)
 
-    def get_stitch_target(self, descr_nmr):
-        assert isinstance(descr_nmr, int)
-        return self.stitches.get(descr_nmr)
+    def get_stitch_target(self, descr_number):
+        assert isinstance(descr_number, int)
+        return self.stitches.get(descr_number)
 
     def patch_memory(self, addr, content, timeval):
         self.patches.append((timeval, addr, content))
@@ -532,10 +533,10 @@ class TraceForest(object):
         assert lineno not in dict
         dict[lineno] = (indent, line)
 
-    def redirect_assembler(self, descr_number, new_descr_nmr, addr_to):
+    def redirect_assembler(self, descr_number, new_descr_number, addr_to):
         assert isinstance(descr_number, int)
         trace = self.get_trace_by_addr(addr_to)
-        trace.descr_nmr = descr_number
+        trace.descr_number = descr_number
         self.stitches[descr_number] = trace.unique_id
         point_in_trace = self.get_point_in_trace_by_descr(descr_number)
         if not point_in_trace:
