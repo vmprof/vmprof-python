@@ -325,8 +325,8 @@ def test_v3_redirect_assembler():
     #
     fobj = FileObj([const.MARK_REDIRECT_ASSEMBLER,
                     encode_le_u64(15),
+                    encode_le_u64(17),
                     encode_le_u64(16),
-                    encode_le_u64(42),
                     ])
     fw = FileObjWrapper(fobj)
     forest = construct_forest(fw, forest=forest)

@@ -46,12 +46,12 @@ def read_start_trace(forest, trace, fileobj):
     trace_nmr = forest.read_le_addr(fileobj)
     # version 2 adds the jitdriver name
     if forest.version >= 2:
-        jitdriver_name = read_string(fileobj, True)
+        jd_name = read_string(fileobj, True)
     else:
-        jitdriver_name = None
+        jd_name= None
     #
     assert trace_id not in forest.traces
-    forest.add_trace(trace_type, trace_id, trace_nmr, jitdriver_name)
+    forest.add_trace(trace_type, trace_id, trace_nmr, jd_name)
 
 @mark_parser(1)
 def read_trace(forest, trace, fileobj):
@@ -125,14 +125,14 @@ def read_resop_descr(forest, trace, fileobj):
 
 @mark_parser(1)
 def read_asm_addr(forest, trace, fileobj):
-    assert trace is not None
+    assert trace is not None, "read asm addr, no trace obj is provided"
     addr1 = forest.read_le_addr(fileobj)
     addr2 = forest.read_le_addr(fileobj)
     trace.set_addr_bounds(addr1, addr2)
 
 @mark_parser(1)
 def read_asm(forest, trace, fileobj):
-    assert trace is not None
+    assert trace is not None, "read asm, no trace obj is provided"
     rel_pos = read_le_u16(fileobj)
     dump = read_bytes(fileobj)
     trace.set_core_dump_to_last_op(rel_pos, dump)
@@ -147,7 +147,7 @@ def read_init_merge_point(forest, trace, fileobj):
         d = merge_point.get_decoder(sem_type, gen_type, forest.version)
         types.append(d)
     stage = trace.get_last_stage()
-    assert stage is not None
+    assert stage is not None, "last stage is none, but it must not be none!"
     stage.merge_point_types = types
 
 @mark_parser(1)
@@ -159,7 +159,7 @@ def read_common_prefix(forest, trace, fileobj):
 
 @mark_parser(1)
 def read_merge_point(forest, trace, fileobj):
-    assert trace is not None
+    assert trace is not None, "read merge point, trace is not None"
     stage = trace.get_last_stage()
     assert stage is not None
     #

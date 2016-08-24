@@ -23,6 +23,9 @@ class FlatOp(object):
     def getname(self):
         return self.opname
 
+    def getindex(self):
+        return self.index
+
     def is_debug(self):
         return False
 
@@ -171,6 +174,10 @@ class Trace(object):
         self.bridges = []
         self.descr_number = 0 # the descr this trace is attached to
 
+    def get_id(self):
+        """ Return the unique id for that trace object """
+        return self.unique_id
+
     def add_up_enter_count(self, count):
         self.counter += count
 
@@ -255,6 +262,12 @@ class Trace(object):
                 # a label could already reside in that position
                 if nmr not in dict:
                     dict[nmr] = PointInTrace(self, op)
+
+            if op.getname() == "label":
+                self.forest.labels[nmr] = PointInTrace(self, op)
+            if op.getname() == "jump":
+                self.forest.jumps[nmr] = PointInTrace(self, op)
+
         if op.getname() == "increment_debug_counter":
             prev_op = stage.get_op(op.index-1)
             # look for the previous operation, it is a label saved
@@ -360,6 +373,9 @@ class PointInTrace(object):
         self.op = op
         self.inc_op = None
 
+    def get_operation(self):
+        return self.op
+
     def set_inc_op(self, op):
         if self.inc_op is None:
             self.inc_op = op
@@ -413,6 +429,8 @@ class TraceForest(object):
         self.source_lines = defaultdict(dict)
         self.descr_nmr_to_point_in_trace = {}
         self.exc = None # holds an exception object if an error occured
+        self.labels = {}
+        self.jumps = {}
 
     def unlink_jitlog(self):
         if self.filepath and os.path.exists(self.filepath):
@@ -484,6 +502,8 @@ class TraceForest(object):
     def stitch_bridge(self, descr_number, addr_to):
         assert isinstance(descr_number, int)
         bridge = self.get_trace_by_addr(addr_to)
+        if bridge is None:
+            raise Exception("bridge is None")
         assert bridge.descr_number == 0, "a bridge can only be stitched once"
         bridge.descr_number = descr_number
         self.stitches[descr_number] = bridge.unique_id
@@ -530,17 +550,22 @@ class TraceForest(object):
 
     def add_source_code_line(self, filename, lineno, indent, line):
         dict = self.source_lines[filename]
-        assert lineno not in dict
+        if lineno in dict:
+            sys.stderr.write("duplicate line '%s' in %s on line %d\n" % (line, filename, lineno))
         dict[lineno] = (indent, line)
 
-    def redirect_assembler(self, descr_number, new_descr_number, addr_to):
+    def redirect_assembler(self, descr_number, new_descr_number, trace_id):
         assert isinstance(descr_number, int)
-        trace = self.get_trace_by_addr(addr_to)
+        self.stitches[descr_number] = trace_id
+        # setup the object properties
+        trace = self.get_trace_by_id(trace_id)
+        if trace is None:
+            sys.stderr.write("could not redirect_assembler 0x%x 0x%x id 0x%x\n" % (descr_number, new_descr_number, trace_id))
+            return
         trace.descr_number = descr_number
-        self.stitches[descr_number] = trace.unique_id
         point_in_trace = self.get_point_in_trace_by_descr(descr_number)
         if not point_in_trace:
-            sys.stderr.write("redirect asm: link to trace of descr 0x%x not found!\n" % descr_number)
+            sys.stderr.write("redirect call assembler: link to trace of descr 0x%x not found!\n" % descr_number)
         else:
             parent = point_in_trace.trace
             trace.parent = parent

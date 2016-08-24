@@ -1,4 +1,5 @@
 import sys
+import traceback
 from jitlog import constants as const, marks
 from jitlog.objects import TraceForest
 from vmshare.binary import read_string
@@ -62,8 +63,10 @@ def _parse_jitlog(fileobj):
             forest.exc = e
             break
         except Exception as e:
-            msg = "failed at %s with marker %s with exc %s" %\
-                    (hex(fileobj.tell()), marker, str(e))
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            tb = traceback.extract_tb(exc_traceback, limit=3)
+            msg = "failed at 0%x with marker %s with exc \"%s\". trace back: \"%s\"" %\
+                    (fileobj.tell(), marker, str(e), tb)
             forest.exc = ParseException(msg)
             break
 
