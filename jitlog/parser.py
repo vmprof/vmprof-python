@@ -65,7 +65,7 @@ def _parse_jitlog(fileobj):
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             tb = traceback.extract_tb(exc_traceback, limit=3)
-            msg = "failed at 0%x with marker %s with exc \"%s\". trace back: \"%s\"" %\
+            msg = "failed at 0x%x with marker %s with exc \"%s\". trace back: \"%s\"" %\
                     (fileobj.tell(), marker, str(e), tb)
             forest.exc = ParseException(msg)
             break

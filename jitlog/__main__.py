@@ -95,10 +95,9 @@ def main():
 
     if not web:
         prof_file = args.output
-        prof_name = prof_file.name
     else:
         prof_file = tempfile.NamedTemporaryFile(delete=False)
-        prof_name = prof_file.name
+    prof_name = prof_file.name
 
 
     fd = os.open(prof_name, os.O_WRONLY | os.O_TRUNC | os.O_CREAT)

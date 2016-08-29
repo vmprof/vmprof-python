@@ -20,7 +20,7 @@ class FlatOp(object):
         self.failargs = failargs
         self.index = -1
 
-    def getname(self):
+    def get_name(self):
         return self.opname
 
     def getindex(self):
@@ -90,7 +90,7 @@ class MergePoint(FlatOp):
         assert isinstance(values, dict)
         self.values = values
 
-    def getname(self):
+    def get_name(self):
         return None
 
     def is_debug(self):
@@ -263,12 +263,12 @@ class Trace(object):
                 if nmr not in dict:
                     dict[nmr] = PointInTrace(self, op)
 
-            if op.getname() == "label":
+            if op.get_name() == "label":
                 self.forest.labels[nmr] = PointInTrace(self, op)
-            if op.getname() == "jump":
+            if op.get_name() == "jump":
                 self.forest.jumps[nmr] = PointInTrace(self, op)
 
-        if op.getname() == "increment_debug_counter":
+        if op.get_name() == "increment_debug_counter":
             prev_op = stage.get_op(op.index-1)
             # look for the previous operation, it is a label saved
             # in descr_number_to_point_in_trace
@@ -291,7 +291,7 @@ class Trace(object):
     def set_addr_bounds(self, a, b):
         self.addrs = (a,b)
         if a in self.forest.addrs:
-            raise NotImplementedError("jit log sets address bounds to a location another trace already is resident of")
+            sys.stderr.write("jit log sets address bounds to a location another trace already is resident of\n")
         self.forest.addrs[a] = self
 
     def is_assembled(self):
@@ -567,6 +567,7 @@ class TraceForest(object):
         if not point_in_trace:
             sys.stderr.write("redirect call assembler: link to trace of descr 0x%x not found!\n" % descr_number)
         else:
+            sys.stderr.write("!!found!! redirect call assembler: link to trace of descr 0x%x found!\n" % descr_number)
             parent = point_in_trace.trace
             trace.parent = parent
             parent.bridges.append(trace)
