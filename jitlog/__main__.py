@@ -5,6 +5,7 @@ import argparse
 from jitlog.upload import upload as jitlog_upload
 from vmshare import get_url
 from jitlog.parser import parse_jitlog
+from jitlog import query
 
 try:
     import _jitlog
