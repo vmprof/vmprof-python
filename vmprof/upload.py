@@ -39,8 +39,13 @@ def upload(stats, name, argv, host, auth, forest=None):
     headers['Content-Type'] = 'application/json'
     url = get_url(host, "api/profile/")
     r = requests.post(url, data=data, headers=headers)
-    profile_checksum = r.text[1:-1]
-    sys.stderr.write("VMProf log: %s/#/%s\n" % (host.rstrip("/"), profile_checksum))
+    if r.status_code != 200:
+        sys.stderr.write("VMProf log: Server rejected profile. status: %d, msg: '%s'\n" % \
+                (r.status_code,r.text))
+        profile_checksum = ''
+    else:
+        sys.stderr.write("VMProf log: %s/#/%s\n" % (host.rstrip("/"), profile_checksum))
+        profile_checksum = r.text[1:-1]
 
     if forest:
         url = get_url(host, "api/jitlog/%s/" % profile_checksum)
