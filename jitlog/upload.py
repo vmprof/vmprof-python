@@ -25,7 +25,12 @@ def upload(filepath, url):
     zfilepath = compress_file(filepath)
     with open(zfilepath, 'rb') as fd:
         r = requests.post(url, files={ 'file': fd })
+        if r.status_code != 200:
+            sys.stderr.write("PyPy JIT log: Server rejected file. status: %d, msg: '%s'\n" % \
+                    (r.status_code,r.text))
+            return
         checksum = r.text[1:-1]
+        assert checksum != ""
         netloc = urlparse(url).netloc
         sys.stderr.write("PyPy JIT log: http://%s/#/%s/traces\n" % (netloc, checksum))
 
