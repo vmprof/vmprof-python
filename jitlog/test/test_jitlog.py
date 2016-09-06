@@ -4,7 +4,7 @@ from vmprof import reader
 from jitlog import constants as const
 from jitlog import marks
 from jitlog.parser import ParseException
-from jitlog.parser import _parse_jitlog
+from jitlog.parser import _parse_jitlog, ParseContext
 from jitlog.objects import (FlatOp, TraceForest, Trace,
         MergePoint, PointInTrace, iter_ranges)
 from vmshare.binary import (encode_str, encode_le_u64, encode_le_u32)
@@ -18,12 +18,13 @@ PY3 = sys.version_info[0] >= 3
 def construct_forest(fileobj, version=1, forest=None):
     if forest is None:
         forest = TraceForest(version)
+    ctx = ParseContext(forest)
     try:
         while True:
             marker = fileobj.read(1)
             read = marks.get_reader(version, marker)
             trace = forest.last_trace
-            read(forest, trace, fileobj)
+            read(ctx, trace, fileobj)
             forest.time_tick()
     except vmprof.reader.BufferTooSmallError:
         pass
@@ -203,16 +204,16 @@ def test_read_jitlog_counter():
     ta.add_instr(op2)
     tb = forest.add_trace('bridge', 22, 101)
     fw = FileObjWrapper(FileObj([encode_le_u64(0x0), b'l', encode_le_u64(20)]))
-    assert marks.read_jitlog_counter(forest, None, fw) == False, \
+    assert marks.read_jitlog_counter(ParseContext(forest), None, fw) == False, \
             "must not find trace"
     fw = FileObjWrapper(FileObj([encode_le_u64(1), b'e', encode_le_u64(145),
                                  encode_le_u64(2), b'l', encode_le_u64(45),
                                  encode_le_u64(22), b'b', encode_le_u64(100),
                                 ]))
     # read the entry, the label, and the bridge
-    assert marks.read_jitlog_counter(forest, None, fw) == True
-    assert marks.read_jitlog_counter(forest, None, fw) == True
-    assert marks.read_jitlog_counter(forest, None, fw) == True
+    assert marks.read_jitlog_counter(ParseContext(forest), None, fw) == True
+    assert marks.read_jitlog_counter(ParseContext(forest), None, fw) == True
+    assert marks.read_jitlog_counter(ParseContext(forest), None, fw) == True
     assert ta.counter == 145
     assert ta.point_counters[1] == 45
     assert tb.counter == 100
@@ -315,12 +316,12 @@ def test_v3_redirect_assembler():
     # redirect assembler is emulated.
     forest = TraceForest(3)
     trace = forest.add_trace('loop', 0, 0)
-    trace.start_mark(const.MARK_TRACE_OPT)
+    trace.start_mark(const.MARK_TRACE_ASM)
     op = FlatOp(0, 'call_assembler_i', '', 'i0', 0, 15)
     trace.add_instr(op)
     #
     trace2 = forest.add_trace('loop', 16, 0)
-    trace2.start_mark(const.MARK_TRACE_OPT)
+    trace2.start_mark(const.MARK_TRACE_ASM)
     trace2.set_addr_bounds(42,44)
     #
     fobj = FileObj([const.MARK_REDIRECT_ASSEMBLER,
@@ -332,13 +333,13 @@ def test_v3_redirect_assembler():
     forest = construct_forest(fw, forest=forest)
     asm = forest.get_trace(16)
     parent = forest.get_trace(0)
-    assert asm.parent == parent
-    assert len(parent.bridges) == 1
+    assert asm.get_parent() == parent
+    assert len(parent.links) == 1
 
 def test_failing_guard():
     forest = TraceForest(3)
     trace = forest.add_trace('loop', 0, 0)
-    trace.start_mark(const.MARK_TRACE_OPT)
+    trace.start_mark(const.MARK_TRACE_ASM)
     op = FlatOp(0, 'gurad_true', '', 'i0', 0, 15)
     trace.add_instr(op)
     #
