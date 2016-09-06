@@ -76,11 +76,9 @@ def _parse_jitlog(fileobj):
             forest.time_tick()
         except KeyError as e:
             forest.exc = e
-            raise # TODO 
             break
         except ParseException as e:
             forest.exc = e
-            raise # TODO 
             break
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -88,7 +86,6 @@ def _parse_jitlog(fileobj):
             msg = "failed at 0x%x with marker %s with exc \"%s\". trace back: \"%s\"" %\
                     (fileobj.tell(), marker, str(e), tb)
             forest.exc = ParseException(msg)
-            raise # TODO 
             break
 
     return forest
