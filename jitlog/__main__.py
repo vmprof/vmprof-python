@@ -83,8 +83,12 @@ def main():
     if args.upload:
         # parse_jitlog will append source code to the binary
         forest = parse_jitlog(args.program)
-        forest.extract_source_code_lines()
-        forest.copy_and_add_source_code_tags()
+        if forest.exception_raised():
+            print("ERROR:", forest.exception_raised())
+            sys.exit(1)
+        if forest.extract_source_code_lines():
+            # only copy the tags if the jitlog has no source code yet!
+            forest.copy_and_add_source_code_tags()
         jitlog_upload(forest.filepath, get_url(args.web_url, "api/jitlog//"))
         sys.exit(0)
 
@@ -116,8 +120,9 @@ def main():
 
     if web:
         forest = parse_jitlog(prof_name)
-        forest.extract_source_code_lines()
-        forest.copy_and_add_source_code_tags()
+        if forest.extract_source_code_lines():
+            # only copy the tags if the jitlog has no source code yet!
+            forest.copy_and_add_source_code_tags()
         jitlog_upload(forest.filepath, get_url(args.web_url, "api/jitlog//"))
         forest.unlink_jitlog() # free space!
 

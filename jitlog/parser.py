@@ -1,12 +1,29 @@
 import sys
+import struct
 import traceback
 from jitlog import constants as const, marks
 from jitlog.objects import TraceForest
 from vmshare.binary import read_string
 from io import BytesIO
+from collections import defaultdict
 
 JITLOG_MIN_VERSION = 1
 JITLOG_VERSION = 1
+
+class ParseContext(object):
+    def __init__(self, forest):
+        self.descrs = defaultdict(list)
+        self.forest = forest
+        self.word_size = self.forest.word_size
+
+    def read_le_addr(self, fileobj):
+        b = fileobj.read(self.word_size)
+        if self.word_size == 4:
+            res = int(struct.unpack('I', b)[0])
+        else:
+            res = int(struct.unpack('Q', b)[0])
+        return res
+
 
 class ParseException(Exception):
     pass
@@ -38,6 +55,7 @@ def _parse_jitlog(fileobj):
     is_32bit = ord(fileobj.read(1))
     machine = read_string(fileobj, True)
     forest = TraceForest(version, is_32bit, machine)
+    ctx = ParseContext(forest)
     if not is_jit_log:
         raise ParseException("Missing header. Provided input might not be a jitlog!")
     if version < JITLOG_MIN_VERSION:
@@ -54,13 +72,15 @@ def _parse_jitlog(fileobj):
         trace = forest.last_trace
         try:
             read = marks.get_reader(version, marker)
-            read(forest, trace, fileobj)
+            read(ctx, trace, fileobj)
             forest.time_tick()
         except KeyError as e:
             forest.exc = e
+            raise # TODO 
             break
         except ParseException as e:
             forest.exc = e
+            raise # TODO 
             break
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -68,6 +88,7 @@ def _parse_jitlog(fileobj):
             msg = "failed at 0x%x with marker %s with exc \"%s\". trace back: \"%s\"" %\
                     (fileobj.tell(), marker, str(e), tb)
             forest.exc = ParseException(msg)
+            raise # TODO 
             break
 
     return forest
