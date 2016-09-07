@@ -44,8 +44,8 @@ def upload(stats, name, argv, host, auth, forest=None):
                 (r.status_code,r.text))
         profile_checksum = ''
     else:
-        sys.stderr.write("VMProf log: %s/#/%s\n" % (host.rstrip("/"), profile_checksum))
         profile_checksum = r.text[1:-1]
+        sys.stderr.write("VMProf log: %s/#/%s\n" % (host.rstrip("/"), profile_checksum))
 
     if forest:
         url = get_url(host, "api/jitlog/%s/" % profile_checksum)
