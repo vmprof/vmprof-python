@@ -81,15 +81,9 @@ def main():
         sys.exit(0)
 
     if args.upload:
-        # parse_jitlog will append source code to the binary
-        forest = parse_jitlog(args.program)
-        if forest.exception_raised():
-            print("ERROR:", forest.exception_raised())
-            sys.exit(1)
-        if forest.extract_source_code_lines():
-            # only copy the tags if the jitlog has no source code yet!
-            forest.copy_and_add_source_code_tags()
-        jitlog_upload(forest.filepath, get_url(args.web_url, "api/jitlog//"))
+        host, auth = args.web_url, args.web_auth
+        service = Service(host, auth)
+        service.post({ Service.File_JIT_PROFILE: args.program })
         sys.exit(0)
 
     if not _jitlog:
