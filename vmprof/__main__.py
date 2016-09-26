@@ -23,7 +23,7 @@ def show_stats(filename, output_mode, args):
         service = Service(host, auth)
         service.post({ Service.FILE_CPU_PROFILE: filename,
                        Service.FILE_MEM_PROFILE: filename + '.mem',
-                       Service.File_JIT_PROFILE: filename + '.jit',
+                       Service.FILE_JIT_PROFILE: filename + '.jit',
                        'argv': ' '.join(args.args)})
 
 def main():
