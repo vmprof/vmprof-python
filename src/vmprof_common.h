@@ -132,6 +132,17 @@ static int opened_profile(char *interp_name, int memory, int lines)
     return _write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
 }
 
+/* Seems that CPython 3.5.1 made our job harder.  Did not find out how
+   to do that without these hacks.  We can't use PyThreadState_GET(),
+   because that calls PyThreadState_Get() which fails an assert if the
+   result is NULL. */
+#if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
+                             /* this was abruptly un-defined in 3.5.1 */
+void *volatile _PyThreadState_Current;
+   /* XXX simple volatile access is assumed atomic */
+#  define _Py_atomic_load_relaxed(pp)  (*(pp))
+#endif
+
 PyThreadState * get_current_thread_state(void)
 {
 #if PY_MAJOR_VERSION < 3
