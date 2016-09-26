@@ -136,9 +136,9 @@ PyThreadState * get_current_thread_state(void)
 {
 #if PY_MAJOR_VERSION < 3
     return _PyThreadState_Current;
-#elif PY_VERSION_HEX < 0x03050000
+#elif PY_VERSION_HEX < 0x03050200
     return (PyThreadState*) _Py_atomic_load_relaxed(&_PyThreadState_Current);
 #else
-    return PyThreadState_GET();
+    return _PyThreadState_UncheckedGet();
 #endif
 }
