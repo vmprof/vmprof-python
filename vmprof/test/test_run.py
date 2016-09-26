@@ -9,6 +9,7 @@ import gzip
 import six
 
 import vmprof
+from vmprof.show import PrettyPrinter
 from vmprof.reader import read_prof_bit_by_bit
 from vmprof.stats import Stats
 
@@ -27,6 +28,12 @@ def function_foo():
     for k in range(1000):
         l = [a for a in xrange(COUNT)]
     return l
+
+def function_bar():
+    import time
+    for k in range(1000):
+        time.sleep(0.001)
+    return 1+1
 
 
 def function_bar():
@@ -183,6 +190,15 @@ def test_line_profiling():
         stats = Stats(profiles, virtual_symbols, interp_name)
         walk(stats.get_tree())
 
+def test_vmprof_show():
+    tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    vmprof.enable(tmpfile.fileno())
+    function_bar()
+    vmprof.disable()
+    tmpfile.close()
+
+    pp = PrettyPrinter()
+    pp.show(tmpfile.name)
 
 if __name__ == '__main__':
     test_line_profiling()
