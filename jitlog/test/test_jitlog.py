@@ -51,9 +51,8 @@ def test_asm_addr():
     assert trace.jd_name == None
 
 def test_asm_positions():
-    unique_id = struct.pack("l", 0xFFAA)
     name = struct.pack("<i", 3) + b"zAz"
-    descr_nmr = struct.pack("l", 0)
+    descr_nmr = encode_le_u64(0)
     fobj = FileObj([const.MARK_RESOP_META, b"\x02\x00",
                     b"\xff\x00\x04\x00\x00\x00fire\x00\xfe\x02\x00\x00\x00on",
                     const.MARK_START_TRACE, encode_le_u64(0xffaa), encode_str('loop'), encode_le_u64(0),
