@@ -67,27 +67,6 @@ def test_asm_positions():
     assert str(forest.traces[0xFFAA].get_stage('noopt').ops[0]) == 'i3 = fire(i2, i1, @descr())'
     assert forest.traces[0xFFAA].get_stage('noopt').ops[0].core_dump == (4, b'DEADBEEF')
 
-#def test_patch_asm():
-#    addr1 = struct.pack("l", 64)
-#    addr2 = struct.pack("l", 127)
-#    unique_id = struct.pack("l", 0x0)
-#    name = struct.pack("<i", 0) + ""
-#
-#    addr_len = struct.pack("<i", 8)
-#    fobj = FileObj([b"\x11\xff\x00\x06\x00\x00\x00python",
-#                    b"\x18\x04\x00\x00\x00loop" + unique_id + name, # start a loop
-#                    b"\x14", addr1, addr2,
-#                    b"\x13\xff\x00\x05\x00\x00\x00i3,de" + "\x78" + "\x00" * 7, # resop
-#                    b"\x15\x00\x00\x40\x00\x00\x00", b"\x00" * 64, # machine code
-#                    b"\x19", 64+56, b'\x08\x00\x00\x00', b'\x00\xFF' * 4, # patch
-#                   ])
-#    fw = FileObjWrapper(fobj)
-#    forest = TraceForest(1)
-#    for i in range(6):
-#        forest.parse(fw, fw.read(1))
-#    assert str(forest.traces[0].get_stage('asm').ops[0]) == 'i3 = python(, @de)'
-#    # TODO assert forest.traces[0].get_core_dump() == '\x00' * 56 + '\x00\xFF' * 4
-
 def test_patch_asm_timeval():
     forest = TraceForest(1)
     trace = Trace(forest, 'bridge', 0, 0)
@@ -103,7 +82,6 @@ def test_patch_asm_timeval():
 
 def test_counters():
     descr_nmr = encode_le_u64(10)
-
     addr_len = struct.pack("<i", 8)
     fobj = FileObj([const.MARK_RESOP_META + b"\x01\x00\xff\x00", encode_str("python"),
                     const.MARK_START_TRACE, encode_le_u64(0xffaa), encode_str('loop'), encode_le_u64(0),
@@ -112,10 +90,10 @@ def test_counters():
                     const.MARK_RESOP_DESCR, b"\xff\x00", encode_str("i3,i2,i1,descr()") + descr_nmr, # resop
                     const.MARK_ASM, b"\x04\x00", encode_str("DEADBEEF"), # coredump
                     const.MARK_ASM_ADDR, encode_le_u64(0xabcdef), encode_le_u64(0xabcdff),
-                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcdef), b'l', 15,
-                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcdef), b'l', 0,
-                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcdef), b'l', 15,
-                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcfff), b'l', 5, # not counted to 0xabcdef
+                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcdef), b'l', encode_le_u64(15),
+                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcdef), b'l', encode_le_u64(0),
+                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcdef), b'l', encode_le_u64(15),
+                    const.MARK_JITLOG_COUNTER, encode_le_u64(0xabcfff), b'l', encode_le_u64(5), # not counted to 0xabcdef
                    ])
     fw = FileObjWrapper(fobj)
     forest = construct_forest(fw)
