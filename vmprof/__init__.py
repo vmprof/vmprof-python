@@ -63,7 +63,7 @@ def _gzip_start(fileno):
     if which("gzip"):
         gzip_cmd = ["gzip", "-", "-4"]
     else:
-        gzip_cmd = ["python", "-m", "gzip"]
+        gzip_cmd = ["python", "-u", "-m", "gzip"]
     global _gzip_proc
     _gzip_proc = subprocess.Popen(gzip_cmd, stdin=subprocess.PIPE,
                                   stdout=fileno, bufsize=-1,
@@ -74,5 +74,7 @@ def _gzip_finish():
     global _gzip_proc
     if _gzip_proc is not None:
         _gzip_proc.stdin.close()
-        _gzip_proc.wait()
+        returncode = _gzip_proc.wait()
+        assert returncode == 0, \
+               "return code was non zero: %d" % returncode
         _gzip_proc = None

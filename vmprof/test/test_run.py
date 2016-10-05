@@ -47,6 +47,7 @@ bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
 
 def test_win32_issue():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    print("target file", tmpfile.name, tmpfile.fileno())
     vmprof.enable(tmpfile.fileno())
     function_foo()
     vmprof.disable()
