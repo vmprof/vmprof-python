@@ -618,7 +618,7 @@ class TraceForest(object):
         assert isinstance(descr_number, int)
         self.stitches[descr_number] = trace_id
         if descr_number not in self.redirect_descrs:
-            print("redir asm FAIL", hex(descr_number))
+            return
         else:
             del self.redirect_descrs[descr_number]
         # setup the object properties

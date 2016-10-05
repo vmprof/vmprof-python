@@ -45,6 +45,16 @@ foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
 bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
 
+def test_win32_issue():
+    tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    vmprof.enable(tmpfile.fileno())
+    function_foo()
+    vmprof.disable()
+    tmpfile.close()
+    with open(tmpfile.name, 'rb') as fd:
+        print(ord(fd.read(1)))
+        print(ord(fd.read(1)))
+    assert b"function_foo" in gzip.GzipFile(tmpfile.name).read()
 
 def test_basic():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
