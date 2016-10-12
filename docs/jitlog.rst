@@ -25,7 +25,7 @@ The following commands show example usages::
     # upload a jitlog when your program segfaults/crashes
     $ pypy -m jitlog -o /tmp/file.log <program.py> <arguments>
     <Segfault>
-    $ pypy -m jitlog.upload /tmp/file.log
+    $ pypy -m jitlog --upload /tmp/file.log
 
 Data sent
 =========
