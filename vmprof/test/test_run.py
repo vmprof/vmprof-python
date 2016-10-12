@@ -112,8 +112,8 @@ def test_nested_call():
         assert len(t[''].children) == 0
 
 def test_multithreaded():
-    if '__pypy__' in sys.builtin_module_names or PY3K:
-        py.test.skip("not supported on pypy and python3 just yet")
+    if '__pypy__' in sys.builtin_module_names:
+        py.test.skip("not supported on pypy just yet")
     import threading
     finished = []
 
