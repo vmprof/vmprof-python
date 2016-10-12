@@ -1,7 +1,6 @@
 from setuptools import setup, find_packages, Extension
 import os, sys
 
-PY3  = sys.version_info[0] >= 3
 IS_PYPY = '__pypy__' in sys.builtin_module_names
 
 if IS_PYPY:
@@ -24,7 +23,7 @@ else:
                             extra_compile_args=extra_compile_args,
                             libraries=[])]
 
-if PY3:
+if sys.version_info[:2] >= (3, 3):
     extra_install_requires = []
 else:
     extra_install_requires = ["backports.shutil_which"]
