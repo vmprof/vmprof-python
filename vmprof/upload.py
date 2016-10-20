@@ -48,6 +48,9 @@ def upload(stats, name, argv, host, auth, forest=None):
         sys.stderr.write("VMProf log: %s/#/%s\n" % (host.rstrip("/"), profile_checksum))
 
     if forest:
+        if forest.extract_source_code_lines():
+            # only copy the tags if the jitlog has no source code yet!
+            forest.copy_and_add_source_code_tags()
         url = get_url(host, "api/jitlog/%s/" % profile_checksum)
         jitlog.upload(forest.filepath, url)
         forest.unlink_jitlog()
