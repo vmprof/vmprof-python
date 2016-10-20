@@ -32,7 +32,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.3.14",
+    version="0.3.15",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
