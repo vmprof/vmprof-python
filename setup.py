@@ -6,8 +6,11 @@ IS_PYPY = '__pypy__' in sys.builtin_module_names
 if IS_PYPY:
     ext_modules = [] # built-in
 else:
+    libraries = []
     if sys.platform != 'win32':
         extra_compile_args = ['-Wno-unused']
+    elif sys.platform == 'darwin':
+        libraries = ['unwind']
     else:
         extra_compile_args = []
     ext_modules = [Extension('_vmprof',
@@ -21,7 +24,7 @@ else:
                                'src/vmprof_common.h',
                            ],
                             extra_compile_args=extra_compile_args,
-                            libraries=[])]
+                            libraries=libraries)]
 
 if sys.version_info[:2] >= (3, 3):
     extra_install_requires = []
@@ -32,7 +35,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.3.15",
+    version="0.4.0",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',

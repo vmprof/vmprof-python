@@ -64,9 +64,26 @@ char *vmprof_init(int fd, double interval, int memory, int lines, char *interp_n
     return NULL;
 }
 
+#include <libunwind.h>
+
 static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int max_depth)
 {
     int depth = 0;
+    char buf[100];
+
+    unw_context_t ctx;
+    unw_cursor_t cursor;
+    unw_word_t off;
+
+    unw_getcontext(&ctx);
+    unw_init_local(&cursor, &ctx);
+    int level = 0;
+    do {
+        unw_get_proc_name(&cursor, buf, 100, &off);
+        printf("level: %d, name %s\n", level, buf);
+        level += 1;
+    } while (unw_step(&cursor) > 0);
+
 
     while (frame && depth < max_depth) {
         if (profile_lines) {
