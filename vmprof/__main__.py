@@ -1,4 +1,5 @@
 import runpy
+import platform
 import sys, os
 import tempfile
 import vmprof
@@ -24,7 +25,8 @@ def show_stats(filename, output_mode, args):
         service.post({ Service.FILE_CPU_PROFILE: filename,
                        Service.FILE_MEM_PROFILE: filename + '.mem',
                        Service.FILE_JIT_PROFILE: filename + '.jit',
-                       'argv': ' '.join(args.args)})
+                       'argv': ' '.join(sys.argv[:]),
+                       'VM': platform.python_implementation() })
 
 def main():
     args = vmprof.cli.parse_args(sys.argv[1:])

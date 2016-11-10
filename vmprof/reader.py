@@ -13,8 +13,6 @@ from vmshare.binary import read_word, read_string, read_words
 PY3  = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')
 
-
-
 def read_trace(fileobj, depth, version, profile_lines=False):
     if version == VERSION_TAG:
         assert depth & 1 == 0

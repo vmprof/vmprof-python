@@ -14,6 +14,13 @@ PY3 = sys.version_info[0] >= 3
 class ServiceException(Exception):
     pass
 
+def is_errornous(json):
+    return 'detail' in json
+
+def service_exception_from_json(json):
+    assert 'error' in json
+    return ServiceException(json['error'])
+
 
 def compress_file(filename):
     fileno, name = tempfile.mkstemp(suffix='.zip')
@@ -36,11 +43,14 @@ class Service(object):
         self.host = host
         self.auth = auth
         self.runtime_id = None
+        self.csrf_token = None
 
     def get_headers(self):
         base_headers = { 'Content-Type': 'application/json' }
         if self.auth:
             base_headers = {'AUTHORIZATION': "Token %s" % self.auth}
+        if self.csrf_token:
+            base_headers['csrftoken'] = self.csrf_token
         return base_headers
 
     def get_url(self, path):
@@ -52,61 +62,63 @@ class Service(object):
             url = 'http://%s/%s' % (host.rstrip("/"), path)
         return url
 
+    def stop_if_error_occured(self, response):
+        if response.status_code != 200:
+            sys.stderr.write("server rejected meta data." \
+                             " status: %d, msg: '%s'\n" % \
+                             (response.status_code, response.text))
+            raise ServiceException()
+
     def post_new_entry(self, data={}):
         url = self.get_url('/api/runtime/new')
         headers = self.get_headers()
         bytesdata = json.dumps(data).encode('utf-8')
         response = requests.post(url, data=bytesdata, headers=headers)
-        if response.status_code != 200:
-            sys.stderr.write("server rejected meta data." \
-                             " status: %d, msg: '%s'\n" % \
-                             (response.status_code, response.text))
-            return None
-        return r.json['rid']
+        self.stop_if_error_occured(response)
+        j = response.json()
+        return j.get('runtime_id', None)
 
     def post_file(self, rid, filename, filetype, compress=False):
         if not os.path.exists(filename):
             return False
-        origfile = filename
+        oldfilename = filename
         if compress:
             filename = compress_file(filename)
         with open(filename, 'rb') as fd:
             url = self.get_url('/api/runtime/upload/%s/%s/add' % (filetype, rid))
             files = { 'file': fd }
             headers = self.get_headers()
-            response = requests.post(url, data=b"", headers=headers, files=files)
-            if response.status_code != 200:
-                sys.stderr.write("server rejected file." \
-                        " status: %d, msg: '%s'\n" % \
-                        (response.status_code, response.text))
-                raise ServiceException()
+            headers['Content-Disposition'] = 'attachment; filename='+oldfilename
+            response = requests.post(url, headers=headers, files=files)
+            self.stop_if_error_occured(response)
         return True
 
-    def post(self, data, **kwargs):
+    def post(self, kwargs):
         sys.stderr.write("Uploading to %s...\n" % self.host)
 
-        argv = kwargs['argv'] if 'argv' in kwargs else None
+        argv = kwargs.get('argv', '-')
+        vm = kwargs.get('VM','unknown')
 
-        rid = self.post_new_entry({'argv': argv})
+        rid = self.post_new_entry({'argv': argv, 'VM': vm})
         if rid is None:
             raise ServiceException("could not create meta data for profiles")
 
         if Service.FILE_CPU_PROFILE in kwargs:
             filename = kwargs[Service.FILE_CPU_PROFILE]
             if os.path.exists(filename):
-                sys.stderr.write(" => uploading cpu profile...\n")
+                sys.stderr.write(" => Uploading the cpu profile...\n")
                 self.post_file(rid, filename,
                                Service.FILE_CPU_PROFILE, compress=False)
         elif Service.FILE_MEM_PROFILE in kwargs:
             filename = kwargs[Service.FILE_MEM_PROFILE]
             if os.path.exists(filename):
-                sys.stderr.write(" => uploading mem profile...\n")
+                sys.stderr.write(" => uploading the mem profile...\n")
                 self.post_file(rid, filename,
                                Service.FILE_MEM_PROFILE, compress=False)
         elif Service.FILE_JIT_PROFILE in kwargs:
             filename = kwargs[Service.FILE_JIT_PROFILE]
             if os.path.exists(filename):
-                sys.stderr.write(" => uploading jit profile...\n")
+                sys.stderr.write(" => uploading the jit log...\n")
                 forest = parse_jitlog(filename)
                 if forest.exception_raised():
                     sys.stderr.write(" error: %s\n" % forest.exception_raised())
@@ -121,13 +133,14 @@ class Service(object):
         self.finalize_entry(rid)
 
     def finalize_entry(self, rid, data=b""):
-        url = self.get_url('/api/runtime/%s/freeze' % rid)
+        url = self.get_url('/api/runtime/%s/freeze/' % rid)
         headers = self.get_headers()
         response = requests.post(url, data=data, headers=headers)
-        if r.status_code != 200:
+        self.crsf_token = None
+        if response.status_code != 200:
             sys.stderr.write("server failed to freeze these runtime profiles." \
                              " status: %d, msg: '%s'\n" % \
-                                (r.status_code, r.text))
+                                (response.status_code, response.text))
             return False
         return True
 
