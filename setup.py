@@ -7,12 +7,12 @@ if IS_PYPY:
     ext_modules = [] # built-in
 else:
     libraries = []
+    extra_compile_args = []
     if sys.platform != 'win32':
         extra_compile_args = ['-Wno-unused']
     elif sys.platform == 'darwin':
         libraries = ['unwind']
-    else:
-        extra_compile_args = []
+    extra_compile_args.append('-DNATIVE_FRAMES=1')
     ext_modules = [Extension('_vmprof',
                            sources=[
                                'src/_vmprof.c',

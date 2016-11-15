@@ -33,6 +33,7 @@
 
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
+#include "vmprof_native_frames.h"
 
 #if defined(__unix__)
 #include "rss_unix.h"
@@ -285,6 +286,7 @@ int vmprof_enable(int memory)
     if (install_sigprof_timer() == -1)
         goto error;
     vmprof_ignore_signals(0);
+    //PyEval_SetTrace(vmprof_trace_func, NULL);
     return 0;
 
  error:
