@@ -1,3 +1,5 @@
+#pragma once
+
 /* VMPROF
  *
  * statistical sampling profiler specifically designed to profile programs
@@ -33,6 +35,7 @@
 
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
+#include "stack.h"
 
 #if defined(__unix__)
 #include "rss_unix.h"
@@ -42,8 +45,6 @@
 
 
 /************************************************************/
-
-static void *(*mainloop_get_virtual_ip)(char *) = 0;
 
 static int opened_profile(char *interp_name, int memory, int lines);
 static void flush_codes(void);
@@ -98,12 +99,18 @@ static char atfork_hook_installed = 0;
  * *************************************************************
  */
 
-static int get_stack_trace(PyThreadState * current, void** result, int max_depth, ucontext_t *ucontext)
+static int get_stack_trace(PyThreadState * current, void** result, int max_depth, int native)
 {
-    if (!current)
+    PyFrameObject *frame;
+    if (!current) {
         return 0;
-    PyFrameObject *frame = current->frame;
-    return read_trace_from_cpy_frame(current->frame, result, max_depth);
+    }
+    frame = current->frame;
+    if (native) {
+        return vmp_walk_and_record_python_stack(frame, result, max_depth);
+    } else {
+        return read_trace_from_cpy_frame(frame, result, max_depth);
+    }
 }
 
 
@@ -123,6 +130,25 @@ static void segfault_handler(int arg)
     longjmp(restore_point, SIGSEGV);
 }
 
+void _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate, int native)
+{
+    int depth;
+    struct prof_stacktrace_s *st = (struct prof_stacktrace_s *)p->data;
+    st->marker = MARKER_STACKTRACE;
+    st->count = 1;
+    depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1, native);
+    //st->stack[0] = GetPC((ucontext_t*)ucontext);
+    // we gonna need that for pypy
+    st->depth = depth;
+    st->stack[depth++] = tstate;
+    long rss = get_current_proc_rss();
+    if (rss >= 0)
+        st->stack[depth++] = (void*)rss;
+    p->data_offset = offsetof(struct prof_stacktrace_s, marker);
+    p->data_size = (depth * sizeof(void *) +
+                    sizeof(struct prof_stacktrace_s) -
+                    offsetof(struct prof_stacktrace_s, marker));
+}
 
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
@@ -162,32 +188,17 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
         struct profbuf_s *p = reserve_buffer(fd);
         if (p == NULL) {
             /* ignore this signal: there are no free buffers right now */
+        } else {
+            _vmprof_sample_stack(p, tstate, 0); // no native frames for now
         }
-        else {
-            int depth;
-            struct prof_stacktrace_s *st = (struct prof_stacktrace_s *)p->data;
-            st->marker = MARKER_STACKTRACE;
-            st->count = 1;
-            depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1, ucontext);
-            //st->stack[0] = GetPC((ucontext_t*)ucontext);
-            // we gonna need that for pypy
-            st->depth = depth;
-            st->stack[depth++] = tstate;
-            long rss = get_current_proc_rss();
-            if (rss >= 0)
-                st->stack[depth++] = (void*)rss;
-            p->data_offset = offsetof(struct prof_stacktrace_s, marker);
-            p->data_size = (depth * sizeof(void *) +
-                            sizeof(struct prof_stacktrace_s) -
-                            offsetof(struct prof_stacktrace_s, marker));
-            commit_buffer(fd, p);
-        }
+        commit_buffer(fd, p);
 
         errno = saved_errno;
     }
 
     __sync_sub_and_fetch(&signal_handler_value, 2L);
 }
+
 
 
 /* *************************************************************

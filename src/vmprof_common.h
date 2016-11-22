@@ -1,7 +1,36 @@
+#pragma once
+
+#include <Python.h>
 #include <stddef.h>
 #include "vmprof_compat.h"
+#include "_vmprof.h"
+#include "vmprof_mt.h"
 
 #define MAX_FUNC_NAME 1024
+
+/* This returns the address of the code object
+   as the identifier.  The mapping from identifiers to string
+   representations of the code object is done elsewhere, namely:
+
+   * If the code object dies while vmprof is enabled,
+     PyCode_Type.tp_dealloc will emit it.  (We don't handle nicely
+     for now the case where several code objects are created and die
+     at the same memory address.)
+
+   * When _vmprof.disable() is called, then we look around the
+     process for code objects and emit all the ones that we can
+     find (which we hope is very close to 100% of them).
+*/
+#define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)))
+
+#if CPYTHON_HAS_FRAME_EVALUATION
+static PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *, int);
+#endif
+#define RPY_EXTERN static
+static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
+#define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
+#define CPYTHON_GET_CUSTOM_OFFSET
+static void *tramp_start, *tramp_end;
 
 static int profile_file = -1;
 static long prepare_interval_usec = 0;

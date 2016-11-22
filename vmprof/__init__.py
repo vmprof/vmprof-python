@@ -51,6 +51,18 @@ def disable():
     except IOError as e:
         raise Exception("Error while writing profile: " + str(e))
 
+def sample_stack_now():
+    """ Helper utility mostly for tests, this is considered
+        private API.
+
+        It will return a list of stack frames the python program currently
+        walked.
+    """
+    stackframes = _vmprof.sample_stack_now()
+    assert isinstance(stackframes, list)
+    raise NotImplementedError
+
+
 
 _gzip_proc = None
 

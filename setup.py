@@ -13,6 +13,12 @@ else:
     ext_modules = [Extension('_vmprof',
                            sources=[
                                'src/_vmprof.c',
+                               'src/stack.c',
+                               'src/hotpatch/tramp.c',
+                               'src/hotpatch/util.c',
+                               'src/hotpatch/elf.c',
+                               'src/hotpatch/x86_64.c',
+                               'src/hotpatch/x86_gen.c',
                                ],
                            depends=[
                                'src/vmprof_main.h',
@@ -21,7 +27,7 @@ else:
                                'src/vmprof_common.h',
                            ],
                             extra_compile_args=extra_compile_args,
-                            libraries=[])]
+                            libraries=['elf','dwarf','unwind'])]
 
 if sys.version_info[:2] >= (3, 3):
     extra_install_requires = []
@@ -41,7 +47,7 @@ setup(
         'requests',
         'six',
     ] + extra_install_requires,
-    tests_require=['pytest'],
+    tests_require=['pytest','cffi'],
     entry_points = {
         'console_scripts': [
             'vmprofshow = vmprof.show:main'

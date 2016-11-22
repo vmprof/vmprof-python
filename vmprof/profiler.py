@@ -28,10 +28,14 @@ class ProfilerContext(object):
 
 
 def read_profile(prof_file):
+    file_to_close = None
     if not hasattr(prof_file, 'read'):
-        prof_file = open(str(prof_file), 'rb')
+        prof_file = file_to_close = open(str(prof_file), 'rb')
 
     period, profiles, virtual_symbols, interp_name = read_prof(prof_file)
+
+    if file_to_close:
+        file_to_close.close()
 
     jit_frames = {}
     d = dict(virtual_symbols)

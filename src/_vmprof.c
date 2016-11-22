@@ -1,46 +1,34 @@
+/*[clinic input]
+module _vmprof
+[clinic start generated code]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=b443489e38f2be7d]*/
+
 #define _GNU_SOURCE 1
 
 #include <Python.h>
 #include <frameobject.h>
 #include <signal.h>
+#include "clinic/_vmprof.c.h"
 
-#define RPY_EXTERN static
-static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
-#define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
-#define CPYTHON_GET_CUSTOM_OFFSET
+#define CPYTHON_HAS_FRAME_EVALUATION PY_VERSION_HEX >= 0x30600B0
 
-/* This returns the address of the code object
-   as the identifier.  The mapping from identifiers to string
-   representations of the code object is done elsewhere, namely:
-
-   * If the code object dies while vmprof is enabled,
-     PyCode_Type.tp_dealloc will emit it.  (We don't handle nicely
-     for now the case where several code objects are created and die
-     at the same memory address.)
-
-   * When _vmprof.disable() is called, then we look around the
-     process for code objects and emit all the ones that we can
-     find (which we hope is very close to 100% of them).
-*/
-#define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)))
+#include "_vmprof.h"
 
 static volatile int is_enabled = 0;
 
-#define SINGLE_BUF_SIZE (8192 - 2 * sizeof(unsigned int))
 #if defined(__unix__) || defined(__APPLE__)
 #include "vmprof_main.h"
+#include "hotpatch/tramp.h"
+#include "hotpatch/bin_api.h"
 #else
 #include "vmprof_main_win32.h"
 #endif
 
 static destructor Original_code_dealloc = 0;
+static PyObject *(*Original_PyEval_EvalFrameEx)(PyFrameObject *f,
+                                                int throwflag) = 0;
 static ptrdiff_t mainloop_sp_offset;
 
-static void* get_virtual_ip(char* sp)
-{
-    PyFrameObject *f = *(PyFrameObject **)(sp + mainloop_sp_offset);
-    return (void *)CODE_ADDR_TO_UID(f->f_code);
-}
 
 static int emit_code_object(PyCodeObject *co)
 {
@@ -138,23 +126,76 @@ static void cpyprof_code_dealloc(PyObject *co)
 
 static void init_cpyprof(void)
 {
+#if CPYTHON_HAS_FRAME_EVALUATION
+    PyThreadState *tstate = PyThreadState_GET();
+    tstate->interp->eval_frame = cpython_vmprof_PyEval_EvalFrameEx;
+#else
+    if (Original_PyEval_EvalFrameEx == 0) {
+        Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;
+        // monkey-patch PyEval_EvalFrameEx
+        init_memprof_config_base();
+        bin_init();
+        create_tramp_table();
+        size_t tramp_size;
+        tramp_start = insert_tramp("PyEval_EvalFrameEx",
+                                   &cpyprof_PyEval_EvalFrameEx,
+                                   &tramp_size);
+        tramp_end = tramp_start + tramp_size;
+    }
+#endif
     if (!Original_code_dealloc) {
         Original_code_dealloc = PyCode_Type.tp_dealloc;
         PyCode_Type.tp_dealloc = &cpyprof_code_dealloc;
     }
 }
 
-static PyObject *enable_vmprof(PyObject* self, PyObject *args)
+#if CPYTHON_HAS_FRAME_EVALUATION
+__attribute__((optimize("O2")))
+static PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 {
-    int fd;
-    int memory = 0;
-    int lines = 0;
-    double interval;
+    register void* _rsp asm("rsp");
+    volatile PyFrameObject *f2 = f;    /* this prevents the call below from
+                                          turning into a tail call */
+    if (!vmp_native_enabled()) {
+        vmp_native_enable((char*)&f2 - (char*)_rsp);
+    }
+    return _PyEval_EvalFrameDefault(f, throwflag);
+}
+#endif
+
+//__attribute__((optimize("O2")))
+//static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
+//{
+//    register void* _rsp asm("rsp");
+//    volatile PyFrameObject *f2 = f;    /* this prevents the call below from
+//                                          turning into a tail call */
+//    // TODO
+//    //if (!mainloop_get_virtual_ip) {
+//    //    mainloop_sp_offset = (char*)&f2 - (char*)_rsp;
+//    //    mainloop_get_virtual_ip = &get_virtual_ip;
+//    //}
+//    return Original_PyEval_EvalFrameEx(f, throwflag);
+//}
+
+/*[clinic input]
+_vmprof.enable_profiling
+    fd: 'i'
+    interval: 'd'
+    memory: 'i' = 0
+    lines: 'i' = 0
+
+Enable profiling
+[clinic start generated code]*/
+
+static PyObject *
+_vmprof_enable_profiling_impl(PyObject *module, int fd, double interval,
+                              int memory, int lines)
+/*[clinic end generated code: output=49fa3c6bd54543fe input=06db7fb1ae0b1c6c]*/
+{
     char *p_error;
 
-    if (!PyArg_ParseTuple(args, "id|ii", &fd, &interval, &memory, &lines))
-        return NULL;
-    assert(fd >= 0);
+    assert(fd >= 0 && "file descripter provided to vmprof must not" \
+                      " be less then zero.");
 
     if (is_enabled) {
         PyErr_SetString(PyExc_ValueError, "vmprof is already enabled");
@@ -180,7 +221,15 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
     return Py_None;
 }
 
-static PyObject *disable_vmprof(PyObject* self, PyObject *noarg)
+/*[clinic input]
+_vmprof.disable_vmprof
+
+Disable profiling
+[clinic start generated code]*/
+
+static PyObject *
+_vmprof_disable_vmprof_impl(PyObject *module)
+/*[clinic end generated code: output=c65823d040269360 input=3fa7a69e8df4cb04]*/
 {
     if (!is_enabled) {
         PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
@@ -199,7 +248,15 @@ static PyObject *disable_vmprof(PyObject* self, PyObject *noarg)
     return Py_None;
 }
 
-static PyObject* write_all_code_objects(PyObject *self, PyObject *noarg)
+/*[clinic input]
+_vmprof.write_all_code_objects
+
+Write eagerly all the IDs of code objects
+[clinic start generated code]*/
+
+static PyObject *
+_vmprof_write_all_code_objects_impl(PyObject *module)
+/*[clinic end generated code: output=607a30e701adee35 input=3a6826a3999ef5cd]*/
 {
     if (!is_enabled) {
         PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
@@ -212,15 +269,52 @@ static PyObject* write_all_code_objects(PyObject *self, PyObject *noarg)
     return Py_None;
 }
 
-static PyMethodDef VmprofMethods[] = {
-    {"enable",  enable_vmprof, METH_VARARGS,
-     "Enable profiling."},
-    {"disable", disable_vmprof, METH_NOARGS,
-     "Disable profiling."},
-    {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
-     "Write eagerly all the IDs of code objects"},
+
+/*[clinic input]
+_vmprof.sample_stack_now
+
+Sample the current stack trace of the Python process.
+[clinic start generated code]*/
+
+static PyObject *
+_vmprof_sample_stack_now_impl(PyObject *module)
+/*[clinic end generated code: output=1aadffe94bffdbd0 input=7885cdde43892ddb]*/
+{
+    PyThreadState * tstate = NULL;
+    PyObject * list;
+    list = PyList_New(0);
+    if (list == NULL) {
+        goto error;
+    }
+
+    tstate = PyGILState_GetThisThreadState();
+    void * m = malloc(SINGLE_BUF_SIZE);
+    if (m == NULL) {
+        PyErr_SetString(PyExc_MemoryError, "could not allocate buffer for stack trace");
+        return NULL;
+    }
+    get_stack_trace(tstate, &m, MAX_STACK_DEPTH-1, 1);
+
+    // TODO transform into names
+
+    free(m);
+
+
+    Py_INCREF(list);
+    return list;
+error:
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyMethodDef VMProfMethods[] = {
+    _VMPROF_ENABLE_PROFILING_METHODDEF
+    _VMPROF_DISABLE_VMPROF_METHODDEF
+    _VMPROF_WRITE_ALL_CODE_OBJECTS_METHODDEF
+    _VMPROF_SAMPLE_STACK_NOW_METHODDEF
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
+
 
 #if PY_MAJOR_VERSION >= 3
 static struct PyModuleDef VmprofModule = {
@@ -228,7 +322,7 @@ static struct PyModuleDef VmprofModule = {
     "_vmprof",
     "",  // doc
     -1,  // size
-    VmprofMethods
+    VMProfMethods
 };
 
 PyMODINIT_FUNC PyInit__vmprof(void)
@@ -238,6 +332,6 @@ PyMODINIT_FUNC PyInit__vmprof(void)
 #else
 PyMODINIT_FUNC init_vmprof(void)
 {
-    Py_InitModule("_vmprof", VmprofMethods);
+    Py_InitModule("_vmprof", VMProfMethods);
 }
 #endif
