@@ -60,9 +60,7 @@ def sample_stack_now():
     """
     stackframes = _vmprof.sample_stack_now()
     assert isinstance(stackframes, list)
-    raise NotImplementedError
-
-
+    return stackframes
 
 _gzip_proc = None
 

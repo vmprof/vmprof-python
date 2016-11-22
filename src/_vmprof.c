@@ -295,17 +295,16 @@ _vmprof_sample_stack_now_impl(PyObject *module)
     }
     int entry_count = get_stack_trace(tstate, m, MAX_STACK_DEPTH-1, 1);
 
-    printf("stack trace contains %d entries\n", entry_count);
     for (int i = 0; i < entry_count; i++) {
-        void * routine_ip = m[entry_count];
+        void * routine_ip = m[i];
         if (ROUTINE_IS_PYTHON(routine_ip)) {
             PyCodeObject * code = (PyCodeObject*)routine_ip;
             PyObject * name = code->co_name;
             Py_INCREF(name);
             PyList_Append(list, name);
+        } else {
+            // a native routine!
         }
-        //if (ROUTINE_IS_NATIVE(routine_ip)) {
-        //}
     }
 
     free(m);
