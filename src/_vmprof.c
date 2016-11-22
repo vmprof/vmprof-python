@@ -288,21 +288,32 @@ _vmprof_sample_stack_now_impl(PyObject *module)
     }
 
     tstate = PyGILState_GetThisThreadState();
-    void * m = malloc(SINGLE_BUF_SIZE);
+    void ** m = (void**)malloc(SINGLE_BUF_SIZE);
     if (m == NULL) {
         PyErr_SetString(PyExc_MemoryError, "could not allocate buffer for stack trace");
         return NULL;
     }
-    get_stack_trace(tstate, &m, MAX_STACK_DEPTH-1, 1);
+    int entry_count = get_stack_trace(tstate, m, MAX_STACK_DEPTH-1, 1);
 
-    // TODO transform into names
+    printf("stack trace contains %d entries\n", entry_count);
+    for (int i = 0; i < entry_count; i++) {
+        void * routine_ip = m[entry_count];
+        if (ROUTINE_IS_PYTHON(routine_ip)) {
+            PyCodeObject * code = (PyCodeObject*)routine_ip;
+            PyObject * name = code->co_name;
+            Py_INCREF(name);
+            PyList_Append(list, name);
+        }
+        //if (ROUTINE_IS_NATIVE(routine_ip)) {
+        //}
+    }
 
     free(m);
-
 
     Py_INCREF(list);
     return list;
 error:
+    Py_DECREF(list);
     Py_INCREF(Py_None);
     return Py_None;
 }

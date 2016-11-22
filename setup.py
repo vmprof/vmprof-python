@@ -27,7 +27,7 @@ else:
                                'src/vmprof_common.h',
                            ],
                             extra_compile_args=extra_compile_args,
-                            libraries=['elf','dwarf','unwind'])]
+                            libraries=['elf','dwarf','unwind','unwind-x86_64'])]
 
 if sys.version_info[:2] >= (3, 3):
     extra_install_requires = []
@@ -38,7 +38,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.3.16",
+    version="0.4.0",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
