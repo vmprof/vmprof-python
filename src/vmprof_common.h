@@ -1,7 +1,19 @@
+#pragma once
+
+#include <Python.h>
 #include <stddef.h>
 #include "vmprof_compat.h"
+#include "_vmprof.h"
+#include "vmprof_mt.h"
 
 #define MAX_FUNC_NAME 1024
+
+
+#define RPY_EXTERN static
+static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
+#define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
+#define CPYTHON_GET_CUSTOM_OFFSET
+static void *tramp_start, *tramp_end;
 
 static int profile_file = -1;
 static long prepare_interval_usec = 0;

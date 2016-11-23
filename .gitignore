@@ -62,3 +62,5 @@ target/
 *.swp
 *.swo
 
+_test_*.o
+_test_*.c

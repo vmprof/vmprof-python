@@ -1,3 +1,4 @@
+#pragma once
 
 #ifdef PYPY_JIT_CODEMAP
 void *pypy_find_codemap_at_addr(long addr, long *start_addr);

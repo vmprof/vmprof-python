@@ -51,6 +51,16 @@ def disable():
     except IOError as e:
         raise Exception("Error while writing profile: " + str(e))
 
+def sample_stack_now():
+    """ Helper utility mostly for tests, this is considered
+        private API.
+
+        It will return a list of stack frames the python program currently
+        walked.
+    """
+    stackframes = _vmprof.sample_stack_now()
+    assert isinstance(stackframes, list)
+    return stackframes
 
 _gzip_proc = None
 
@@ -59,6 +69,13 @@ def _gzip_start(fileno):
 
     Return the subprocess' input fileno.
     """
+    # XXX During the sprint in munich we found several issues
+    # on bigger applications running vmprof. For instance:
+    # coala or some custom medium sized scripts.
+    #
+    # For now I will disable this feature. To enable it we should run
+    # bigger applications.
+    return fileno
     # Prefer system gzip and fall back to Python's gzip module
     if which("gzip"):
         gzip_cmd = ["gzip", "-", "-4"]

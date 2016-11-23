@@ -45,13 +45,20 @@ foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
 bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
 
+GZIP = False
+
 def test_basic():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
     vmprof.enable(tmpfile.fileno())
     function_foo()
     vmprof.disable()
     tmpfile.close()
-    assert b"function_foo" in gzip.GzipFile(tmpfile.name).read()
+    if GZIP:
+        assert b"function_foo" in gzip.GzipFile(tmpfile.name).read()
+    else:
+        with open(tmpfile.name, 'rb') as file:
+            content = file.read()
+            assert b"function_foo" in content
 
 def test_read_bit_by_bit():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
@@ -161,15 +168,16 @@ def test_memory_measurment():
 
     s = prof.get_stats()
 
-def test_gzip_problem():
-    tmpfile = tempfile.NamedTemporaryFile(delete=False)
-    vmprof.enable(tmpfile.fileno())
-    vmprof._gzip_proc.kill()
-    function_foo()
-    with py.test.raises(Exception) as exc_info:
-        vmprof.disable()
-        assert "Error while writing profile" in str(exc_info)
-    tmpfile.close()
+if GZIP:
+    def test_gzip_problem():
+        tmpfile = tempfile.NamedTemporaryFile(delete=False)
+        vmprof.enable(tmpfile.fileno())
+        vmprof._gzip_proc.kill()
+        function_foo()
+        with py.test.raises(Exception) as exc_info:
+            vmprof.disable()
+            assert "Error while writing profile" in str(exc_info)
+        tmpfile.close()
 
 def test_line_profiling():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
