@@ -1,16 +1,20 @@
 #include "stack.h"
 
 #include <libunwind.h>
+#include <string.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include "_vmprof.h"
+#include <stddef.h>
 
 #include "hotpatch/khash.h"
-typedef uint64_t ptr_t;
 KHASH_MAP_INIT_INT64(ptr, char*);
 static khash_t(ptr) * ip_symbol_lookup = 0;
 
 static int vmp_native_traces_enabled = 0;
 static int vmp_native_traces_sp_offset = -1;
 static ptr_t *vmp_ranges = NULL;
-static size_t vmp_range_count = 0;
+static ssize_t vmp_range_count = 0;
 
 
 int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
@@ -62,7 +66,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             sp = (void*)CODE_ADDR_TO_UID(top_most_frame->f_code);
             result[depth++] = sp;
             top_most_frame = top_most_frame->f_back;
-        } else if (vmp_ignore_ip(pip.start_ip)) {
+        } else if (vmp_ignore_ip((ptr_t)pip.start_ip)) {
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
@@ -126,13 +130,20 @@ const char * vmp_get_symbol_for_ip(void * ip) {
 }
 
 #ifdef __unix__
-int vmp_read_vmaps(const char * name) {
+int vmp_read_vmaps(const char * fname) {
 
-    FILE * fd = fopen(name, "rb");
+    FILE * fd = fopen(fname, "rb");
     if (fd == NULL) {
         return 0;
     }
     char * saveptr;
+    char * line;
+    char * he = NULL;
+    char * name;
+    char *start_hex, *end_hex;
+    size_t n;
+    ssize_t size;
+    ptr_t start, end;
 
     // assumptions to be verified:
     // 1) /proc/self/maps is ordered ascending by start address
@@ -141,23 +152,23 @@ int vmp_read_vmaps(const char * name) {
     // 3) libraries containing site-packages are not considered
     //    candidates
 
-    ssize_t size;
-    vmp_range_count = 10;
-    vmp_ranges = malloc(vmp_range_count*2);
+    // initially 10 (start, stop) entries!
+    vmp_range_count = 20;
+    vmp_ranges = malloc(vmp_range_count);
     ptr_t * cursor = vmp_ranges;
     cursor[0] = 0;
     while ((size = getline(&line, &n, fd)) >= 0) {
-        char * start_hex = strtok_r(line, "-", &saveptr);
-        char * start_hex_end = saveptr;
-        char * end_hex = strtok_r(NULL, " ", &saveptr);
-        char * end_hex_end = saveptr;
+        start_hex = strtok_r(line, "-", &saveptr);
+        start = strtoll(start_hex, &he, 16);
+        end_hex = strtok_r(NULL, " ", &saveptr);
+        end = strtoll(end_hex, &he, 16);
         // skip over flags, ...
-        strotk_r(NULL, " ", &saveptr);
-        strotk_r(NULL, " ", &saveptr);
-        strotk_r(NULL, " ", &saveptr);
-        strotk_r(NULL, " ", &saveptr);
+        strtok_r(NULL, " ", &saveptr);
+        strtok_r(NULL, " ", &saveptr);
+        strtok_r(NULL, " ", &saveptr);
+        strtok_r(NULL, " ", &saveptr);
 
-        char * name = saveptr;
+        name = saveptr;
         if (strstr(name, "python") != NULL && \
             strstr(name, "site-packages") == NULL) {
             // realloc if the chunk is to small
@@ -168,8 +179,6 @@ int vmp_read_vmaps(const char * name) {
                 cursor = vmp_ranges + diff;
             }
 
-            ptr_t start = strtoll(start_hex, start_hex_end, 16);
-            ptr_t end = strtoll(end_hex, end_hex_end, 16);
             if (cursor[0] == start) {
                 cursor[0] = end;
             } else {
@@ -185,6 +194,7 @@ int vmp_read_vmaps(const char * name) {
     }
 
     fclose(fd);
+    return 1;
 }
 #endif
 
@@ -194,41 +204,43 @@ int vmp_native_enable(int offset) {
     ip_symbol_lookup = kh_init(ptr);
 
 #ifdef __unix__
-    vmp_read_vmaps("/proc/self/maps");
+    return vmp_read_vmaps("/proc/self/maps");
 #endif
 // TODO MAC use mach task interface to extract the same information
 }
 
-void *vmp_ip_ignore(void * ip)
-{
-    ptr_t * l = vmp_ranges;
-    ptr_t * r = vmp_ranges + vmp_range_count/2;
-    int i = vmp_binary_search_ranges(ip, l, r);
+int vmp_ignore_ip(ptr_t ip) {
+    int i = vmp_binary_search_ranges(ip, vmp_ranges, vmp_range_count);
     if (i == -1) {
         return 0;
     }
 
-    ptr_t v = l[i];
-    ptr_t v2 = l[i+1];
-    return v <= (ptr_t)ip && (ptr_t)ip < v2;
+    assert((i & 1) == 0 && "returned index MUST be even");
+
+    ptr_t v = vmp_ranges[i];
+    ptr_t v2 = vmp_ranges[i+1];
+    return v <= ip && ip <= v2;
 }
 
-int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, ptr_t * r)
-{
+int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count) {
+    ptr_t * r = l + count;
     ptr_t * ol = l;
-    ptr_t * or = r;
+    ptr_t * or = r-1;
     while (1) {
         ptrdiff_t i = (r-l)/2;
         if (i == 0) {
             if (l == ol && *l > ip) {
                 // at the start
                 return -1;
-            if (l == or && *l < ip) {
+            } else if (l == or && *l < ip) {
                 // at the end
                 return -1;
             } else {
                 // we found the lower bound
                 i = l - ol;
+                if ((i & 1) == 1) {
+                    return i-1;
+                }
                 return i;
             }
         }
@@ -238,7 +250,19 @@ int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, ptr_t * r)
         } else {
             l = m;
         }
-
     }
     return -1;
+}
+
+int vmp_ignore_symbol_count(void) {
+    return vmp_range_count;
+}
+
+ptr_t * vmp_ignore_symbols(void) {
+    return vmp_ranges;
+}
+
+void vmp_set_ignore_symbols(ptr_t * symbols, int count) {
+    vmp_ranges = symbols;
+    vmp_range_count = count;
 }

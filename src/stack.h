@@ -2,7 +2,7 @@
 
 #include <Python.h>
 #include <frameobject.h>
-#include "vmprof_common.h"
+#include "_vmprof.h"
 
 int vmp_walk_and_record_python_stack(PyFrameObject *frame, void **data,
                                      int max_depth);
@@ -13,5 +13,9 @@ int vmp_native_enabled(void);
 int vmp_native_sp_offset(void);
 int vmp_native_enable(int offset);
 const char * vmp_get_symbol_for_ip(void * ip);
-int vmp_ip_ignore(void * ip);
-int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, ptr_t * r);
+int vmp_ignore_ip(ptr_t ip);
+int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count);
+
+int vmp_ignore_symbol_count(void);
+ptr_t * vmp_ignore_symbols(void);
+void vmp_set_ignore_symbols(ptr_t * symbols, int count);
