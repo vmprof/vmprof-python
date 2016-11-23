@@ -89,4 +89,40 @@ _vmprof_sample_stack_now(PyObject *module, PyObject *Py_UNUSED(ignored))
 {
     return _vmprof_sample_stack_now_impl(module);
 }
-/*[clinic end generated code: output=e51b167e777d8cdd input=a9049054013a1b77]*/
+
+PyDoc_STRVAR(_vmprof_testing_enable__doc__,
+"testing_enable($module, /)\n"
+"--\n"
+"\n"
+"Setup the library specifically for testing.");
+
+#define _VMPROF_TESTING_ENABLE_METHODDEF    \
+    {"testing_enable", (PyCFunction)_vmprof_testing_enable, METH_NOARGS, _vmprof_testing_enable__doc__},
+
+static PyObject *
+_vmprof_testing_enable_impl(PyObject *module);
+
+static PyObject *
+_vmprof_testing_enable(PyObject *module, PyObject *Py_UNUSED(ignored))
+{
+    return _vmprof_testing_enable_impl(module);
+}
+
+PyDoc_STRVAR(_vmprof_testing_disable__doc__,
+"testing_disable($module, /)\n"
+"--\n"
+"\n"
+"Tear down the library after testing has been completed");
+
+#define _VMPROF_TESTING_DISABLE_METHODDEF    \
+    {"testing_disable", (PyCFunction)_vmprof_testing_disable, METH_NOARGS, _vmprof_testing_disable__doc__},
+
+static PyObject *
+_vmprof_testing_disable_impl(PyObject *module);
+
+static PyObject *
+_vmprof_testing_disable(PyObject *module, PyObject *Py_UNUSED(ignored))
+{
+    return _vmprof_testing_disable_impl(module);
+}
+/*[clinic end generated code: output=ae4d8b8ada215058 input=a9049054013a1b77]*/

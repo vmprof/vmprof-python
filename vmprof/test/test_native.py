@@ -2,6 +2,7 @@
 import re
 import vmprof
 from cffi import FFI
+from _vmprof import testing_enable, testing_disable
 
 ffi = FFI()
 ffi.cdef("""
@@ -22,6 +23,12 @@ class TestNative(object):
 
         cls.lib = _test_native.lib
         cls.ffi = _test_native.ffi
+
+    def setup_method(self, name):
+        testing_enable()
+
+    def teardown_method(self, name):
+        testing_disable()
 
     def barrier_test_call(self, func):
         # indirection to have the barrier_test_call in the sample

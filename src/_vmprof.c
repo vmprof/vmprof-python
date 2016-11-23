@@ -157,6 +157,7 @@ static PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwfl
     volatile PyFrameObject *f2 = f;    /* this prevents the call below from
                                           turning into a tail call */
     if (!vmp_native_enabled()) {
+        printf("enabling native\n");
         vmp_native_enable((char*)&f2 - (char*)_rsp);
     }
     return _PyEval_EvalFrameDefault(f, throwflag);
@@ -300,10 +301,16 @@ _vmprof_sample_stack_now_impl(PyObject *module)
         if (ROUTINE_IS_PYTHON(routine_ip)) {
             PyCodeObject * code = (PyCodeObject*)routine_ip;
             PyObject * name = code->co_name;
-            Py_INCREF(name);
             PyList_Append(list, name);
         } else {
             // a native routine!
+            printf("hit native routine %p\n", routine_ip);
+            const char * name = vmp_get_virtual_ip(routine_ip);
+            PyObject * str = PyStr_NEW(name == NULL ? "unknown symbol" : name);
+            if (str == NULL) {
+                goto error;
+            }
+            PyList_Append(list, str);
         }
     }
 
@@ -317,11 +324,44 @@ error:
     return Py_None;
 }
 
+/*[clinic input]
+_vmprof.testing_enable
+
+Setup the library specifically for testing.
+[clinic start generated code]*/
+
+static PyObject *
+_vmprof_testing_enable_impl(PyObject *module)
+/*[clinic end generated code: output=c4b9ed8350f30977 input=edb73a6d4c7b530c]*/
+{
+    init_cpyprof();
+    is_enabled = 1;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+/*[clinic input]
+_vmprof.testing_disable
+
+Tear down the library after testing has been completed
+[clinic start generated code]*/
+
+static PyObject *
+_vmprof_testing_disable_impl(PyObject *module)
+/*[clinic end generated code: output=0b39c2ee6280b9b9 input=9ec04784a572f5a6]*/
+{
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+
 static PyMethodDef VMProfMethods[] = {
     _VMPROF_ENABLE_PROFILING_METHODDEF
     _VMPROF_DISABLE_VMPROF_METHODDEF
     _VMPROF_WRITE_ALL_CODE_OBJECTS_METHODDEF
     _VMPROF_SAMPLE_STACK_NOW_METHODDEF
+    _VMPROF_TESTING_ENABLE_METHODDEF
+    _VMPROF_TESTING_DISABLE_METHODDEF
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
