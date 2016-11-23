@@ -137,11 +137,11 @@ int vmp_read_vmaps(const char * fname) {
         return 0;
     }
     char * saveptr;
-    char * line;
+    char * line = NULL;
     char * he = NULL;
     char * name;
     char *start_hex, *end_hex;
-    size_t n;
+    size_t n = 0;
     ssize_t size;
     ptr_t start, end;
 
@@ -153,10 +153,12 @@ int vmp_read_vmaps(const char * fname) {
     //    candidates
 
     // initially 10 (start, stop) entries!
-    vmp_range_count = 20;
-    vmp_ranges = malloc(vmp_range_count);
+    int max_count = 10;
+    vmp_range_count = 0;
+    if (vmp_ranges != NULL) { free(vmp_ranges); }
+    vmp_ranges = malloc(max_count * sizeof(ptr_t));
     ptr_t * cursor = vmp_ranges;
-    cursor[0] = 0;
+    cursor[0] = -1;
     while ((size = getline(&line, &n, fd)) >= 0) {
         start_hex = strtok_r(line, "-", &saveptr);
         start = strtoll(start_hex, &he, 16);
@@ -173,9 +175,9 @@ int vmp_read_vmaps(const char * fname) {
             strstr(name, "site-packages") == NULL) {
             // realloc if the chunk is to small
             ptrdiff_t diff = (cursor - vmp_ranges);
-            if (diff/2 + 2 <= vmp_range_count) {
-                vmp_ranges = realloc(vmp_ranges, vmp_range_count*2);
-                vmp_range_count *= 2;
+            if (diff + 2 > max_count) {
+                vmp_ranges = realloc(vmp_ranges, max_count*2*sizeof(ptr_t));
+                max_count *= 2;
                 cursor = vmp_ranges + diff;
             }
 
@@ -188,9 +190,13 @@ int vmp_read_vmaps(const char * fname) {
                 }
                 cursor[0] = start;
                 cursor[1] = end;
+                vmp_range_count += 2;
                 cursor++;
             }
         }
+        free(line);
+        line = NULL;
+        n = 0;
     }
 
     fclose(fd);
@@ -207,6 +213,16 @@ int vmp_native_enable(int offset) {
     return vmp_read_vmaps("/proc/self/maps");
 #endif
 // TODO MAC use mach task interface to extract the same information
+}
+
+void vmp_native_disable() {
+    vmp_native_traces_enabled = 0;
+    vmp_native_traces_sp_offset = 0;
+    if (vmp_ranges != NULL) {
+        free(vmp_ranges);
+        vmp_ranges = NULL;
+    }
+    vmp_range_count = 0;
 }
 
 int vmp_ignore_ip(ptr_t ip) {

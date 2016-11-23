@@ -19,3 +19,8 @@ int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count);
 int vmp_ignore_symbol_count(void);
 ptr_t * vmp_ignore_symbols(void);
 void vmp_set_ignore_symbols(ptr_t * symbols, int count);
+void vmp_native_disable();
+
+#ifdef __unix__
+int vmp_read_vmaps(const char * fname);
+#endif
