@@ -52,5 +52,4 @@ class TestNative(object):
         self.barrier_test_call(f)
         global sample
         # must also record the native frames
-        import pdb; pdb.set_trace()
-        assert re.match(r'.*sample_stack_now .*g .*f', ' '.join(sample))
+        assert re.match(r'.*sample_stack_now .*g .*native_callback_g .*f', ' '.join(sample))
