@@ -24,7 +24,10 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
     unw_cursor_t cursor;
     unw_context_t uc;
     unw_proc_info_t pip;
+    unw_word_t off = 0;
+    unw_word_t rbx;
 
+    unw_getcontext(&uc);
     int ret = unw_init_local(&cursor, &uc);
     if (ret < 0) {
         // could not initialize lib unwind cursor and context
@@ -34,6 +37,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
     PyFrameObject * top_most_frame = frame;
     PyFrameObject * compare_frame;
     int depth = 0;
+    int step_result;
     while (depth < max_depth) {
         if (!vmp_native_enabled()) {
             if (top_most_frame == NULL) {
@@ -47,21 +51,21 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
         }
         unw_get_proc_info(&cursor, &pip);
 
-        if (unw_get_reg(&cursor, UNW_REG_SP, (unw_word_t*)&sp) < 0) {
+        if (unw_get_reg(&cursor, UNW_X86_64_RBX, &rbx) < 0) {
             // could not retrieve
             break;
         }
 
-        if ((void*)pip.start_ip == PyEval_EvalFrameEx) {
+        if ((void*)pip.start_ip == cpython_vmprof_PyEval_EvalFrameEx) {
             // yes we found one stack entry of the python frames!
-            compare_frame = vmp_get_virtual_ip(sp);
-            if (compare_frame != top_most_frame) {
+            if (rbx != (unw_word_t)top_most_frame) {
                 // uh we are screwed! the ip indicates we are have context
                 // to a PyEval_EvalFrameEx function, but when we tried to retrieve
                 // the stack located py frame it has a different address than the
                 // current top_most_frame
-                result[depth++] = (void*)-1;
-                break;
+                //printf("oh no!!! %p != %p\n", compare_frame, top_most_frame);
+            } else {
+                //printf("yes match!!!!\n");
             }
             sp = (void*)CODE_ADDR_TO_UID(top_most_frame->f_code);
             result[depth++] = sp;
@@ -70,6 +74,9 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
+            char name[64];
+            unw_get_proc_name(&cursor, name, 64, &off);
+            //printf("ignore ip %p %s\n", pip.start_ip, name);
         } else {
             ip = (void*)((ptr_t)pip.start_ip | 0x1);
             // mark native routines with the first bit set,
@@ -78,24 +85,22 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             // compiler than e.g. gcc/clang too?
             //
             char * name = (char*)malloc(64);
-            unw_word_t off = 0;
-            int ret;
-            if (unw_get_proc_name(&cursor, name, 64, &off) != 0) {
-                khiter_t it;
-                it = kh_get(ptr, ip_symbol_lookup, (ptr_t)ip);
-                if (it == kh_end(ip_symbol_lookup)) {
-                    it = kh_put(ptr, ip_symbol_lookup, (ptr_t)ip, &ret);
-                    result[depth++] = ip;
-                    kh_value(ip_symbol_lookup, it) = name;
-                } else {
-                    free(name);
-                }
+            unw_get_proc_name(&cursor, name, 64, &off);
+            //printf("native method with name %s\n", name);
+            khiter_t it;
+            it = kh_get(ptr, ip_symbol_lookup, (ptr_t)ip);
+            if (it == kh_end(ip_symbol_lookup)) {
+                it = kh_put(ptr, ip_symbol_lookup, (ptr_t)ip, &ret);
+                result[depth++] = ip;
+                kh_value(ip_symbol_lookup, it) = name;
             } else {
+                //printf("key %p already in hash\n", ip);
                 free(name);
             }
         }
 
-        if (unw_step(&cursor) <= 0) {
+        step_result = unw_step(&cursor);
+        if (step_result <= 0) {
             break;
         }
     }
@@ -140,7 +145,7 @@ int vmp_read_vmaps(const char * fname) {
     char * line = NULL;
     char * he = NULL;
     char * name;
-    char *start_hex, *end_hex;
+    char *start_hex = NULL, *end_hex = NULL;
     size_t n = 0;
     ssize_t size;
     ptr_t start, end;
@@ -160,9 +165,12 @@ int vmp_read_vmaps(const char * fname) {
     ptr_t * cursor = vmp_ranges;
     cursor[0] = -1;
     while ((size = getline(&line, &n, fd)) >= 0) {
+        assert(line != NULL);
         start_hex = strtok_r(line, "-", &saveptr);
+        if (start_hex == NULL) { continue; }
         start = strtoll(start_hex, &he, 16);
         end_hex = strtok_r(NULL, " ", &saveptr);
+        if (end_hex == NULL) { continue; }
         end = strtoll(end_hex, &he, 16);
         // skip over flags, ...
         strtok_r(NULL, " ", &saveptr);
@@ -172,7 +180,7 @@ int vmp_read_vmaps(const char * fname) {
 
         name = saveptr;
         if (strstr(name, "python") != NULL && \
-            strstr(name, "site-packages") == NULL) {
+            strstr(name, ".so\n") == NULL) {
             // realloc if the chunk is to small
             ptrdiff_t diff = (cursor - vmp_ranges);
             if (diff + 2 > max_count) {
@@ -206,7 +214,7 @@ int vmp_read_vmaps(const char * fname) {
 
 int vmp_native_enable(int offset) {
     vmp_native_traces_enabled = 1;
-    vmp_native_traces_sp_offset = 1;
+    vmp_native_traces_sp_offset = offset;
     ip_symbol_lookup = kh_init(ptr);
 
 #ifdef __unix__
@@ -215,7 +223,7 @@ int vmp_native_enable(int offset) {
 // TODO MAC use mach task interface to extract the same information
 }
 
-void vmp_native_disable() {
+void vmp_native_disable(void) {
     vmp_native_traces_enabled = 0;
     vmp_native_traces_sp_offset = 0;
     if (vmp_ranges != NULL) {

@@ -1,8 +1,8 @@
 
 import re
 import vmprof
+import _vmprof
 from cffi import FFI
-from _vmprof import testing_enable, testing_disable
 
 ffi = FFI()
 ffi.cdef("""
@@ -18,45 +18,30 @@ sample = None
 
 class TestNative(object):
     def setup_class(cls):
-        ffi.compile()
+        ffi.compile(debug=True)
         from vmprof.test import _test_native
 
         cls.lib = _test_native.lib
         cls.ffi = _test_native.ffi
 
     def setup_method(self, name):
-        testing_enable()
+        _vmprof.testing_enable()
 
     def teardown_method(self, name):
-        testing_disable()
+        _vmprof.testing_disable()
 
-    def barrier_test_call(self, func):
-        # indirection to have the barrier_test_call in the sample
-        func()
 
-    def test_simple_python_sample(self):
+    def test_simple_sample(self):
         native_call = self.lib.native_callback_g
-        # the order is barrier -> f -> native_call -> g
+        # the order is f -> ... -> native_call_g -> ... -> g
         @self.ffi.def_extern()
         def g():
             global sample
             sample = vmprof.sample_stack_now()
         def f():
             native_call()
-        self.barrier_test_call(f)
+        f()
         global sample
         assert re.match(r'.*sample_stack_now .*g .*f', ' '.join(sample))
-
-    def test_simple_C_sample(self):
-        native_call = self.lib.native_callback_g
-        # the order is barrier -> f -> native_call -> g
-        @self.ffi.def_extern()
-        def g():
-            global sample
-            sample = vmprof.sample_stack_now()
-        def f():
-            native_call()
-        self.barrier_test_call(f)
-        global sample
-        # must also record the native frames
         assert re.match(r'.*sample_stack_now .*g .*native_callback_g .*f', ' '.join(sample))
+

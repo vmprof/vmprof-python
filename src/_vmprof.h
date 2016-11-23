@@ -32,3 +32,7 @@ typedef uint64_t ptr_t;
      find (which we hope is very close to 100% of them).
 */
 #define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)))
+
+#define CPYTHON_HAS_FRAME_EVALUATION PY_VERSION_HEX >= 0x30600B0
+
+PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag);

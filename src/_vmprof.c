@@ -10,7 +10,6 @@ module _vmprof
 #include <signal.h>
 #include "clinic/_vmprof.c.h"
 
-#define CPYTHON_HAS_FRAME_EVALUATION PY_VERSION_HEX >= 0x30600B0
 
 #include "_vmprof.h"
 
@@ -143,24 +142,21 @@ static void init_cpyprof(void)
         tramp_end = tramp_start + tramp_size;
     }
 #endif
-    if (!Original_code_dealloc) {
-        Original_code_dealloc = PyCode_Type.tp_dealloc;
-        PyCode_Type.tp_dealloc = &cpyprof_code_dealloc;
-    }
+    vmp_native_enable(0);
 }
 
+
 #if CPYTHON_HAS_FRAME_EVALUATION
-__attribute__((optimize("O2")))
-static PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
+__attribute__((optimize("O3")))
+PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 {
-    register void* _rsp asm("rsp");
-    volatile PyFrameObject *f2 = f;    /* this prevents the call below from
-                                          turning into a tail call */
-    if (!vmp_native_enabled()) {
-        printf("enabling native\n");
-        vmp_native_enable((char*)&f2 - (char*)_rsp);
-    }
-    return _PyEval_EvalFrameDefault(f, throwflag);
+    // move the frame to a caller saved register. e.g. rbx!
+    // the previous method from did not really work for me
+    // (it did not find the correct value in the stack slot)
+    register PyFrameObject * rbx asm("rbx");
+    asm volatile("mov %%rdi, %0\n\t"
+                 "call %1\n\t"
+                : : "r" (rbx), "r" (_PyEval_EvalFrameDefault));
 }
 #endif
 
@@ -179,7 +175,7 @@ static PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwfl
 //}
 
 /*[clinic input]
-_vmprof.enable_profiling
+_vmprof.enable
     fd: 'i'
     interval: 'd'
     memory: 'i' = 0
@@ -204,6 +200,12 @@ _vmprof_enable_profiling_impl(PyObject *module, int fd, double interval,
     }
 
     init_cpyprof();
+
+    if (!Original_code_dealloc) {
+        Original_code_dealloc = PyCode_Type.tp_dealloc;
+        PyCode_Type.tp_dealloc = &cpyprof_code_dealloc;
+    }
+
     p_error = vmprof_init(fd, interval, memory, lines, "cpython");
     if (p_error) {
         PyErr_SetString(PyExc_ValueError, p_error);
@@ -223,7 +225,7 @@ _vmprof_enable_profiling_impl(PyObject *module, int fd, double interval,
 }
 
 /*[clinic input]
-_vmprof.disable_vmprof
+_vmprof.disable
 
 Disable profiling
 [clinic start generated code]*/
@@ -304,8 +306,7 @@ _vmprof_sample_stack_now_impl(PyObject *module)
             PyList_Append(list, name);
         } else {
             // a native routine!
-            printf("hit native routine %p\n", routine_ip);
-            const char * name = vmp_get_virtual_ip(routine_ip);
+            const char * name = vmp_get_symbol_for_ip(routine_ip);
             PyObject * str = PyStr_NEW(name == NULL ? "unknown symbol" : name);
             if (str == NULL) {
                 goto error;
@@ -356,8 +357,8 @@ _vmprof_testing_disable_impl(PyObject *module)
 
 
 static PyMethodDef VMProfMethods[] = {
-    _VMPROF_ENABLE_PROFILING_METHODDEF
-    _VMPROF_DISABLE_VMPROF_METHODDEF
+    _VMPROF_ENABLE_METHODDEF
+    _VMPROF_DISABLE_METHODDEF
     _VMPROF_WRITE_ALL_CODE_OBJECTS_METHODDEF
     _VMPROF_SAMPLE_STACK_NOW_METHODDEF
     _VMPROF_TESTING_ENABLE_METHODDEF

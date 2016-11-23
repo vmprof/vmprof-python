@@ -9,9 +9,6 @@
 #define MAX_FUNC_NAME 1024
 
 
-#if CPYTHON_HAS_FRAME_EVALUATION
-static PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *, int);
-#endif
 #define RPY_EXTERN static
 static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 #define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)

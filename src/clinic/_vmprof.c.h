@@ -2,25 +2,25 @@
 preserve
 [clinic start generated code]*/
 
-PyDoc_STRVAR(_vmprof_enable_profiling__doc__,
-"enable_profiling($module, /, fd, interval, memory=0, lines=0)\n"
+PyDoc_STRVAR(_vmprof_enable__doc__,
+"enable($module, /, fd, interval, memory=0, lines=0)\n"
 "--\n"
 "\n"
 "Enable profiling");
 
-#define _VMPROF_ENABLE_PROFILING_METHODDEF    \
-    {"enable_profiling", (PyCFunction)_vmprof_enable_profiling, METH_FASTCALL, _vmprof_enable_profiling__doc__},
+#define _VMPROF_ENABLE_METHODDEF    \
+    {"enable", (PyCFunction)_vmprof_enable, METH_FASTCALL, _vmprof_enable__doc__},
 
 static PyObject *
-_vmprof_enable_profiling_impl(PyObject *module, int fd, double interval,
-                              int memory, int lines);
+_vmprof_enable_impl(PyObject *module, int fd, double interval, int memory,
+                    int lines);
 
 static PyObject *
-_vmprof_enable_profiling(PyObject *module, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
+_vmprof_enable(PyObject *module, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
     static const char * const _keywords[] = {"fd", "interval", "memory", "lines", NULL};
-    static _PyArg_Parser _parser = {"id|ii:enable_profiling", _keywords, 0};
+    static _PyArg_Parser _parser = {"id|ii:enable", _keywords, 0};
     int fd;
     double interval;
     int memory = 0;
@@ -30,28 +30,28 @@ _vmprof_enable_profiling(PyObject *module, PyObject **args, Py_ssize_t nargs, Py
         &fd, &interval, &memory, &lines)) {
         goto exit;
     }
-    return_value = _vmprof_enable_profiling_impl(module, fd, interval, memory, lines);
+    return_value = _vmprof_enable_impl(module, fd, interval, memory, lines);
 
 exit:
     return return_value;
 }
 
-PyDoc_STRVAR(_vmprof_disable_vmprof__doc__,
-"disable_vmprof($module, /)\n"
+PyDoc_STRVAR(_vmprof_disable__doc__,
+"disable($module, /)\n"
 "--\n"
 "\n"
 "Disable profiling");
 
-#define _VMPROF_DISABLE_VMPROF_METHODDEF    \
-    {"disable_vmprof", (PyCFunction)_vmprof_disable_vmprof, METH_NOARGS, _vmprof_disable_vmprof__doc__},
+#define _VMPROF_DISABLE_METHODDEF    \
+    {"disable", (PyCFunction)_vmprof_disable, METH_NOARGS, _vmprof_disable__doc__},
 
 static PyObject *
-_vmprof_disable_vmprof_impl(PyObject *module);
+_vmprof_disable_impl(PyObject *module);
 
 static PyObject *
-_vmprof_disable_vmprof(PyObject *module, PyObject *Py_UNUSED(ignored))
+_vmprof_disable(PyObject *module, PyObject *Py_UNUSED(ignored))
 {
-    return _vmprof_disable_vmprof_impl(module);
+    return _vmprof_disable_impl(module);
 }
 
 PyDoc_STRVAR(_vmprof_write_all_code_objects__doc__,
@@ -125,4 +125,4 @@ _vmprof_testing_disable(PyObject *module, PyObject *Py_UNUSED(ignored))
 {
     return _vmprof_testing_disable_impl(module);
 }
-/*[clinic end generated code: output=ae4d8b8ada215058 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=ca4916bff9a9b121 input=a9049054013a1b77]*/
