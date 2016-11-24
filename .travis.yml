@@ -12,6 +12,20 @@ python:
 
 cache: apt
 
+matrix:
+  include:
+    - sudo: required
+      services:
+        - docker
+      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64
+    - sudo: required
+      services:
+        - docker
+      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_i686
+           PRE_CMD=linux32
+
+install:
+
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y python-dev
@@ -20,11 +34,14 @@ before_install:
   - sudo apt-get install -y libunwind8-dev
 
 install:
+  - docker pull $DOCKER_IMAGE
   - pip install .
 
 script:
   - py.test vmprof/ -vrs
   - py.test jitlog/ -vrs
+  - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/travis/build-wheels.sh
+  - ls wheels
 
 notifications:
   irc:
