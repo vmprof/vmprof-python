@@ -1,6 +1,5 @@
 sudo: required
 dist: trusty
-language: python
 
 cache: apt
 
@@ -8,15 +7,10 @@ matrix:
   include:
     # linux
     - python: 2.7
-      env: CPYTHON=py27 TEST=1
     - python: 3.4
-      env: CPYTHON=py34 TEST=1
     - python: 3.5.1
-      env: CPYTHON=py351 TEST=1
     - python: 3.5.2
-      env: CPYTHON=py352 TEST=1
     - python: nightly
-      env: CPYTHON=nightly TEST=1
     - language: generic
       os: osx
       # see: https://docs.travis-ci.com/user/osx-ci-environment/
@@ -31,14 +25,16 @@ matrix:
       osx_image: xcode6.4 # 6.4 is OS X 10.10.x
       env: CPYTHON=py27
     # build linux wheels
-    - sudo: required
+    - python: 3.5
+      sudo: required
       services:
         - docker
-      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64
-    - sudo: required
+      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64 BUILD_LINUX_WHEEL=1
+    - python: 3.5
+      sudo: required
       services:
         - docker
-      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_i686
+      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_i686 BUILD_LINUX_WHEEL=1
            PRE_CMD=linux32
 
 before_install:
@@ -49,17 +45,16 @@ before_install:
   - sudo apt-get install -y libunwind8-dev
 
 install:
-  - test "$DOCKER_IMAGE" != "" && docker pull $DOCKER_IMAGE
+  - test "$BUILD_LINUX_WHEEL" = "1" && docker pull $DOCKER_IMAGE
   - pip install .
 
 script:
   - py.test vmprof/ -vrs
   - py.test jitlog/ -vrs
-  - test "$DOCKER_IMAGE" != "" && \
-         docker run --rm -v `pwd`:/io \
-                $DOCKER_IMAGE $PRE_CMD \
-                /io/travis/build-wheels.sh
-  - test "$DOCKER_IMAGE" != "" && \
+  - test "$BUILD_LINUX_WHEEL" = "1" &&
+         docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD
+                                      /io/travis/build-wheels.sh
+  - test "$BUILD_LINUX_WHEEL" = "1" &&
          ls wheels
 
 notifications:
