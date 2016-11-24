@@ -4,9 +4,6 @@ language: python
 
 cache: apt
 
-env:
-  - BUILD_LINUX_WHEEL=0
-
 matrix:
   include:
     # linux
@@ -50,15 +47,16 @@ addons:
       - libunwind8-dev
 
 install:
-  - test "$BUILD_LINUX_WHEEL" = "1" && docker pull $DOCKER_IMAGE
+  - if [["$BUILD_LINUX_WHEEL" == "1"]]; then docker pull $DOCKER_IMAGE; fi
   - pip install .
 
 script:
   - py.test vmprof/ -vrs
   - py.test jitlog/ -vrs
-  - test "$BUILD_LINUX_WHEEL" = "1" &&
+  - if [[ "$BUILD_LINUX_WHEEL" == "1"]; then
          docker run --rm -v `pwd`:/io:Z $DOCKER_IMAGE $PRE_CMD bash
                                       /io/travis/build-wheels.sh
+    fi
   - ls wheels
 
 notifications:
