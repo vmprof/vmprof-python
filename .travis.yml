@@ -4,6 +4,9 @@ language: python
 
 cache: apt
 
+env:
+  - BUILD_LINUX_WHEEL=0
+
 matrix:
   include:
     # linux
@@ -54,10 +57,9 @@ script:
   - py.test vmprof/ -vrs
   - py.test jitlog/ -vrs
   - test "$BUILD_LINUX_WHEEL" = "1" &&
-         docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD
+         docker run --rm -v `pwd`:/io:Z $DOCKER_IMAGE $PRE_CMD bash
                                       /io/travis/build-wheels.sh
-  - test "$BUILD_LINUX_WHEEL" = "1" &&
-         ls wheels
+  - ls wheels
 
 notifications:
   irc:
