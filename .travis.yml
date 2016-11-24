@@ -47,13 +47,13 @@ addons:
       - libunwind8-dev
 
 install:
-  - if [["$BUILD_LINUX_WHEEL" == "1"]]; then docker pull $DOCKER_IMAGE; fi
+  - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker pull $DOCKER_IMAGE; fi
   - pip install .
 
 script:
   - py.test vmprof/ -vrs
   - py.test jitlog/ -vrs
-  - if [["$BUILD_LINUX_WHEEL" == "1"]]; then
+  - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then
          docker run --rm -v `pwd`:/io:Z $DOCKER_IMAGE $PRE_CMD bash
                                       /io/travis/build-wheels.sh;
     fi
