@@ -10,6 +10,23 @@ python:
   - 3.5.2
   - nightly
 
+matrix:
+  include:
+    - sudo: required
+      services:
+        - docker
+      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64
+    - sudo: required
+      services:
+        - docker
+      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_i686
+           PRE_CMD=linux32
+
+install:
+  - docker pull $DOCKER_IMAGE
+
+script:
+
 cache: apt
 
 before_install:
@@ -25,6 +42,7 @@ install:
 script:
   - py.test vmprof/ -vrs
   - py.test jitlog/ -vrs
+  - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/travis/build-wheels.sh
 
 notifications:
   irc:
