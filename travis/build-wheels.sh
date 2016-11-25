@@ -15,6 +15,9 @@ done
 
 # Bundle external shared libraries into the wheels
 for whl in wheels/*.whl; do
-    auditwheel repair $whl -w /io/wheels/
+    if [[ "$whl" == *"vmprof"* ]]
+    then
+        auditwheel repair $whl -w /io/wheels/
+    fi
 done
 
