@@ -12,19 +12,20 @@ matrix:
     - python: 3.5.1
     - python: 3.5.2
     - python: nightly
-    - language: generic
-      os: osx
-      # see: https://docs.travis-ci.com/user/osx-ci-environment/
-      osx_image: xcode8.1 # 8.1 is macOS 10.12.x
-      env: CPYTHON=py27
-    - language: generic
-      os: osx
-      osx_image: xcode7.3 # 7.3 is OS X 10.11.x
-      env: CPYTHON=py27
-    - language: generic
-      os: osx
-      osx_image: xcode6.4 # 6.4 is OS X 10.10.x
-      env: CPYTHON=py27
+      # TODO, activate mac
+      # - language: generic
+      # - os: osx
+      # - # see: https://docs.travis-ci.com/user/osx-ci-environment/
+      # - osx_image: xcode8.1 # 8.1 is macOS 10.12.x
+      # - env: CPYTHON=py27
+    # - language: generic
+      # - os: osx
+      # - osx_image: xcode7.3 # 7.3 is OS X 10.11.x
+      # - env: CPYTHON=py27
+    # - language: generic
+      # - os: osx
+      # - osx_image: xcode6.4 # 6.4 is OS X 10.10.x
+      # - env: CPYTHON=py27
     # build linux wheels
     - python: 3.5
       sudo: required

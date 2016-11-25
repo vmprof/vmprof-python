@@ -250,6 +250,11 @@ static void atfork_enable_timer(void) {
     }
 }
 
+static void atfork_close_profile_file(void) {
+    if (profile_file != -1)
+        close(profile_file);
+}
+
 static int install_pthread_atfork_hooks(void) {
     /* this is needed to prevent the problems described there:
          - http://code.google.com/p/gperftools/issues/detail?id=278
@@ -263,7 +268,7 @@ static int install_pthread_atfork_hooks(void) {
     */
     if (atfork_hook_installed)
         return 0;
-    int ret = pthread_atfork(atfork_disable_timer, atfork_enable_timer, NULL);
+    int ret = pthread_atfork(atfork_disable_timer, atfork_enable_timer, atfork_close_profile_file);
     if (ret != 0)
         return -1;
     atfork_hook_installed = 1;

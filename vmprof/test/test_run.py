@@ -45,7 +45,7 @@ foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
 bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
 
-GZIP = False
+GZIP = True
 
 def test_basic():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
