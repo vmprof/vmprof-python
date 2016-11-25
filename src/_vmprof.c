@@ -8,7 +8,7 @@ module _vmprof
 #include <Python.h>
 #include <frameobject.h>
 #include <signal.h>
-#include "clinic/_vmprof.c.h"
+// sadly that does not work for python < 3#include "clinic/_vmprof.c.h"
 
 
 #include "_vmprof.h"
@@ -128,26 +128,24 @@ static void init_cpyprof(void)
 #if CPYTHON_HAS_FRAME_EVALUATION
     PyThreadState *tstate = PyThreadState_GET();
     tstate->interp->eval_frame = cpython_vmprof_PyEval_EvalFrameEx;
-#else
-    if (Original_PyEval_EvalFrameEx == 0) {
-        Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;
-        // monkey-patch PyEval_EvalFrameEx
-        init_memprof_config_base();
-        bin_init();
-        create_tramp_table();
-        size_t tramp_size;
-        tramp_start = insert_tramp("PyEval_EvalFrameEx",
-                                   &cpyprof_PyEval_EvalFrameEx,
-                                   &tramp_size);
-        tramp_end = tramp_start + tramp_size;
-    }
-#endif
     vmp_native_enable(0);
+#else
+    //if (Original_PyEval_EvalFrameEx == 0) {
+    //    Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;
+    //    // monkey-patch PyEval_EvalFrameEx
+    //    init_memprof_config_base();
+    //    bin_init();
+    //    create_tramp_table();
+    //    size_t tramp_size;
+    //    tramp_start = insert_tramp("PyEval_EvalFrameEx",
+    //                               &cpython_vmprof_PyEval_EvalFrameEx,
+    //                               &tramp_size);
+    //    tramp_end = tramp_start + tramp_size;
+    //}
+#endif
 }
 
 
-#if CPYTHON_HAS_FRAME_EVALUATION
-__attribute__((optimize("O3")))
 PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 {
     // move the frame to a caller saved register. e.g. rbx!
@@ -156,9 +154,12 @@ PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     register PyFrameObject * rbx asm("rbx");
     asm volatile("mov %%rdi, %0\n\t"
                  "call %1\n\t"
+#if CPYTHON_HAS_FRAME_EVALUATION
                 : : "r" (rbx), "r" (_PyEval_EvalFrameDefault));
-}
+#else
+                : : "r" (rbx), "r" (PyEval_EvalFrameEx));
 #endif
+}
 
 //__attribute__((optimize("O2")))
 //static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
@@ -174,23 +175,18 @@ PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 //    return Original_PyEval_EvalFrameEx(f, throwflag);
 //}
 
-/*[clinic input]
-_vmprof.enable
-    fd: 'i'
-    interval: 'd'
-    memory: 'i' = 0
-    lines: 'i' = 0
-
-Enable profiling
-[clinic start generated code]*/
-
-static PyObject *
-_vmprof_enable_impl(PyObject *module, int fd, double interval, int memory,
-                    int lines)
-/*[clinic end generated code: output=0b0bdbe552e290cd input=b60357f0fe37413c]*/
+static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
+    int fd;
+    int memory = 0;
+    int lines = 0;
+    double interval;
     char *p_error;
 
+
+    if (!PyArg_ParseTuple(args, "id|ii", &fd, &interval, &memory, &lines)) {
+        return NULL;
+    }
     assert(fd >= 0 && "file descripter provided to vmprof must not" \
                       " be less then zero.");
 
@@ -224,15 +220,8 @@ _vmprof_enable_impl(PyObject *module, int fd, double interval, int memory,
     return Py_None;
 }
 
-/*[clinic input]
-_vmprof.disable
-
-Disable profiling
-[clinic start generated code]*/
-
 static PyObject *
-_vmprof_disable_impl(PyObject *module)
-/*[clinic end generated code: output=c282c4f6d9f27957 input=835b7ad2dfc00ad6]*/
+disable_vmprof(PyObject *module, PyObject *noarg)
 {
     if (!is_enabled) {
         PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
@@ -251,15 +240,8 @@ _vmprof_disable_impl(PyObject *module)
     return Py_None;
 }
 
-/*[clinic input]
-_vmprof.write_all_code_objects
-
-Write eagerly all the IDs of code objects
-[clinic start generated code]*/
-
 static PyObject *
-_vmprof_write_all_code_objects_impl(PyObject *module)
-/*[clinic end generated code: output=607a30e701adee35 input=3a6826a3999ef5cd]*/
+write_all_code_objects(PyObject *module, PyObject *noargs)
 {
     if (!is_enabled) {
         PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
@@ -273,18 +255,13 @@ _vmprof_write_all_code_objects_impl(PyObject *module)
 }
 
 
-/*[clinic input]
-_vmprof.sample_stack_now
-
-Sample the current stack trace of the Python process.
-[clinic start generated code]*/
-
 static PyObject *
-_vmprof_sample_stack_now_impl(PyObject *module)
-/*[clinic end generated code: output=1aadffe94bffdbd0 input=7885cdde43892ddb]*/
+sample_stack_now(PyObject *module, PyObject *noargs)
 {
     PyThreadState * tstate = NULL;
     PyObject * list;
+    int i;
+    int entry_count;
     list = PyList_New(0);
     if (list == NULL) {
         goto error;
@@ -296,9 +273,9 @@ _vmprof_sample_stack_now_impl(PyObject *module)
         PyErr_SetString(PyExc_MemoryError, "could not allocate buffer for stack trace");
         return NULL;
     }
-    int entry_count = get_stack_trace(tstate, m, MAX_STACK_DEPTH-1, 1);
+    entry_count = get_stack_trace(tstate, m, MAX_STACK_DEPTH-1, 1);
 
-    for (int i = 0; i < entry_count; i++) {
+    for (i = 0; i < entry_count; i++) {
         void * routine_ip = m[i];
         if (ROUTINE_IS_PYTHON(routine_ip)) {
             PyCodeObject * code = (PyCodeObject*)routine_ip;
@@ -325,15 +302,8 @@ error:
     return Py_None;
 }
 
-/*[clinic input]
-_vmprof.testing_enable
-
-Setup the library specifically for testing.
-[clinic start generated code]*/
-
 static PyObject *
-_vmprof_testing_enable_impl(PyObject *module)
-/*[clinic end generated code: output=c4b9ed8350f30977 input=edb73a6d4c7b530c]*/
+testing_enable(PyObject *module, PyObject * noargs)
 {
     init_cpyprof();
     is_enabled = 1;
@@ -341,15 +311,8 @@ _vmprof_testing_enable_impl(PyObject *module)
     return Py_None;
 }
 
-/*[clinic input]
-_vmprof.testing_disable
-
-Tear down the library after testing has been completed
-[clinic start generated code]*/
-
 static PyObject *
-_vmprof_testing_disable_impl(PyObject *module)
-/*[clinic end generated code: output=0b39c2ee6280b9b9 input=9ec04784a572f5a6]*/
+testing_disable(PyObject *module, PyObject * noargs)
 {
     Py_INCREF(Py_None);
     return Py_None;
@@ -357,12 +320,13 @@ _vmprof_testing_disable_impl(PyObject *module)
 
 
 static PyMethodDef VMProfMethods[] = {
-    _VMPROF_ENABLE_METHODDEF
-    _VMPROF_DISABLE_METHODDEF
-    _VMPROF_WRITE_ALL_CODE_OBJECTS_METHODDEF
-    _VMPROF_SAMPLE_STACK_NOW_METHODDEF
-    _VMPROF_TESTING_ENABLE_METHODDEF
-    _VMPROF_TESTING_DISABLE_METHODDEF
+    {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
+    {"disable", disable_vmprof, METH_NOARGS, "Disable profiling."},
+    {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
+     "Write eagerly all the IDs of code objects"},
+    {"sample_stack_now", sample_stack_now, METH_NOARGS, "Sample the stack now"},
+    {"test_enable", testing_enable, METH_NOARGS, "Enable vmprof for testing"},
+    {"test_disable", testing_disable, METH_NOARGS, "Enable vmprof for testing"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

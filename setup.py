@@ -17,11 +17,11 @@ else:
                            sources=[
                                'src/_vmprof.c',
                                'src/stack.c',
-                               'src/hotpatch/tramp.c',
-                               'src/hotpatch/util.c',
-                               'src/hotpatch/elf.c',
-                               'src/hotpatch/x86_64.c',
-                               'src/hotpatch/x86_gen.c',
+                               #'src/hotpatch/tramp.c',
+                               #'src/hotpatch/util.c',
+                               #'src/hotpatch/elf.c',
+                               #'src/hotpatch/x86_64.c',
+                               #'src/hotpatch/x86_gen.c',
                                ],
                            depends=[
                                'src/vmprof_main.h',
@@ -30,7 +30,7 @@ else:
                                'src/vmprof_common.h',
                            ],
                             extra_compile_args=extra_compile_args,
-                            libraries=['elf','dwarf','unwind','unwind-x86_64'])]
+                            libraries=['unwind','unwind-x86_64'])] # 'elf','dwarf',
 
 if sys.version_info[:2] >= (3, 3):
     extra_install_requires = []
@@ -41,7 +41,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.4.0-dev0",
+    version="0.4.0.dev0",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',

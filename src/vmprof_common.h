@@ -10,7 +10,6 @@
 
 
 #define RPY_EXTERN static
-static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *, int);
 #define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
 #define CPYTHON_GET_CUSTOM_OFFSET
 static void *tramp_start, *tramp_end;
