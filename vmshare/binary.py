@@ -1,6 +1,7 @@
 import sys
 import struct
 import array
+import pytz
 
 if sys.maxsize == 2**63 - 1:
     WORD_SIZE = struct.calcsize('Q')
@@ -64,6 +65,13 @@ def read_le_u64(fileobj):
 
 def read_le_s64(fileobj):
     return int(struct.unpack('<q', fileobj.read(8))[0])
+
+def read_timeval(fileobj):
+    tv_sec, tv_usec = read_words(fileobj, 2)
+    return tv_sec * 10**6 + tv_usec
+
+def read_timezone(fileobj):
+    return pytz.timezone(fileobj.read(5).strip(b'\0').decode('ascii'))
 
 def encode_le_u16(value):
     return struct.pack('<H', value)
