@@ -21,17 +21,17 @@
 
 #include <dlfcn.h>
 #include <pthread.h>
-#include <sys/time.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
-#include "vmprof_getpc.h"
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 
+#include "vmprof_getpc.h"
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
 
@@ -302,17 +302,7 @@ int vmprof_enable(int memory)
 
 static int close_profile(void)
 {
-    char trailer[1 + sizeof(struct timeval)];
-
-    trailer[0] = MARKER_TRAILER;
-
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL) != 0)
-        return -1;
-    memcpy(&trailer[1], &tv, sizeof(struct timeval));
-
-    if (_write_all(trailer, sizeof(trailer)) < 0)
-        return -1;
+    (void)_write_time_now(MARKER_TRAILER);
 
     teardown_rss();
     /* don't close() the file descriptor from here */

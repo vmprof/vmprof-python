@@ -1,8 +1,9 @@
 
 import struct, py
 from vmprof import reader
-from vmprof.reader import (read_one_marker, FileReadError, read_header,
+from vmprof.reader import (FileReadError, read_header,
     MARKER_HEADER, BufferTooSmallError, FileObjWrapper, ReaderStatus)
+from vmprof.test.test_run import read_one_marker
 
 class FileObj(object):
     def __init__(self, lst=None):

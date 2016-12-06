@@ -10,7 +10,6 @@ else:
     WORD_SIZE = struct.calcsize('L')
     UNPACK_CHAR = 'l'
 
-
 PY3 = sys.version_info[0] >= 3
 
 def read_word(fileobj):
@@ -63,15 +62,21 @@ def read_le_u16(fileobj):
 def read_le_u64(fileobj):
     return int(struct.unpack('<Q', fileobj.read(8))[0])
 
+def read_s64(fileobj):
+    return int(struct.unpack('!q', fileobj.read(8))[0])
+
 def read_le_s64(fileobj):
     return int(struct.unpack('<q', fileobj.read(8))[0])
 
 def read_timeval(fileobj):
-    tv_sec, tv_usec = read_words(fileobj, 2)
+    tv_sec = read_le_s64(fileobj)
+    tv_usec = read_le_s64(fileobj)
     return tv_sec * 10**6 + tv_usec
 
 def read_timezone(fileobj):
-    return pytz.timezone(fileobj.read(5).strip(b'\0').decode('ascii'))
+    timezone = fileobj.read(8).strip(b'\x00')
+    timezone = timezone.decode('ascii')
+    return pytz.timezone(timezone)
 
 def encode_le_u16(value):
     return struct.pack('<H', value)

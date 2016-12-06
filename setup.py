@@ -40,6 +40,7 @@ setup(
     install_requires=[
         'requests',
         'six',
+        'pytz'
     ] + extra_install_requires,
     tests_require=['pytest'],
     entry_points = {

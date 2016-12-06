@@ -24,6 +24,7 @@ static struct profbuf_s *volatile current_codes;
 #define MARKER_TRAILER '\x03'
 #define MARKER_INTERP_NAME '\x04'   /* deprecated */
 #define MARKER_HEADER '\x05'
+#define MARKER_TIME_N_ZONE '\x06'
 
 #define VERSION_BASE '\x00'
 #define VERSION_THREAD_ID '\x01'
@@ -42,6 +43,7 @@ typedef struct prof_stacktrace_s {
     void *stack[];
 } prof_stacktrace_s;
 
+int _write_time_now(int mark);
 
 RPY_EXTERN
 char *vmprof_init(int fd, double interval, int memory, int lines, const char *interp_name)
@@ -113,10 +115,10 @@ static int _write_all(const char *buf, size_t bufsize);
 
 static int opened_profile(const char *interp_name, int memory, int lines)
 {
-
+    int success;
     struct {
         long hdr[5];
-        char hdr2[5 + sizeof(struct timeval) + 5 + 255];
+        char interp_name[259];
     } header;
 
     size_t namelen = strnlen(interp_name, 255);
@@ -126,24 +128,65 @@ static int opened_profile(const char *interp_name, int memory, int lines)
     header.hdr[2] = 0;
     header.hdr[3] = prepare_interval_usec;
     header.hdr[4] = 0;
-    header.hdr2[0] = MARKER_HEADER;
-    header.hdr2[1] = '\x00';
-    header.hdr2[2] = VERSION_DURATION;
-    header.hdr2[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES;
-    header.hdr2[4] = namelen;
+    header.interp_name[0] = MARKER_HEADER;
+    header.interp_name[1] = '\x00';
+    header.interp_name[2] = VERSION_DURATION;
+    header.interp_name[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES;
+    header.interp_name[4] = namelen;
 
+    memcpy(&header.interp_name[5], interp_name, namelen);
+    success = _write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
+    if (success < 0) {
+        return success;
+    }
+
+    /* Write the time and the zone to the log file, profiling will start now */
+    (void)_write_time_now(MARKER_TIME_N_ZONE);
+
+    return success;
+}
+
+/**
+ * Write the time and zone now.
+ */
+int _write_time_now(int marker) {
+#if defined(__unix__) || defined(__APPLE__)
     struct timeval tv;
-    if (gettimeofday(&tv, NULL) != 0)
+    time_t now;
+    struct tm tm;
+    struct timezone_buf {
+        int64_t tv_sec;
+        int64_t tv_usec;
+    };
+    int size = 1+sizeof(struct timezone_buf)+8;
+    char buffer[size];
+    struct timezone_buf buf;
+    (void)memset(&buffer, 0, size);
+
+    assert((marker == MARKER_TRAILER || marker == MARKER_TIME_N_ZONE) && \
+           "marker must be either a trailer or time_n_zone!");
+
+    /* copy over to the struct */
+    if (gettimeofday(&tv, NULL) != 0) {
         return -1;
-    memcpy(&header.hdr2[5], &tv, sizeof(struct timeval));
+    }
+    if (time(&now) == (time_t)-1) {
+        return -1;
+    }
+    if (localtime_r(&now, &tm) == NULL) {
+        return -1;
+    }
+    buf.tv_sec = tv.tv_sec;
+    buf.tv_usec = tv.tv_usec;
+    strncpy(((char*)buffer)+size-8, tm.tm_zone, 8);
 
-    time_t now = time(NULL);
-    struct tm *tm = localtime(&now);
-    strncpy(&header.hdr2[5+sizeof(struct timeval)], tm->tm_zone, 5);
-
-    memcpy(&header.hdr2[5+sizeof(struct timeval)+5], interp_name, namelen);
-
-    return _write_all((char*)&header, 5 * sizeof(long) + 5 + sizeof(struct timeval) + 5 + namelen);
+    buffer[0] = marker;
+    (void)memcpy(buffer+1, &buf, sizeof(struct timezone_buf));
+    _write_all(buffer, size);
+    return 0;
+#else
+    return -1;
+#endif
 }
 
 /* Seems that CPython 3.5.1 made our job harder.  Did not find out how

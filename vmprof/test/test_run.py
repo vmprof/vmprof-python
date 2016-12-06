@@ -1,16 +1,23 @@
-
 """ Test the actual run
 """
 import py
 import sys
 import tempfile
 import gzip
+import struct
+from datetime import datetime
+import pytz
 
 import six
 
 import vmprof
 from vmprof.show import PrettyPrinter
-from vmprof.reader import read_prof_bit_by_bit
+from vmprof.reader import (gunzip, BufferTooSmallError, _read_header,
+        FileObjWrapper, MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
+        MARKER_TRAILER, FileReadError, read_trace,
+        VERSION_THREAD_ID, WORD_SIZE, ReaderStatus,
+        read_time_and_zone, MARKER_TIME_N_ZONE)
+from vmshare.binary import read_string, read_word
 from vmprof.stats import Stats
 
 if sys.version_info.major == 3:
@@ -78,6 +85,21 @@ def test_enable_disable():
     stats = prof.get_stats()
     d = dict(stats.top_profile())
     assert d[foo_full_name] > 0
+
+def test_start_end_time():
+    prof = vmprof.Profiler()
+    before_profile = datetime.now(pytz.utc)
+    with prof.measure():
+        function_foo()
+    after_profile = datetime.now(pytz.utc)
+    stats = prof.get_stats()
+    s = stats.start_time
+    e = stats.end_time
+    assert before_profile < s and s < after_profile
+    assert s < e
+    assert e < after_profile and s < after_profile
+    assert before_profile < after_profile
+    assert before_profile < e
 
 
 def test_nested_call():
@@ -178,6 +200,74 @@ if GZIP:
             vmprof.disable()
             assert "Error while writing profile" in str(exc_info)
         tmpfile.close()
+
+def read_prof_bit_by_bit(fileobj):
+    fileobj = gunzip(fileobj)
+    # note that we don't want to use all of this on normal files, since it'll
+    # cost us quite a bit in memory and performance and parsing 200M files in
+    # CPython is slow (pypy does better, use pypy)
+    buf = None
+    while True:
+        try:
+            status = read_header(fileobj, buf)
+            break
+        except BufferTooSmallError as e:
+            buf = e.get_buf()
+    finished = False
+    buf = None
+    while not finished:
+        try:
+            finished = read_one_marker(fileobj, status, buf)
+        except BufferTooSmallError as e:
+            buf = e.get_buf()
+    return status.period, status.profiles, status.virtual_ips, status.interp_name
+
+def read_one_marker(fileobj, status, buffer_so_far=None):
+    fileobj = FileObjWrapper(fileobj, buffer_so_far)
+    marker = fileobj.read(1)
+    if marker == MARKER_STACKTRACE:
+        count = read_word(fileobj)
+        # for now
+        assert count == 1
+        depth = read_word(fileobj)
+        assert depth <= 2**16, 'stack strace depth too high'
+        trace = read_trace(fileobj, depth, status.version, status.profile_lines)
+
+        if status.version >= VERSION_THREAD_ID:
+            thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
+        else:
+            thread_id = 0
+        if status.profile_memory:
+            mem_in_kb, = struct.unpack('l', fileobj.read(WORD_SIZE))
+        else:
+            mem_in_kb = 0
+        trace.reverse()
+        status.profiles.append((trace, 1, thread_id, mem_in_kb))
+    elif marker == MARKER_VIRTUAL_IP:
+        unique_id = read_word(fileobj)
+        name = read_string(fileobj)
+        if PY3K:
+            name = name.decode()
+        status.virtual_ips[unique_id] = name
+    elif marker == MARKER_TRAILER:
+        return True # finished
+    elif marker == MARKER_TIME_N_ZONE:
+        read_time_and_zone(fileobj)
+    else:
+        raise FileReadError("unexpected marker: %d" % ord(marker))
+    return False
+
+def read_header(fileobj, buffer_so_far=None):
+    fileobj = FileObjWrapper(fileobj, buffer_so_far)
+    assert read_word(fileobj) == 0
+    assert read_word(fileobj) == 3
+    assert read_word(fileobj) == 0
+    period = read_word(fileobj)
+    assert read_word(fileobj) == 0
+    interp_name, version, profile_memory, profile_lines = _read_header(fileobj)
+    return ReaderStatus(interp_name, period, version, None, profile_memory,
+                        profile_lines)
+
 
 def test_line_profiling():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)

@@ -5,7 +5,8 @@ class EmptyProfileFile(Exception):
     pass
 
 class Stats(object):
-    def __init__(self, profiles, adr_dict=None, jit_frames=None, interp=None):
+    def __init__(self, profiles, adr_dict=None, jit_frames=None, interp=None,
+                 start_time=None, end_time=None):
         self.profiles = profiles
         self.adr_dict = adr_dict
         self.functions = {}
@@ -16,6 +17,8 @@ class Stats(object):
             interp = 'pypy' # why not
         self.interp = interp
         self.jit_frames = jit_frames
+        self.start_time = start_time
+        self.end_time = end_time
 
     def display(self, no):
         prof = self.profiles[no][0]

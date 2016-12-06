@@ -35,7 +35,8 @@ def read_profile(prof_file):
 
     jit_frames = {}
     d = dict(virtual_symbols)
-    s = Stats(profiles, d, jit_frames, interp=interp_name)
+    s = Stats(profiles, d, jit_frames, interp=interp_name,
+              start_time=start_time, end_time=end_time)
     return s
 
 

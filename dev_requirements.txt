@@ -1,0 +1,4 @@
+six
+requests
+backports.shutil_which
+pytz
