@@ -16,7 +16,7 @@ from vmprof.reader import (gunzip, BufferTooSmallError, _read_header,
         FileObjWrapper, MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
         MARKER_TRAILER, FileReadError, read_trace,
         VERSION_THREAD_ID, WORD_SIZE, ReaderStatus,
-        read_time_and_zone, MARKER_TIME_N_ZONE)
+        read_time_and_zone, MARKER_TIME_N_ZONE, assert_error)
 from vmshare.binary import read_string, read_word
 from vmprof.stats import Stats
 
@@ -259,11 +259,11 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
 
 def read_header(fileobj, buffer_so_far=None):
     fileobj = FileObjWrapper(fileobj, buffer_so_far)
-    assert read_word(fileobj) == 0
-    assert read_word(fileobj) == 3
-    assert read_word(fileobj) == 0
+    assert_error(read_word(fileobj) == 0)
+    assert_error(read_word(fileobj) == 3)
+    assert_error(read_word(fileobj) == 0)
     period = read_word(fileobj)
-    assert read_word(fileobj) == 0
+    assert_error(read_word(fileobj) == 0)
     interp_name, version, profile_memory, profile_lines = _read_header(fileobj)
     return ReaderStatus(interp_name, period, version, None, profile_memory,
                         profile_lines)
