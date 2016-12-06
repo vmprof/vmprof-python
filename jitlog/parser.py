@@ -50,12 +50,16 @@ def _parse_jitlog(fileobj):
     If a ParseException is directly raised, this is an error that cannot
     be recovered from!
     """
-    is_jit_log = fileobj.read(1) == const.MARK_JITLOG_HEADER
-    version = ord(fileobj.read(1)) | (ord(fileobj.read(1)) << 8)
-    is_32bit = ord(fileobj.read(1))
-    machine = read_string(fileobj, True)
-    forest = TraceForest(version, is_32bit, machine)
-    ctx = ParseContext(forest)
+    try:
+        is_jit_log = fileobj.read(1) == const.MARK_JITLOG_HEADER
+        version = ord(fileobj.read(1)) | (ord(fileobj.read(1)) << 8)
+        is_32bit = ord(fileobj.read(1))
+        machine = read_string(fileobj, True)
+        forest = TraceForest(version, is_32bit, machine)
+        ctx = ParseContext(forest)
+    except Exception:
+        raise ParseException("Header malformed")
+    #
     if not is_jit_log:
         raise ParseException("Missing header. Provided input might not be a jitlog!")
     if version < JITLOG_MIN_VERSION:

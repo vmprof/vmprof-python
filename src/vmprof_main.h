@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
@@ -45,7 +46,7 @@
 
 static void *(*mainloop_get_virtual_ip)(char *) = 0;
 
-static int opened_profile(char *interp_name, int memory, int lines);
+static int opened_profile(const char *interp_name, int memory, int lines);
 static void flush_codes(void);
 
 /************************************************************/
@@ -98,36 +99,14 @@ static char atfork_hook_installed = 0;
  * *************************************************************
  */
 
-static int get_stack_trace(void** result, int max_depth, ucontext_t *ucontext)
+static int get_stack_trace(PyThreadState * current, void** result, int max_depth, ucontext_t *ucontext)
 {
-    PyThreadState* current = get_current_thread_state();
-
     if (!current)
         return 0;
     PyFrameObject *frame = current->frame;
     return read_trace_from_cpy_frame(current->frame, result, max_depth);
 }
 
-static void *get_current_thread_id(void)
-{
-    /* xxx This function is a hack on two fronts:
-
-       - It assumes that pthread_self() is async-signal-safe.  This
-         should be true on Linux and OS X.  I hope it is also true elsewhere.
-
-       - It abuses pthread_self() by assuming it just returns an
-         integer.  According to comments in CPython's source code, the
-         platforms where it is not the case are rare nowadays.
-
-       An alternative would be to try to look if the information is
-       available in the ucontext_t in the caller.
-    */
-#ifdef __APPLE__
-    return (void *)get_current_thread_state();
-#else
-    return (void *)pthread_self();
-#endif
-}
 
 
 /* *************************************************************
@@ -148,7 +127,8 @@ static void segfault_handler(int arg)
 
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
-#ifdef __APPLE__
+    PyThreadState * tstate = NULL;
+    void (*prevhandler)(int);
     // TERRIBLE HACK AHEAD
     // on OS X, the thread local storage is sometimes uninitialized
     // when the signal handler runs - it means it's impossible to read errno
@@ -156,23 +136,23 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     // it seems impossible to read the register gs.
     // here we register segfault handler (all guarded by a spinlock) and call
     // longjmp in case segfault happens while reading a thread local
+    //
+    // We do the same error detection for linux to ensure that
+    // get_current_thread_state returns a sane result
     while (__sync_lock_test_and_set(&spinlock, 1)) {
     }
-    signal(SIGSEGV, &segfault_handler);
+    prevhandler = signal(SIGSEGV, &segfault_handler);
     int fault_code = setjmp(restore_point);
     if (fault_code == 0) {
         pthread_self();
-        get_current_thread_state();
+        tstate = PyGILState_GetThisThreadState();
     } else {
-        signal(SIGSEGV, SIG_DFL);
-        __sync_synchronize();
-        spinlock = 0;
+        signal(SIGSEGV, prevhandler);
+        __sync_lock_release(&spinlock);
         return;    
     }
-    signal(SIGSEGV, SIG_DFL);
-    __sync_synchronize();
-    spinlock = 0;
-#endif
+    signal(SIGSEGV, prevhandler);
+    __sync_lock_release(&spinlock);
     long val = __sync_fetch_and_add(&signal_handler_value, 2L);
 
     if ((val & 1) == 0) {
@@ -189,11 +169,11 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             struct prof_stacktrace_s *st = (struct prof_stacktrace_s *)p->data;
             st->marker = MARKER_STACKTRACE;
             st->count = 1;
-            depth = get_stack_trace(st->stack, MAX_STACK_DEPTH-1, ucontext);
+            depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1, ucontext);
             //st->stack[0] = GetPC((ucontext_t*)ucontext);
             // we gonna need that for pypy
             st->depth = depth;
-            st->stack[depth++] = get_current_thread_id();
+            st->stack[depth++] = tstate;
             long rss = get_current_proc_rss();
             if (rss >= 0)
                 st->stack[depth++] = (void*)rss;
@@ -271,6 +251,11 @@ static void atfork_enable_timer(void) {
     }
 }
 
+static void atfork_close_profile_file(void) {
+    if (profile_file != -1)
+        close(profile_file);
+}
+
 static int install_pthread_atfork_hooks(void) {
     /* this is needed to prevent the problems described there:
          - http://code.google.com/p/gperftools/issues/detail?id=278
@@ -284,7 +269,7 @@ static int install_pthread_atfork_hooks(void) {
     */
     if (atfork_hook_installed)
         return 0;
-    int ret = pthread_atfork(atfork_disable_timer, atfork_enable_timer, NULL);
+    int ret = pthread_atfork(atfork_disable_timer, atfork_enable_timer, atfork_close_profile_file);
     if (ret != 0)
         return -1;
     atfork_hook_installed = 1;
@@ -317,9 +302,16 @@ int vmprof_enable(int memory)
 
 static int close_profile(void)
 {
-    char marker = MARKER_TRAILER;
+    char trailer[1 + sizeof(struct timeval)];
 
-    if (_write_all(&marker, 1) < 0)
+    trailer[0] = MARKER_TRAILER;
+
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) != 0)
+        return -1;
+    memcpy(&trailer[1], &tv, sizeof(struct timeval));
+
+    if (_write_all(trailer, sizeof(trailer)) < 0)
         return -1;
 
     teardown_rss();

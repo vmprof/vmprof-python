@@ -1,4 +1,6 @@
 #include <stddef.h>
+#include <sys/time.h>
+#include <time.h>
 #include "vmprof_compat.h"
 
 #define MAX_FUNC_NAME 1024
@@ -8,7 +10,7 @@ static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
 static int profile_lines = 0;
 
-static int opened_profile(char *interp_name, int memory, int lines);
+static int opened_profile(const char *interp_name, int memory, int lines);
 
 #if defined(__unix__) || defined(__APPLE__)
 static struct profbuf_s *volatile current_codes;
@@ -28,6 +30,7 @@ static struct profbuf_s *volatile current_codes;
 #define VERSION_TAG '\x02'
 #define VERSION_MEMORY '\x03'
 #define VERSION_MODE_AWARE '\x04'
+#define VERSION_DURATION '\x05'
 
 #define PROFILE_MEMORY '\x01'
 #define PROFILE_LINES  '\x02'
@@ -41,7 +44,7 @@ typedef struct prof_stacktrace_s {
 
 
 RPY_EXTERN
-char *vmprof_init(int fd, double interval, int memory, int lines, char *interp_name)
+char *vmprof_init(int fd, double interval, int memory, int lines, const char *interp_name)
 {
     if (interval < 1e-6 || interval >= 1.0)
         return "bad value for 'interval'";
@@ -108,11 +111,12 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
 
 static int _write_all(const char *buf, size_t bufsize);
 
-static int opened_profile(char *interp_name, int memory, int lines)
+static int opened_profile(const char *interp_name, int memory, int lines)
 {
+
     struct {
         long hdr[5];
-        char interp_name[259];
+        char hdr2[5 + sizeof(struct timeval) + 5 + 255];
     } header;
 
     size_t namelen = strnlen(interp_name, 255);
@@ -122,29 +126,34 @@ static int opened_profile(char *interp_name, int memory, int lines)
     header.hdr[2] = 0;
     header.hdr[3] = prepare_interval_usec;
     header.hdr[4] = 0;
-    header.interp_name[0] = MARKER_HEADER;
-    header.interp_name[1] = '\x00';
-    header.interp_name[2] = VERSION_MODE_AWARE;
-    header.interp_name[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES;
+    header.hdr2[0] = MARKER_HEADER;
+    header.hdr2[1] = '\x00';
+    header.hdr2[2] = VERSION_DURATION;
+    header.hdr2[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES;
+    header.hdr2[4] = namelen;
 
-    header.interp_name[4] = namelen;
-    memcpy(&header.interp_name[5], interp_name, namelen);
-    return _write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) != 0)
+        return -1;
+    memcpy(&header.hdr2[5], &tv, sizeof(struct timeval));
+
+    time_t now = time(NULL);
+    struct tm *tm = localtime(&now);
+    strncpy(&header.hdr2[5+sizeof(struct timeval)], tm->tm_zone, 5);
+
+    memcpy(&header.hdr2[5+sizeof(struct timeval)+5], interp_name, namelen);
+
+    return _write_all((char*)&header, 5 * sizeof(long) + 5 + sizeof(struct timeval) + 5 + namelen);
 }
 
-// for whatever reason python-dev decided to hide that one
+/* Seems that CPython 3.5.1 made our job harder.  Did not find out how
+   to do that without these hacks.  We can't use PyThreadState_GET(),
+   because that calls PyThreadState_Get() which fails an assert if the
+   result is NULL. */
 #if PY_MAJOR_VERSION >= 3 && !defined(_Py_atomic_load_relaxed)
-                                 /* this was abruptly un-defined in 3.5.1 */
-    extern void *volatile _PyThreadState_Current;
-       /* XXX simple volatile access is assumed atomic */
+                             /* this was abruptly un-defined in 3.5.1 */
+void *volatile _PyThreadState_Current;
+   /* XXX simple volatile access is assumed atomic */
 #  define _Py_atomic_load_relaxed(pp)  (*(pp))
 #endif
- 
-PyThreadState* get_current_thread_state(void)
-{
-#if PY_MAJOR_VERSION >= 3
-    return (PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current);
-#else
-    return _PyThreadState_Current;
-#endif
-}
+

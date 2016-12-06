@@ -76,6 +76,18 @@ int vmprof_snapshot_thread(DWORD thread_id, PyThreadState *tstate, prof_stacktra
     return depth;
 }
 
+static
+PyThreadState * get_current_thread_state(void)
+{
+#if PY_MAJOR_VERSION < 3
+    return _PyThreadState_Current;
+#elif PY_VERSION_HEX < 0x03050200
+    return (PyThreadState*) _Py_atomic_load_relaxed(&_PyThreadState_Current);
+#else
+    return _PyThreadState_UncheckedGet();
+#endif
+}
+
 long __stdcall vmprof_mainloop(void *arg)
 {   
     prof_stacktrace_s *stack = (prof_stacktrace_s*)malloc(SINGLE_BUF_SIZE);

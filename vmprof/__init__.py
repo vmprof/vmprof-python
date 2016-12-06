@@ -59,11 +59,15 @@ def _gzip_start(fileno):
 
     Return the subprocess' input fileno.
     """
+    # XXX During the sprint in munich we found several issues
+    # on bigger applications running vmprof. For instance:
+    # coala or some custom medium sized scripts.
+    #
     # Prefer system gzip and fall back to Python's gzip module
     if which("gzip"):
         gzip_cmd = ["gzip", "-", "-4"]
     else:
-        gzip_cmd = ["python", "-m", "gzip"]
+        gzip_cmd = ["python", "-u", "-m", "gzip"]
     global _gzip_proc
     _gzip_proc = subprocess.Popen(gzip_cmd, stdin=subprocess.PIPE,
                                   stdout=fileno, bufsize=-1,
@@ -74,5 +78,7 @@ def _gzip_finish():
     global _gzip_proc
     if _gzip_proc is not None:
         _gzip_proc.stdin.close()
-        _gzip_proc.wait()
+        returncode = _gzip_proc.wait()
+        assert returncode == 0, \
+               "return code was non zero: %d" % returncode
         _gzip_proc = None

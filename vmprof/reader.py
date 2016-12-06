@@ -7,8 +7,9 @@ import sys
 from six.moves import xrange
 import io
 import gzip
+import datetime
 
-from vmshare.binary import read_word, read_string, read_words
+from vmshare.binary import read_word, read_string, read_words, read_timeval, read_timezone
 
 PY3  = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')
@@ -44,6 +45,7 @@ VERSION_THREAD_ID = 1
 VERSION_TAG = 2
 VERSION_MEMORY = 3
 VERSION_MODE_AWARE = 4
+VERSION_DURATION = 5
 
 PROFILE_MEMORY = 1
 PROFILE_LINES = 2
@@ -219,6 +221,8 @@ def read_prof(fileobj, virtual_ips_only=False):
     virtual_ips = []
     profiles = []
     interp_name = None
+    start_time = None
+    end_time = None
     version = 0
     profile_memory = False
     profile_lines = False
@@ -236,6 +240,11 @@ def read_prof(fileobj, virtual_ips_only=False):
                 profile_memory = version == VERSION_MEMORY
                 profile_lines = False
             lgt = ord(fileobj.read(1))
+            if version >= VERSION_DURATION:
+                start_time = datetime.datetime.fromtimestamp(
+                    read_timeval(fileobj)/10.0**6,
+                    read_timezone(fileobj)
+                )
             interp_name = fileobj.read(lgt)
             if PY3:
                 interp_name = interp_name.decode()
@@ -276,6 +285,11 @@ def read_prof(fileobj, virtual_ips_only=False):
         elif marker == MARKER_TRAILER:
             #if not virtual_ips_only:
             #    symmap = read_ranges(fileobj.read())
+            if version >= VERSION_DURATION:
+                end_time = datetime.datetime.fromtimestamp(
+                    read_timeval(fileobj)/10.0**6,
+                    start_time.tzinfo
+                )
             break
         else:
             assert not marker, (fileobj.tell(), repr(marker))
@@ -283,4 +297,4 @@ def read_prof(fileobj, virtual_ips_only=False):
     virtual_ips.sort() # I think it's sorted, but who knows
     if virtual_ips_only:
         return virtual_ips
-    return period, profiles, virtual_ips, interp_name
+    return period, profiles, virtual_ips, interp_name, start_time, end_time

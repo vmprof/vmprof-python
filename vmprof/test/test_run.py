@@ -9,6 +9,7 @@ import gzip
 import six
 
 import vmprof
+from vmprof.show import PrettyPrinter
 from vmprof.reader import read_prof_bit_by_bit
 from vmprof.stats import Stats
 
@@ -28,6 +29,12 @@ def function_foo():
         l = [a for a in xrange(COUNT)]
     return l
 
+def function_bar():
+    import time
+    for k in range(1000):
+        time.sleep(0.001)
+    return 1+1
+
 
 def function_bar():
     return function_foo()
@@ -38,6 +45,7 @@ foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
 bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
 
+GZIP = True
 
 def test_basic():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
@@ -45,7 +53,12 @@ def test_basic():
     function_foo()
     vmprof.disable()
     tmpfile.close()
-    assert b"function_foo" in gzip.GzipFile(tmpfile.name).read()
+    if GZIP:
+        assert b"function_foo" in gzip.GzipFile(tmpfile.name).read()
+    else:
+        with open(tmpfile.name, 'rb') as file:
+            content = file.read()
+            assert b"function_foo" in content
 
 def test_read_bit_by_bit():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
@@ -106,8 +119,8 @@ def test_nested_call():
         assert len(t[''].children) == 0
 
 def test_multithreaded():
-    if '__pypy__' in sys.builtin_module_names or PY3K:
-        py.test.skip("not supported on pypy and python3 just yet")
+    if '__pypy__' in sys.builtin_module_names:
+        py.test.skip("not supported on pypy just yet")
     import threading
     finished = []
 
@@ -155,15 +168,16 @@ def test_memory_measurment():
 
     s = prof.get_stats()
 
-def test_gzip_problem():
-    tmpfile = tempfile.NamedTemporaryFile(delete=False)
-    vmprof.enable(tmpfile.fileno())
-    vmprof._gzip_proc.kill()
-    function_foo()
-    with py.test.raises(Exception) as exc_info:
-        vmprof.disable()
-        assert "Error while writing profile" in str(exc_info)
-    tmpfile.close()
+if GZIP:
+    def test_gzip_problem():
+        tmpfile = tempfile.NamedTemporaryFile(delete=False)
+        vmprof.enable(tmpfile.fileno())
+        vmprof._gzip_proc.kill()
+        function_foo()
+        with py.test.raises(Exception) as exc_info:
+            vmprof.disable()
+            assert "Error while writing profile" in str(exc_info)
+        tmpfile.close()
 
 def test_line_profiling():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
@@ -183,6 +197,15 @@ def test_line_profiling():
         stats = Stats(profiles, virtual_symbols, interp_name)
         walk(stats.get_tree())
 
+def test_vmprof_show():
+    tmpfile = tempfile.NamedTemporaryFile(delete=False)
+    vmprof.enable(tmpfile.fileno())
+    function_bar()
+    vmprof.disable()
+    tmpfile.close()
+
+    pp = PrettyPrinter()
+    pp.show(tmpfile.name)
 
 if __name__ == '__main__':
     test_line_profiling()
