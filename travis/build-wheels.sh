@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e -x
 
-rm -rf /opt/cp26-cp26m /opt/cp26-cp26mu
+# remove the wheels that should not be built (we do not support Python 2.6)
+rm -rf /opt/python/cp26-cp26m /opt/python/cp26-cp26mu
 
 # Install a system package required by our library
 # yum install -y atlas-devel
