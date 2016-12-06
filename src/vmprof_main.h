@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
@@ -45,7 +46,7 @@
 
 static void *(*mainloop_get_virtual_ip)(char *) = 0;
 
-static int opened_profile(char *interp_name, int memory, int lines);
+static int opened_profile(const char *interp_name, int memory, int lines);
 static void flush_codes(void);
 
 /************************************************************/
@@ -301,9 +302,16 @@ int vmprof_enable(int memory)
 
 static int close_profile(void)
 {
-    char marker = MARKER_TRAILER;
+    char trailer[1 + sizeof(struct timeval)];
 
-    if (_write_all(&marker, 1) < 0)
+    trailer[0] = MARKER_TRAILER;
+
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) != 0)
+        return -1;
+    memcpy(&trailer[1], &tv, sizeof(struct timeval));
+
+    if (_write_all(trailer, sizeof(trailer)) < 0)
         return -1;
 
     teardown_rss();
