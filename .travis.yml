@@ -1,18 +1,25 @@
 sudo: required
 dist: trusty
 language: python
-
 cache: apt
-
 matrix:
   include:
-    # linux
-    - python: 2.7
-    - python: 3.4
-    - python: 3.5.1
-    - python: 3.5.2
-    - python: nightly
-      # TODO, activate mac
+  - python: 2.7
+  - python: 3.4
+  - python: 3.5.1
+  - python: 3.5.2
+  - python: nightly
+  - python: 3.5
+    sudo: required
+    services:
+    - docker
+    env: DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64 BUILD_LINUX_WHEEL=1
+  - python: 3.5
+    sudo: required
+    services:
+    - docker
+    env: DOCKER_IMAGE=quay.io/pypa/manylinux1_i686 BUILD_LINUX_WHEEL=1 PRE_CMD=linux32
+    # TODO, activate mac
       # - language: generic
       # - os: osx
       # - # see: https://docs.travis-ci.com/user/osx-ci-environment/
@@ -26,48 +33,41 @@ matrix:
       # - os: osx
       # - osx_image: xcode6.4 # 6.4 is OS X 10.10.x
       # - env: CPYTHON=py27
-    # build linux wheels
-    - python: 3.5
-      sudo: required
-      services:
-        - docker
-      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64 BUILD_LINUX_WHEEL=1
-    - python: 3.5
-      sudo: required
-      services:
-        - docker
-      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_i686 BUILD_LINUX_WHEEL=1
-           PRE_CMD=linux32
-
+      #
 addons:
   apt:
     packages:
-      - python-dev
-      - libdwarf-dev
-      - libelfg0-dev
-      - libunwind8-dev
+    - python-dev
+    - libdwarf-dev
+    - libelfg0-dev
+    - libunwind8-dev
 
 install:
-  - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker pull $DOCKER_IMAGE; fi
-  - pip install .
-
+- if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker pull $DOCKER_IMAGE; fi
+- pip install .
 script:
-  - py.test vmprof/ -vrs
-  - py.test jitlog/ -vrs
-  - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then
-         docker run --rm -v `pwd`:/io:Z $DOCKER_IMAGE $PRE_CMD bash
-                                      /io/travis/build-wheels.sh;
-    fi
+- py.test vmprof/ -vrs
+- py.test jitlog/ -vrs
+- if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker run --rm -v `pwd`:/io:Z $DOCKER_IMAGE
+  $PRE_CMD bash /io/travis/build-wheels.sh; fi
+
+deploy:
+  provider: pypi
+  distributions: sdist bdist_wheel
+  username: planrich
+  password:
+    secure: KL8WeX0d76PiS3cwXoPsnisXWGxrmtQnNv20uNUdlE5ldwD+5vx4Rbk28rP8RRrILfH/wAzH3AzvHX2HmBbhKwlQxTfNc7PMlUM2u7z9hboUYqiAVVVozrPjioCiyY4RwrBiOWN3/KxoiLoDJW2x0Qljg0Zd4zHiD8znavvsqUI=
+  on:
+    tags: true
 
 notifications:
   irc:
-    channels: "irc.freenode.org#baroque-dev"
+    channels: irc.freenode.org#baroque-dev
     template:
-      - "%{repository}@%{branch}: %{message} (%{build_url})"
+    - "%{repository}@%{branch}: %{message} (%{build_url})"
     use_notice: true
     on_success: always
     on_failure: always
-
   email:
     on_success: change
     on_failure: change
