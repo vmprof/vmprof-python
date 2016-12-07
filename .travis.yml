@@ -2,6 +2,12 @@ sudo: required
 dist: trusty
 language: python
 cache: apt
+
+env:
+  - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
+  - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
+
+
 matrix:
   include:
   - python: 2.7
@@ -52,11 +58,8 @@ script:
   $PRE_CMD bash /io/travis/build-wheels.sh; fi
 
 deploy:
-  provider: pypi
-  distributions: sdist bdist_wheel
-  username: planrich
-  password:
-    secure: KL8WeX0d76PiS3cwXoPsnisXWGxrmtQnNv20uNUdlE5ldwD+5vx4Rbk28rP8RRrILfH/wAzH3AzvHX2HmBbhKwlQxTfNc7PMlUM2u7z9hboUYqiAVVVozrPjioCiyY4RwrBiOWN3/KxoiLoDJW2x0Qljg0Zd4zHiD8znavvsqUI=
+  provider: script
+  script: travis/upload-artifacts.sh
   on:
     tags: true
 
