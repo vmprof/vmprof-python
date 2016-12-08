@@ -14,7 +14,6 @@ def main():
     service = Service(host, auth)
     interpname = platform.python_implementation()
     service.post({ Service.FILE_CPU_PROFILE: filename,
-                   Service.FILE_MEM_PROFILE: filename + '.mem',
                    Service.File_JIT_PROFILE: filename + '.jit',
                    'argv': interpname + ' -m vmprof.upload ' + filename,
                    'VM': interpname })

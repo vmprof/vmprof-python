@@ -132,6 +132,8 @@ class Service(object):
 
         self.finalize_entry(rid)
 
+        sys.stderr.write(self.get_url('#'+rid) + "\n")
+
     def finalize_entry(self, rid, data=b""):
         url = self.get_url('/api/runtime/%s/freeze/' % rid)
         headers = self.get_headers()
