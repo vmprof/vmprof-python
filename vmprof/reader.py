@@ -39,6 +39,7 @@ MARKER_TRAILER = b'\x03'
 MARKER_INTERP_NAME = b'\x04'
 MARKER_HEADER = b'\x05'
 MARKER_TIME_N_ZONE = b'\x06'
+MARKER_META = b'\x07'
 
 
 VERSION_BASE = 0
@@ -174,6 +175,7 @@ def read_prof(fileobj, virtual_ips_only=False):
     version = 0
     profile_memory = False
     profile_lines = False
+    meta = {}
 
     while True:
         marker = fileobj.read(1)
@@ -181,6 +183,11 @@ def read_prof(fileobj, virtual_ips_only=False):
             assert not version, "multiple headers"
             interp_name, version, profile_memory, profile_lines = \
                     _read_header(fileobj, consume_mark=False)
+        elif marker == MARKER_META:
+            key = read_string(fileobj)
+            value = read_string(fileobj)
+            assert not key in meta, "key duplication, %s already present" % (key,)
+            meta[key] = value
         elif marker == MARKER_TIME_N_ZONE:
             start_time = read_time_and_zone(fileobj)
         elif marker == MARKER_STACKTRACE:
@@ -229,4 +236,4 @@ def read_prof(fileobj, virtual_ips_only=False):
     virtual_ips.sort() # I think it's sorted, but who knows
     if virtual_ips_only:
         return virtual_ips
-    return period, profiles, virtual_ips, interp_name, start_time, end_time
+    return period, profiles, virtual_ips, interp_name, meta, start_time, end_time

@@ -23,7 +23,6 @@ def show_stats(filename, output_mode, args):
         host, auth = args.web_url, args.web_auth
         service = Service(host, auth)
         service.post({ Service.FILE_CPU_PROFILE: filename,
-                       Service.FILE_MEM_PROFILE: filename + '.mem',
                        Service.FILE_JIT_PROFILE: filename + '.jit',
                        'argv': ' '.join(sys.argv[:]),
                        'VM': platform.python_implementation() })

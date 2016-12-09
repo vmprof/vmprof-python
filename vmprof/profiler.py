@@ -31,7 +31,7 @@ def read_profile(prof_file):
     if not hasattr(prof_file, 'read'):
         prof_file = open(str(prof_file), 'rb')
 
-    period, profiles, virtual_symbols, interp_name, start_time, end_time = read_prof(prof_file)
+    period, profiles, virtual_symbols, interp_name, argv, start_time, end_time = read_prof(prof_file)
 
     jit_frames = {}
     d = dict(virtual_symbols)

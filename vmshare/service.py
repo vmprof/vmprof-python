@@ -81,14 +81,14 @@ class Service(object):
     def post_file(self, rid, filename, filetype, compress=False):
         if not os.path.exists(filename):
             return False
-        oldfilename = filename
         if compress:
             filename = compress_file(filename)
         with open(filename, 'rb') as fd:
             url = self.get_url('/api/runtime/upload/%s/%s/add' % (filetype, rid))
             files = { 'file': fd }
             headers = self.get_headers()
-            headers['Content-Disposition'] = 'attachment; filename='+oldfilename
+            headers['Content-Disposition'] = 'attachment; filename='+filename
+            del headers['Content-Type']
             response = requests.post(url, headers=headers, files=files)
             self.stop_if_error_occured(response)
         return True
