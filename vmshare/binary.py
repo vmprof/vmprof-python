@@ -71,7 +71,9 @@ def read_timeval(fileobj):
     return tv_sec * 10**6 + tv_usec
 
 def read_timezone(fileobj):
-    return pytz.timezone(fileobj.read(5).strip(b'\0').decode('ascii'))
+    tzname = fileobj.read(5).strip(b'\0').decode('ascii')
+    if tzname:
+        return pytz.timezone(tzname)
 
 def encode_le_u16(value):
     return struct.pack('<H', value)

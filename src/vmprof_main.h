@@ -35,12 +35,6 @@
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
 
-#if defined(__unix__)
-#include "rss_unix.h"
-#elif defined(__APPLE__)
-#include "rss_darwin.h"
-#endif
-
 
 /************************************************************/
 
@@ -295,26 +289,6 @@ int vmprof_enable(int memory)
 }
 
 
-static int close_profile(void)
-{
-    char trailer[1 + sizeof(struct timeval)];
-
-    trailer[0] = MARKER_TRAILER;
-
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL) != 0)
-        return -1;
-    memcpy(&trailer[1], &tv, sizeof(struct timeval));
-
-    if (_write_all(trailer, sizeof(trailer)) < 0)
-        return -1;
-
-    teardown_rss();
-    /* don't close() the file descriptor from here */
-    profile_file = -1;
-    return 0;
-}
-
 RPY_EXTERN
 int vmprof_disable(void)
 {
@@ -328,7 +302,7 @@ int vmprof_disable(void)
     flush_codes();
     if (shutdown_concurrent_bufs(profile_file) < 0)
         return -1;
-    return close_profile();
+    return teardown_rss();
 }
 
 RPY_EXTERN

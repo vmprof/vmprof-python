@@ -1,6 +1,4 @@
 #include <stddef.h>
-#include <sys/time.h>
-#include <time.h>
 #include "vmprof_compat.h"
 
 #define MAX_FUNC_NAME 1024
@@ -130,20 +128,29 @@ static int opened_profile(const char *interp_name, int memory, int lines)
     header.hdr2[1] = '\x00';
     header.hdr2[2] = VERSION_DURATION;
     header.hdr2[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES;
-    header.hdr2[4] = namelen;
+    header.hdr2[4] = (char) namelen;
 
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL) != 0)
-        return -1;
-    memcpy(&header.hdr2[5], &tv, sizeof(struct timeval));
-
-    time_t now = time(NULL);
-    struct tm *tm = localtime(&now);
-    strncpy(&header.hdr2[5+sizeof(struct timeval)], tm->tm_zone, 5);
-
+    vmprof_gettimeofday((void*)&header.hdr2[5]);
+    vmprof_gettimezone(&header.hdr2[5+sizeof(struct timeval)]);
     memcpy(&header.hdr2[5+sizeof(struct timeval)+5], interp_name, namelen);
 
     return _write_all((char*)&header, 5 * sizeof(long) + 5 + sizeof(struct timeval) + 5 + namelen);
+}
+
+static int vmprof_teardown()
+{
+    char trailer[1 + sizeof(struct timeval)];
+
+    trailer[0] = MARKER_TRAILER;
+
+    vmprof_gettimeofday((void*)&trailer[1]);
+
+    if (_write_all(trailer, sizeof(trailer)) < 0)
+        return -1;
+
+    /* don't close() the file descriptor from here */
+    profile_file = -1;
+    return 0;
 }
 
 /* Seems that CPython 3.5.1 made our job harder.  Did not find out how

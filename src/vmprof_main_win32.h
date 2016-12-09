@@ -129,12 +129,7 @@ int vmprof_enable(int memory)
 RPY_EXTERN
 int vmprof_disable(void)
 {
-    char marker = MARKER_TRAILER;
-
     enabled = 0;
-    if (_write_all(&marker, 1) < 0)
-        return -1;
-    profile_file = -1;
     return 0;
 }
 
