@@ -6,12 +6,9 @@ cache: apt
 matrix:
   include:
     - python: 3.4
-      env: PYENV=3.4.5
     - python: 3.5.1
-      env: PYENV=3.5.1
     - python: 3.5.2
-      env: PYENV=3.5.2
-      # see: https://docs.travis-ci.com/user/osx-ci-environment/
+    # see: https://docs.travis-ci.com/user/osx-ci-environment/
     - os: osx
       language: generic
       osx_image: xcode8.1 # 8.1 is macOS 10.12.x
@@ -27,7 +24,7 @@ matrix:
     # matrix entries that build and upload to pypi
     - python: 2.7
       env:
-        - UPLOAD_SDIST=1 PYENV=2.7.12
+        - UPLOAD_SDIST=1
         - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
         - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
     - python: 3.5
@@ -35,7 +32,7 @@ matrix:
       services:
       - docker
       env:
-        - DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64 BUILD_LINUX_WHEEL=1 PYENV=3.5.2
+        - DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64 BUILD_LINUX_WHEEL=1
         - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
         - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
     - python: 3.5
@@ -43,7 +40,7 @@ matrix:
       services:
       - docker
       env:
-        - DOCKER_IMAGE=quay.io/pypa/manylinux1_i686 BUILD_LINUX_WHEEL=1 PRE_CMD=linux32 PYENV=3.5.2
+        - DOCKER_IMAGE=quay.io/pypa/manylinux1_i686 BUILD_LINUX_WHEEL=1 PRE_CMD=linux32
         - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
         - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
 addons:
