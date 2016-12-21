@@ -65,8 +65,10 @@ script:
 deploy:
   provider: script
   script: travis/upload-artifact.sh
+  skip_cleanup: true
   on:
     tags: true
+    branch: master
 
 notifications:
   irc:
