@@ -61,24 +61,11 @@ script:
 - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker run --rm -v `pwd`:/io:Z $DOCKER_IMAGE
   $PRE_CMD bash /io/travis/build-wheels.sh; fi
 
-after_success:
-  - python travis/travis_after_all.py https://api.travis-ci.com
-  - export $(cat .to_export_back)
-  - |
-      if [ "$TRAVIS_PULL_REQUEST" = "true" ]; then exit 0; fi
-      if [ "$TRAVIS_BRANCH" != "master" ]; then exit 0; fi
-      echo "after success, leader: $BUILD_LEADER, aggregate status = $BUILD_AGGREGATE_STATUS"
-      if [ "$BUILD_LEADER" = "YES" ]; then
-        if [ "$BUILD_AGGREGATE_STATUS" = "others_succeeded" ]; then
-          if [ -n "TRAVIS_TAG" ]; then
-            # upload the artifacts, every build+test succeeded
-            ./travis/upload-artifact.sh
-          else
-            # test upload in any case!
-            ./travis/upload-artifact.sh
-          fi
-        fi
-      fi
+deploy:
+  provider: script
+  script: travis/upload-artifact.sh
+  on:
+    tags: true
 
 notifications:
   irc:
