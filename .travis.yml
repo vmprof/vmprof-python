@@ -63,7 +63,7 @@ script:
   $PRE_CMD bash /io/travis/build-wheels.sh; fi
 
 after_success:
-  - bash travis/upload-artifact.sh;
+  - if [[ -n "TRAVIS_TAG" ]]; then bash travis/upload-artifact.sh; fi
 
 notifications:
   irc:
