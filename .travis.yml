@@ -4,12 +4,13 @@ language: python
 cache: apt
 
 env:
-  # pypi
-  - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
-  # pypi
-  - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
-  # github token
-  - secure: "gHckGVHSQq95lbF7/KS6wA65VF+PR89u0dkHuEf008CcXlhLV3KW4dcmrJj4/bsfYgFyfPHmCRth2v3U1rx+TP+NvZ2kUFLAYLsySIHDv7Q2IfzQDG8RgHm/FL91PVS/novOoKQ10We0HedQhqejICuElwIaEQh44WZIMaU/SiI="
+  - global:
+    # pypi
+    - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
+    # pypi
+    - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
+    # github token
+    - secure: "gHckGVHSQq95lbF7/KS6wA65VF+PR89u0dkHuEf008CcXlhLV3KW4dcmrJj4/bsfYgFyfPHmCRth2v3U1rx+TP+NvZ2kUFLAYLsySIHDv7Q2IfzQDG8RgHm/FL91PVS/novOoKQ10We0HedQhqejICuElwIaEQh44WZIMaU/SiI="
 
 
 matrix:
