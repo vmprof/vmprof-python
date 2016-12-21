@@ -62,6 +62,8 @@ script:
 - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker run --rm -v `pwd`:/io:Z $DOCKER_IMAGE
   $PRE_CMD bash /io/travis/build-wheels.sh; fi
 
+after_success:
+  - bash travis/upload-artifact.sh
 deploy:
   provider: script
   script: travis/upload-artifact.sh
