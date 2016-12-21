@@ -15,3 +15,5 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
     source ~/.venv/bin/activate
 fi
 
+pip install .
+pip install -r test_requirements.txt

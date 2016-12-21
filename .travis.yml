@@ -3,46 +3,46 @@ dist: trusty
 language: python
 cache: apt
 
+env:
+  global:
+    - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
+    - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
+
 matrix:
   include:
-    - python: 3.4
-    - python: 3.5.1
-    - python: 3.5.2
-    # see: https://docs.travis-ci.com/user/osx-ci-environment/
-    - os: osx
-      language: generic
-      osx_image: xcode8.1 # 8.1 is macOS 10.12.x
-      env: PYENV=2.7.12
-          #- language: generic
-        #- la: osx
-        #- lax_image: xcode6.4 # 6.4 is OS X 10.10.x
-        #- lav: PYTHON=py27
-      # - language: generic
-        # - os: osx
-        # - osx_image: xcode7.3 # 7.3 is OS X 10.11.x
-        # - env: CPYTHON=py27
-    # matrix entries that build and upload to pypi
     - python: 2.7
       env:
         - UPLOAD_SDIST=1
-        - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
-        - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
+    - python: 3.4
+    - python: 3.5.1
+    - python: 3.5.2
     - python: 3.5
       sudo: required
       services:
       - docker
       env:
         - DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64 BUILD_LINUX_WHEEL=1
-        - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
-        - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
     - python: 3.5
       sudo: required
       services:
       - docker
       env:
         - DOCKER_IMAGE=quay.io/pypa/manylinux1_i686 BUILD_LINUX_WHEEL=1 PRE_CMD=linux32
-        - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
-        - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
+    - os: osx
+      language: generic
+      osx_image: xcode6.4 # 6.4 is OS X 10.10.x
+      env:
+        - PYENV=2.7.12
+    - os: osx
+      language: generic
+      osx_image: xcode7.3 # 7.3 is OS X 10.11.x
+      env:
+        - PYENV=2.7.12
+    - os: osx
+      language: generic
+      osx_image: xcode8.1 # 8.1 is macOS 10.12.x
+      env:
+        - PYENV=2.7.12
 addons:
   apt:
     packages:
@@ -54,7 +54,6 @@ addons:
 install:
   - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker pull $DOCKER_IMAGE; fi
   - bash ./travis/install.sh
-  - pip install .
 
 script:
   - py.test vmprof/ -vrs
