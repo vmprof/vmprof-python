@@ -9,9 +9,8 @@ pip install twine
 
 
 VERSION="$(python setup.py --version)"
-PYVERSION="$(python --version)"
 
-if [[ $PYVERSION == *"Python 2.7"* ]]; then
+if [ -n "$UPLOAD_SDIST" ]; then
     echo "uploading source distribution"
     python setup.py sdist
     twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD vmprof-$(VERSION).tar.gz
