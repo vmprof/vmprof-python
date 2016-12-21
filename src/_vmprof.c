@@ -193,6 +193,10 @@ static PyObject *disable_vmprof(PyObject* self, PyObject *noarg)
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
     }
+    if (vmprof_teardown() < 0) {
+        PyErr_SetFromErrno(PyExc_OSError);
+        return NULL;
+    }
     if (PyErr_Occurred())
         return NULL;
     Py_INCREF(Py_None);
