@@ -56,7 +56,7 @@ addons:
 
 install:
   - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker pull $DOCKER_IMAGE; fi
-  - ./travis/install.sh
+  - bash ./travis/install.sh
   - pip install .
 
 script:
