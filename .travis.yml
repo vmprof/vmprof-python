@@ -64,12 +64,6 @@ script:
 
 after_success:
   - bash travis/upload-artifact.sh
-deploy:
-  provider: script
-  script: travis/upload-artifact.sh
-  skip_cleanup: true
-  on:
-    tags: true
 
 notifications:
   irc:
