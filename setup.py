@@ -32,7 +32,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.4.0.dev0",
+    version="0.4.0.dev5",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
@@ -48,7 +48,7 @@ setup(
             'vmprofshow = vmprof.show:main'
     ]},
     classifiers=[
-        'License :: OSI Approved :: BSD License',
+        'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
