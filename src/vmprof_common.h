@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <sys/time.h>
 #include <time.h>
+#include "machine.h"
 
 static int _write_all(const char *buf, size_t bufsize);
 
@@ -28,6 +29,7 @@ static struct profbuf_s *volatile current_codes;
 #define MARKER_INTERP_NAME '\x04'   /* deprecated */
 #define MARKER_HEADER '\x05'
 #define MARKER_TIME_N_ZONE '\x06'
+#define MARKER_META '\x07'
 
 #define VERSION_BASE '\x00'
 #define VERSION_THREAD_ID '\x01'
@@ -39,6 +41,20 @@ static struct profbuf_s *volatile current_codes;
 
 #define PROFILE_MEMORY '\x01'
 #define PROFILE_LINES  '\x02'
+
+static int _write_meta(const char * key, const char * value)
+{
+    char marker = MARKER_META;
+    long x = strlen(key);
+    _write_all(&marker, 1);
+    _write_all((char*)&x, sizeof(long));
+    _write_all(key, x);
+    x = strlen(value);
+    _write_all((char*)&x, sizeof(long));
+    _write_all(value, x);
+    return 0;
+}
+
 
 typedef struct prof_stacktrace_s {
     char padding[sizeof(long) - 1];
@@ -142,6 +158,15 @@ static int opened_profile(const char *interp_name, int memory, int lines)
 
     /* Write the time and the zone to the log file, profiling will start now */
     (void)_write_time_now(MARKER_TIME_N_ZONE);
+
+    /* write some more meta information */
+    _write_meta("os", vmp_machine_os_name());
+    int bits = vmp_machine_bits();
+    if (bits == 64) {
+        _write_meta("bits", "64");
+    } else if (bits == 32) {
+        _write_meta("bits", "32");
+    }
 
     return success;
 }

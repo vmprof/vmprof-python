@@ -13,6 +13,7 @@ else:
     ext_modules = [Extension('_vmprof',
                            sources=[
                                'src/_vmprof.c',
+                               'src/machine.c'
                                ],
                            depends=[
                                'src/vmprof_main.h',

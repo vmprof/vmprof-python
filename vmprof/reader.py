@@ -186,7 +186,11 @@ def read_prof(fileobj, virtual_ips_only=False):
                     _read_header(fileobj, consume_mark=False)
         elif marker == MARKER_META:
             key = read_string(fileobj)
+            if PY3:
+                key = key.decode('utf-8')
             value = read_string(fileobj)
+            if PY3:
+                value = value.decode('utf-8')
             assert not key in meta, "key duplication, %s already present" % (key,)
             meta[key] = value
         elif marker == MARKER_TIME_N_ZONE:

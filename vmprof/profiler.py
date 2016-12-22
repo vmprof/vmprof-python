@@ -31,12 +31,12 @@ def read_profile(prof_file):
     if not hasattr(prof_file, 'read'):
         prof_file = open(str(prof_file), 'rb')
 
-    period, profiles, virtual_symbols, interp_name, argv, start_time, end_time = read_prof(prof_file)
+    period, profiles, virtual_symbols, interp_name, meta, start_time, end_time = read_prof(prof_file)
 
     jit_frames = {}
     d = dict(virtual_symbols)
     s = Stats(profiles, d, jit_frames, interp=interp_name,
-              start_time=start_time, end_time=end_time)
+              start_time=start_time, end_time=end_time, meta=meta)
     return s
 
 

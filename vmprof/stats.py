@@ -24,6 +24,9 @@ class Stats(object):
     def getargv(self):
         return self.meta.get('argv', '')
 
+    def getmeta(self, key, default):
+        return self.meta.get(key, default) 
+
     def display(self, no):
         prof = self.profiles[no][0]
         return [self._get_name(elem) for elem in prof]
