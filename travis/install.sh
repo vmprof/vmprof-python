@@ -18,4 +18,3 @@ fi
 
 pip install .
 pip install -r test_requirements.txt
-ls $HOME/.venv/bin
