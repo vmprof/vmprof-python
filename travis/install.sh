@@ -13,7 +13,9 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
 
     python -m virtualenv ~/.venv
     source ~/.venv/bin/activate
+    PATH="$HOME/.venv/bin:$PATH"
 fi
 
 pip install .
 pip install -r test_requirements.txt
+ls $HOME/.venv/bin
