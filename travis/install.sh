@@ -9,11 +9,13 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
     pyenv install $PYENV
     pyenv global $PYENV
     pyenv rehash
+    echo "python version $(python --version)"
     python -m pip install --user virtualenv
 
+    pip install pytest
     python -m virtualenv ~/.venv
     source ~/.venv/bin/activate
-    PATH="$HOME/.venv/bin:$PATH"
+    find ~/ -name 'py.test'
 fi
 
 pip install .
