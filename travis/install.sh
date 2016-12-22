@@ -16,6 +16,7 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
     python -m virtualenv ~/.venv
     source ~/.venv/bin/activate
     find ~/ -name 'py.test'
+    echo $PATH
 fi
 
 pip install .
