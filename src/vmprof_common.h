@@ -1,6 +1,9 @@
 #include <stddef.h>
 #include <sys/time.h>
 #include <time.h>
+
+static int _write_all(const char *buf, size_t bufsize);
+
 #include "vmprof_compat.h"
 
 #define MAX_FUNC_NAME 1024
@@ -32,6 +35,7 @@ static struct profbuf_s *volatile current_codes;
 #define VERSION_MEMORY '\x03'
 #define VERSION_MODE_AWARE '\x04'
 #define VERSION_DURATION '\x05'
+#define VERSION_TIMESTAMP '\x06'
 
 #define PROFILE_MEMORY '\x01'
 #define PROFILE_LINES  '\x02'
@@ -42,8 +46,6 @@ typedef struct prof_stacktrace_s {
     long count, depth;
     void *stack[];
 } prof_stacktrace_s;
-
-int _write_time_now(int mark);
 
 RPY_EXTERN
 char *vmprof_init(int fd, double interval, int memory, int lines, const char *interp_name)
@@ -111,8 +113,6 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
     return depth;
 }
 
-static int _write_all(const char *buf, size_t bufsize);
-
 static int opened_profile(const char *interp_name, int memory, int lines)
 {
     int success;
@@ -130,7 +130,7 @@ static int opened_profile(const char *interp_name, int memory, int lines)
     header.hdr[4] = 0;
     header.interp_name[0] = MARKER_HEADER;
     header.interp_name[1] = '\x00';
-    header.interp_name[2] = VERSION_DURATION;
+    header.interp_name[2] = VERSION_TIMESTAMP;
     header.interp_name[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES;
     header.interp_name[4] = namelen;
 
@@ -146,75 +146,6 @@ static int opened_profile(const char *interp_name, int memory, int lines)
     return success;
 }
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <stdint.h> // portable: uint64_t   MSVC: __int64 
-
-/**
- * Write the time and zone now.
- */
-int _write_time_now(int marker) {
-    struct timezone_buf {
-        int64_t tv_sec;
-        int64_t tv_usec;
-    };
-    int size = 1+sizeof(struct timezone_buf)+8;
-    char buffer[size];
-    struct timezone_buf buf;
-    (void)memset(&buffer, 0, size);
-
-    assert((marker == MARKER_TRAILER || marker == MARKER_TIME_N_ZONE) && \
-           "marker must be either a trailer or time_n_zone!");
-
-#if defined(__unix__) || defined(__APPLE__)
-    struct timeval tv;
-    time_t now;
-    struct tm tm;
-
-
-    /* copy over to the struct */
-    if (gettimeofday(&tv, NULL) != 0) {
-        return -1;
-    }
-    if (time(&now) == (time_t)-1) {
-        return -1;
-    }
-    if (localtime_r(&now, &tm) == NULL) {
-        return -1;
-    }
-    buf.tv_sec = tv.tv_sec;
-    buf.tv_usec = tv.tv_usec;
-    strncpy(((char*)buffer)+size-8, tm.tm_zone, 8);
-#else
-    /**
-     * http://stackoverflow.com/questions/10905892/equivalent-of-gettimeday-for-windows
-     */
-
-    // Note: some broken versions only have 8 trailing zero's, the correct
-    // epoch has 9 trailing zero's
-    static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
-
-    SYSTEMTIME  system_time;
-    FILETIME    file_time;
-    uint64_t    time;
-
-    GetSystemTime( &system_time );
-    SystemTimeToFileTime( &system_time, &file_time );
-    time =  ((uint64_t)file_time.dwLowDateTime )      ;
-    time += ((uint64_t)file_time.dwHighDateTime) << 32;
-
-    buf.tv_sec = ((time - EPOCH) / 10000000L);
-    buf.tv_usec = (system_time.wMilliseconds * 1000);
-
-    // time zone not implemented on windows
-    memset(((char*)buffer)+size-8, 0, 8);
-#endif
-
-    buffer[0] = marker;
-    (void)memcpy(buffer+1, &buf, sizeof(struct timezone_buf));
-    _write_all(buffer, size);
-    return 0;
-}
 
 /* Seems that CPython 3.5.1 made our job harder.  Did not find out how
    to do that without these hacks.  We can't use PyThreadState_GET(),
