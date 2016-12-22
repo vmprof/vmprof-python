@@ -16,7 +16,8 @@ from vmprof.reader import (gunzip, BufferTooSmallError, _read_header,
         FileObjWrapper, MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
         MARKER_TRAILER, FileReadError, read_trace,
         VERSION_THREAD_ID, WORD_SIZE, ReaderStatus,
-        read_time_and_zone, MARKER_TIME_N_ZONE, assert_error)
+        read_time_and_zone, MARKER_TIME_N_ZONE, assert_error,
+        MARKER_META)
 from vmshare.binary import read_string, read_word
 from vmprof.stats import Stats
 
@@ -249,6 +250,10 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         if PY3K:
             name = name.decode()
         status.virtual_ips[unique_id] = name
+    elif marker == MARKER_META:
+        read_string(fileobj)
+        read_string(fileobj)
+        # TODO save the for the tests?
     elif marker == MARKER_TRAILER:
         return True # finished
     elif marker == MARKER_TIME_N_ZONE:
