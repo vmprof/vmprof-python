@@ -10,15 +10,10 @@ if [[ "$UPLOAD_SDIST" == "1" ]]; then
     twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/vmprof-$VERSION.tar.gz
 fi
 
-if [[ "$MAC_WHEEL" == "1" ]]; then
+if [[ -n "TRAVIS_TAG" && "$MAC_WHEEL" == "1" ]]; then
     echo " -> uploading mac wheel distribution"
-    pip install auditwheel
+    source ~/.venv/bin/activate
     pip wheel . -w dist
-    for whl in dist/*.whl; do
-        if [[ $whl == *"vmprof"* ]]; then
-            auditwheel repair $whl -w dist/
-        fi
-    done
     twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/vmprof-$VERSION.tar.gz
 fi
 

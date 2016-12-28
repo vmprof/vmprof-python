@@ -37,12 +37,43 @@ matrix:
       language: generic
       osx_image: xcode7.3 # 7.3 is OS X 10.11.x
       env:
-        - PYENV=2.7.12 MAC_WHEEL=1
+        - PYENV=2.7.12
     - os: osx
       language: generic
       osx_image: xcode8.1 # 8.1 is macOS 10.12.x
       env:
-        - PYENV=2.7.12 MAC_WHEEL=1
+        - PYENV=2.7.12
+    # MAC PYTHON VERSION 3.4.5
+    - os: osx
+      language: generic
+      osx_image: xcode6.4 # 6.4 is OS X 10.10.x
+      env:
+        - PYENV=3.4.5 MAC_WHEEL=1
+    - os: osx
+      language: generic
+      osx_image: xcode7.3 # 7.3 is OS X 10.11.x
+      env:
+        - PYENV=3.4.5
+    - os: osx
+      language: generic
+      osx_image: xcode8.1 # 8.1 is macOS 10.12.x
+      env:
+        - PYENV=3.4.5
+    - os: osx
+      language: generic
+      osx_image: xcode6.4 # 6.4 is OS X 10.10.x
+      env:
+        - PYENV=3.5.2 MAC_WHEEL=1
+    - os: osx
+      language: generic
+      osx_image: xcode7.3 # 7.3 is OS X 10.11.x
+      env:
+        - PYENV=3.5.2
+    - os: osx
+      language: generic
+      osx_image: xcode8.1 # 8.1 is macOS 10.12.x
+      env:
+        - PYENV=3.5.2
 addons:
   apt:
     packages:
@@ -52,14 +83,10 @@ addons:
     - libunwind8-dev
 
 install:
-  - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker pull $DOCKER_IMAGE; fi
   - bash ./travis/install.sh
 
 script:
-  - py.test vmprof/ -vrs
-  - py.test jitlog/ -vrs
-  - if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then docker run --rm -v `pwd`:/io:Z $DOCKER_IMAGE
-    $PRE_CMD bash /io/travis/build-wheels.sh; fi
+  - bash ./travis/script.sh
 
 after_success:
   - if [[ -n "TRAVIS_TAG" ]]; then bash travis/upload-artifact.sh; fi
