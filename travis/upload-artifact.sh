@@ -1,6 +1,9 @@
 #!/bin/bash
 
 echo "deploy stage after success. uploading files..."
+if [[ "$(uname -s)" == 'Darwin' ]]; then
+    source ~/.venv/bin/activate
+fi
 pip install twine
 VERSION="$(python setup.py --version)"
 
