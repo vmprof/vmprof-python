@@ -17,7 +17,7 @@ if [[ "$MAC_WHEEL" == "1" ]]; then
     echo " -> uploading mac wheel distribution"
     source ~/.venv/bin/activate
     pip wheel . -w dist
-    twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/vmprof-$VERSION.tar.gz
+    twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/vmprof-$VERSION*.whl
 fi
 
 if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then
