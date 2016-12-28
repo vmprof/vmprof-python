@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 if [[ "$(uname -s)" == 'Darwin' ]]; then
     brew update || brew update
     git clone --depth 1 https://github.com/yyuu/pyenv.git ~/.pyenv
@@ -12,11 +14,12 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
     echo "python version $(python --version)"
     python -m pip install --user virtualenv
 
-    pip install pytest
     python -m virtualenv ~/.venv
     source ~/.venv/bin/activate
-    find ~/ -name 'py.test'
-    echo $PATH
+else
+    if [[ -n "TRAVIS_TAG" && "$BUILD_LINUX_WHEEL" == "1" ]]; then
+        docker pull $DOCKER_IMAGE;
+    fi
 fi
 
 pip install .
