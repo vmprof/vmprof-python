@@ -15,6 +15,7 @@ int vmp_native_enable(int offset);
 const char * vmp_get_symbol_for_ip(void * ip);
 int vmp_ignore_ip(ptr_t ip);
 int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count);
+int vmp_native_symbols_read(void);
 
 int vmp_ignore_symbol_count(void);
 ptr_t * vmp_ignore_symbols(void);

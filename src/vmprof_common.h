@@ -25,7 +25,7 @@ static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
 static int profile_lines = 0;
 
-static int opened_profile(const char *interp_name, int memory, int lines);
+static int opened_profile(const char *interp_name, int memory, int lines, int native);
 
 #if defined(__unix__) || defined(__APPLE__)
 static struct profbuf_s *volatile current_codes;
@@ -52,6 +52,7 @@ static struct profbuf_s *volatile current_codes;
 
 #define PROFILE_MEMORY '\x01'
 #define PROFILE_LINES  '\x02'
+#define PROFILE_NATIVE '\x04'
 
 static int _write_meta(const char * key, const char * value)
 {
@@ -75,7 +76,7 @@ typedef struct prof_stacktrace_s {
 } prof_stacktrace_s;
 
 RPY_EXTERN
-char *vmprof_init(int fd, double interval, int memory, int lines, const char *interp_name)
+char *vmprof_init(int fd, double interval, int memory, int lines, const char *interp_name, int native)
 {
     if (interval < 1e-6 || interval >= 1.0)
         return "bad value for 'interval'";
@@ -86,12 +87,16 @@ char *vmprof_init(int fd, double interval, int memory, int lines, const char *in
 #if defined(__unix__) || defined(__APPLE__)
     current_codes = NULL;
 #else
-    if (memory)
+    if (memory) {
         return "memory tracking only supported on unix";
+    }
+    if (native) {
+        return "native profiling only supported on unix";
+    }
 #endif
     assert(fd >= 0);
     profile_file = fd;
-    if (opened_profile(interp_name, memory, lines) < 0) {
+    if (opened_profile(interp_name, memory, lines, native) < 0) {
         profile_file = -1;
         return strerror(errno);
     }
@@ -140,7 +145,7 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
     return depth;
 }
 
-static int opened_profile(const char *interp_name, int memory, int lines)
+static int opened_profile(const char *interp_name, int memory, int lines, int native)
 {
     int success;
     struct {
@@ -158,7 +163,8 @@ static int opened_profile(const char *interp_name, int memory, int lines)
     header.interp_name[0] = MARKER_HEADER;
     header.interp_name[1] = '\x00';
     header.interp_name[2] = VERSION_TIMESTAMP;
-    header.interp_name[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES;
+    header.interp_name[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES + \
+                            native*PROFILE_NATIVE;
     header.interp_name[4] = namelen;
 
     memcpy(&header.interp_name[5], interp_name, namelen);
@@ -177,6 +183,10 @@ static int opened_profile(const char *interp_name, int memory, int lines)
         _write_meta("bits", "64");
     } else if (bits == 32) {
         _write_meta("bits", "32");
+    }
+
+    if (native) {
+        vmp_native_enable(0);
     }
 
     return success;

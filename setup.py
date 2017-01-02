@@ -13,16 +13,16 @@ else:
     elif sys.platform == 'darwin':
         libraries = ['unwind']
     extra_compile_args.append('-DNATIVE_FRAMES=1')
+    extra_compile_args.append('-I src/')
     ext_modules = [Extension('_vmprof',
                            sources=[
+                               'src/libudis86/decode.c',
+                               'src/libudis86/itab.c',
+                               'src/libudis86/udis86.c',
                                'src/_vmprof.c',
                                'src/stack.c',
-                               #'src/hotpatch/tramp.c',
-                               #'src/hotpatch/util.c',
-                               #'src/hotpatch/elf.c',
-                               #'src/hotpatch/x86_64.c',
-                               #'src/hotpatch/x86_gen.c',
-                               'src/machine.c'
+                               'src/trampoline.c',
+                               'src/machine.c',
                                ],
                            depends=[
                                'src/vmprof_main.h',
@@ -31,7 +31,7 @@ else:
                                'src/vmprof_common.h',
                            ],
                             extra_compile_args=extra_compile_args,
-                            libraries=['unwind','unwind-x86_64'])] # 'elf','dwarf',
+                            libraries=['dl','unwind','unwind-x86_64'])] # 'elf','dwarf',
 
 if sys.version_info[:2] >= (3, 3):
     extra_install_requires = []

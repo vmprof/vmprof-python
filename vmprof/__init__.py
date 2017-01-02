@@ -26,11 +26,19 @@ IS_PYPY = '__pypy__' in sys.builtin_module_names
 DEFAULT_PERIOD = 0.00099
 
 if not IS_PYPY:
-    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False):
+    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         gz_fileno = _gzip_start(fileno)
-        _vmprof.enable(gz_fileno, period, memory, lines)
+        if os.name == "nt":
+            if native:
+                raise ValueError("native profiling is only supported on unix systems")
+            native = False
+        else:
+            # TODO native should be enabled by default?
+            if native is None:
+                native = True
+        _vmprof.enable(gz_fileno, period, memory, lines, native)
 else:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, warn=True):
         if not isinstance(period, float):
@@ -82,6 +90,10 @@ def _gzip_start(fileno):
     _gzip_proc = subprocess.Popen(gzip_cmd, stdin=subprocess.PIPE,
                                   stdout=fileno, bufsize=-1,
                                   close_fds=(sys.platform != "win32"))
+    if _gzip_proc.returncode is not None:
+        # oh, the gzip process has terminated already?
+        _gzip_proc = None
+        return fileno # proceed without compressing the object
     return _gzip_proc.stdin.fileno()
 
 def _gzip_finish():

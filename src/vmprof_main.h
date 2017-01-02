@@ -33,10 +33,10 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
+#include "stack.h"
 #include "vmprof_getpc.h"
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
-#include "stack.h"
 
 #if defined(__unix__)
 #include "rss_unix.h"
@@ -48,7 +48,7 @@
 /************************************************************/
 
 static void *(*mainloop_get_virtual_ip)(char *) = 0;
-static int opened_profile(const char *interp_name, int memory, int lines);
+static int opened_profile(const char *interp_name, int memory, int lines, int native);
 static void flush_codes(void);
 
 /************************************************************/
@@ -191,7 +191,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
         if (p == NULL) {
             /* ignore this signal: there are no free buffers right now */
         } else {
-            _vmprof_sample_stack(p, tstate, 0); // no native frames for now
+            _vmprof_sample_stack(p, tstate, vmp_native_enabled());
         }
         commit_buffer(fd, p);
 

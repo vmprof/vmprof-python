@@ -19,6 +19,8 @@ static volatile int is_enabled = 0;
 #include "vmprof_main.h"
 #include "hotpatch/tramp.h"
 #include "hotpatch/bin_api.h"
+#include "trampoline.h"
+#include "machine.h"
 #else
 #include "vmprof_main_win32.h"
 #endif
@@ -129,19 +131,14 @@ static void init_cpyprof(void)
     PyThreadState *tstate = PyThreadState_GET();
     tstate->interp->eval_frame = cpython_vmprof_PyEval_EvalFrameEx;
     vmp_native_enable(0);
+    Original_PyEval_EvalFrameEx = cpython_vmprof_PyEval_EvalFrameEx;
 #else
-    //if (Original_PyEval_EvalFrameEx == 0) {
-    //    Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;
-    //    // monkey-patch PyEval_EvalFrameEx
-    //    init_memprof_config_base();
-    //    bin_init();
-    //    create_tramp_table();
-    //    size_t tramp_size;
-    //    tramp_start = insert_tramp("PyEval_EvalFrameEx",
-    //                               &cpython_vmprof_PyEval_EvalFrameEx,
-    //                               &tramp_size);
-    //    tramp_end = tramp_start + tramp_size;
-    //}
+    if (vmp_patch_callee_trampoline("PyEval_EvalFrameEx") == 0) {
+        Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;
+    } else {
+        printf("could not insert trampline\n");
+        // TODO dump the first few bytes and tell them to create an issue!
+    }
 #endif
 }
 
@@ -161,30 +158,17 @@ PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 #endif
 }
 
-//__attribute__((optimize("O2")))
-//static PyObject* cpyprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
-//{
-//    register void* _rsp asm("rsp");
-//    volatile PyFrameObject *f2 = f;    /* this prevents the call below from
-//                                          turning into a tail call */
-//    // TODO
-//    //if (!mainloop_get_virtual_ip) {
-//    //    mainloop_sp_offset = (char*)&f2 - (char*)_rsp;
-//    //    mainloop_get_virtual_ip = &get_virtual_ip;
-//    //}
-//    return Original_PyEval_EvalFrameEx(f, throwflag);
-//}
-
 static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
     int fd;
     int memory = 0;
     int lines = 0;
+    int native = 0;
     double interval;
     char *p_error;
 
 
-    if (!PyArg_ParseTuple(args, "id|ii", &fd, &interval, &memory, &lines)) {
+    if (!PyArg_ParseTuple(args, "id|iii", &fd, &interval, &memory, &lines, &native)) {
         return NULL;
     }
     assert(fd >= 0 && "file descripter provided to vmprof must not" \
@@ -202,7 +186,7 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
         PyCode_Type.tp_dealloc = &cpyprof_code_dealloc;
     }
 
-    p_error = vmprof_init(fd, interval, memory, lines, "cpython");
+    p_error = vmprof_init(fd, interval, memory, lines, "cpython", native);
     if (p_error) {
         PyErr_SetString(PyExc_ValueError, p_error);
         return NULL;

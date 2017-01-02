@@ -1,11 +1,16 @@
 #include "stack.h"
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <libunwind.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include "_vmprof.h"
 #include <stddef.h>
+#include <dlfcn.h>
 
 #include "hotpatch/khash.h"
 KHASH_MAP_INIT_INT64(ptr, char*);
@@ -20,6 +25,7 @@ static ssize_t vmp_range_count = 0;
 int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
                                      int max_depth)
 {
+    // called in signal handler
     void *ip, *sp;
     unw_cursor_t cursor;
     unw_context_t uc;
@@ -74,8 +80,8 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
-            char name[64];
-            unw_get_proc_name(&cursor, name, 64, &off);
+            //char name[64];
+            //unw_get_proc_name(&cursor, name, 64, &off);
             //printf("ignore ip %p %s\n", pip.start_ip, name);
         } else {
             ip = (void*)((ptr_t)pip.start_ip | 0x1);
@@ -84,19 +90,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             // TODO need to check if this is possible on other 
             // compiler than e.g. gcc/clang too?
             //
-            char * name = (char*)malloc(64);
-            unw_get_proc_name(&cursor, name, 64, &off);
-            //printf("native method with name %s\n", name);
-            khiter_t it;
-            it = kh_get(ptr, ip_symbol_lookup, (ptr_t)ip);
-            if (it == kh_end(ip_symbol_lookup)) {
-                it = kh_put(ptr, ip_symbol_lookup, (ptr_t)ip, &ret);
-                result[depth++] = ip;
-                kh_value(ip_symbol_lookup, it) = name;
-            } else {
-                //printf("key %p already in hash\n", ip);
-                free(name);
-            }
+            result[depth++] = ip;
         }
 
         step_result = unw_step(&cursor);
@@ -123,12 +117,24 @@ int vmp_native_sp_offset(void) {
 }
 
 const char * vmp_get_symbol_for_ip(void * ip) {
+    int ret;
     if ((((ptr_t)ip) & 0x1) == 0) {
         return NULL;
     }
+
     khiter_t it = kh_get(ptr, ip_symbol_lookup, (ptr_t)ip);
     if (it == kh_end(ip_symbol_lookup)) {
-        return NULL;
+        Dl_info info;
+        // ip is off +1, does not matter for dladdr (see manpage)
+        if (dladdr(ip, &info) != 0) {
+            return NULL;
+        }
+        char * name = (char*)malloc(64);
+        strncpy(name, info.dli_sname, 63);
+        name[63] = '\x00'; // null terminate just in case
+        it = kh_put(ptr, ip_symbol_lookup, (ptr_t)ip, &ret);
+        kh_value(ip_symbol_lookup, it) = name;
+        return name; // short cut
     }
 
     return kh_value(ip_symbol_lookup, it);
