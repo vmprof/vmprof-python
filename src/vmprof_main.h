@@ -23,16 +23,17 @@
 
 #include <dlfcn.h>
 #include <pthread.h>
-#include <sys/time.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
-#include "vmprof_getpc.h"
 #include <stdio.h>
+#include <fcntl.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/time.h>
 
+#include "vmprof_getpc.h"
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
 #include "stack.h"
@@ -46,7 +47,8 @@
 
 /************************************************************/
 
-static int opened_profile(char *interp_name, int memory, int lines);
+static void *(*mainloop_get_virtual_ip)(char *) = 0;
+static int opened_profile(const char *interp_name, int memory, int lines);
 static void flush_codes(void);
 
 /************************************************************/
@@ -261,6 +263,11 @@ static void atfork_enable_timer(void) {
     }
 }
 
+static void atfork_close_profile_file(void) {
+    if (profile_file != -1)
+        close(profile_file);
+}
+
 static int install_pthread_atfork_hooks(void) {
     /* this is needed to prevent the problems described there:
          - http://code.google.com/p/gperftools/issues/detail?id=278
@@ -274,7 +281,7 @@ static int install_pthread_atfork_hooks(void) {
     */
     if (atfork_hook_installed)
         return 0;
-    int ret = pthread_atfork(atfork_disable_timer, atfork_enable_timer, NULL);
+    int ret = pthread_atfork(atfork_disable_timer, atfork_enable_timer, atfork_close_profile_file);
     if (ret != 0)
         return -1;
     atfork_hook_installed = 1;
@@ -308,10 +315,7 @@ int vmprof_enable(int memory)
 
 static int close_profile(void)
 {
-    char marker = MARKER_TRAILER;
-
-    if (_write_all(&marker, 1) < 0)
-        return -1;
+    (void)_write_time_now(MARKER_TRAILER);
 
     teardown_rss();
     /* don't close() the file descriptor from here */

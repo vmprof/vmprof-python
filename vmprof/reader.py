@@ -7,13 +7,12 @@ import sys
 from six.moves import xrange
 import io
 import gzip
+import datetime
 
-from vmshare.binary import read_word, read_string, read_words
+from vmshare.binary import read_word, read_string, read_words, read_timeval, read_timezone
 
 PY3  = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')
-
-
 
 def read_trace(fileobj, depth, version, profile_lines=False):
     if version == VERSION_TAG:
@@ -39,6 +38,8 @@ MARKER_VIRTUAL_IP = b'\x02'
 MARKER_TRAILER = b'\x03'
 MARKER_INTERP_NAME = b'\x04'
 MARKER_HEADER = b'\x05'
+MARKER_TIME_N_ZONE = b'\x06'
+MARKER_META = b'\x07'
 
 
 VERSION_BASE = 0
@@ -46,6 +47,8 @@ VERSION_THREAD_ID = 1
 VERSION_TAG = 2
 VERSION_MEMORY = 3
 VERSION_MODE_AWARE = 4
+VERSION_DURATION = 5
+VERSION_TIMESTAMP = 6
 
 PROFILE_MEMORY = 1
 PROFILE_LINES = 2
@@ -130,15 +133,10 @@ def assert_error(condition, error="malformed file"):
     if not condition:
         raise FileReadError(error)
 
-def read_header(fileobj, buffer_so_far=None):
-    fileobj = FileObjWrapper(fileobj, buffer_so_far)
-    assert_error(read_word(fileobj) == 0)
-    assert_error(read_word(fileobj) == 3)
-    assert_error(read_word(fileobj) == 0)
-    period = read_word(fileobj)
-    assert_error(read_word(fileobj) == 0)
-    marker = fileobj.read(1)
-    assert_error(marker == MARKER_HEADER, "expected header")
+def _read_header(fileobj, consume_mark=True):
+    if consume_mark:
+        marker = fileobj.read(1)
+        assert_error(marker == MARKER_HEADER, "expected header")
     version, = struct.unpack("!h", fileobj.read(2))
 
     if version >= VERSION_MODE_AWARE:
@@ -153,61 +151,13 @@ def read_header(fileobj, buffer_so_far=None):
     interp_name = fileobj.read(lgt)
     if PY3:
         interp_name = interp_name.decode()
-    return ReaderStatus(interp_name, period, version, None, profile_memory, profile_lines)
+    return interp_name, version, profile_memory, profile_lines
 
-def read_one_marker(fileobj, status, buffer_so_far=None):
-    fileobj = FileObjWrapper(fileobj, buffer_so_far)
-    marker = fileobj.read(1)
-    if marker == MARKER_STACKTRACE:
-        count = read_word(fileobj)
-        # for now
-        assert count == 1
-        depth = read_word(fileobj)
-        assert depth <= 2**16, 'stack strace depth too high'
-        trace = read_trace(fileobj, depth, status.version, status.profile_lines)
-
-        if status.version >= VERSION_THREAD_ID:
-            thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
-        else:
-            thread_id = 0
-        if status.profile_memory:
-            mem_in_kb, = struct.unpack('l', fileobj.read(WORD_SIZE))
-        else:
-            mem_in_kb = 0
-        trace.reverse()
-        status.profiles.append((trace, 1, thread_id, mem_in_kb))
-    elif marker == MARKER_VIRTUAL_IP:
-        unique_id = read_word(fileobj)
-        name = read_string(fileobj)
-        if PY3:
-            name = name.decode()
-        status.virtual_ips[unique_id] = name
-    elif marker == MARKER_TRAILER:
-        return True # finished
-    else:
-        raise FileReadError("unexpected marker: %d" % ord(marker))
-    return False
-
-def read_prof_bit_by_bit(fileobj):
-    fileobj = gunzip(fileobj)
-    # note that we don't want to use all of this on normal files, since it'll
-    # cost us quite a bit in memory and performance and parsing 200M files in
-    # CPython is slow (pypy does better, use pypy)
-    buf = None
-    while True:
-        try:
-            status = read_header(fileobj, buf)
-            break
-        except BufferTooSmallError as e:
-            buf = e.get_buf()
-    finished = False
-    buf = None
-    while not finished:
-        try:
-            finished = read_one_marker(fileobj, status, buf)
-        except BufferTooSmallError as e:
-            buf = e.get_buf()
-    return status.period, status.profiles, status.virtual_ips, status.interp_name
+def read_time_and_zone(fileobj):
+    return datetime.datetime.fromtimestamp(
+        read_timeval(fileobj)/10.0**6,
+        read_timezone(fileobj)
+    )
 
 def read_prof(fileobj, virtual_ips_only=False):
     fileobj = gunzip(fileobj)
@@ -221,26 +171,30 @@ def read_prof(fileobj, virtual_ips_only=False):
     virtual_ips = []
     profiles = []
     interp_name = None
+    start_time = None
+    end_time = None
     version = 0
     profile_memory = False
     profile_lines = False
+    meta = {}
 
     while True:
         marker = fileobj.read(1)
         if marker == MARKER_HEADER:
             assert not version, "multiple headers"
-            version, = struct.unpack("!h", fileobj.read(2))
-            if version >= VERSION_MODE_AWARE:
-                mode = ord(fileobj.read(1))
-                profile_memory = (mode & PROFILE_MEMORY) != 0
-                profile_lines = (mode & PROFILE_LINES) != 0
-            else:
-                profile_memory = version == VERSION_MEMORY
-                profile_lines = False
-            lgt = ord(fileobj.read(1))
-            interp_name = fileobj.read(lgt)
+            interp_name, version, profile_memory, profile_lines = \
+                    _read_header(fileobj, consume_mark=False)
+        elif marker == MARKER_META:
+            key = read_string(fileobj)
             if PY3:
-                interp_name = interp_name.decode()
+                key = key.decode('utf-8')
+            value = read_string(fileobj)
+            if PY3:
+                value = value.decode('utf-8')
+            assert not key in meta, "key duplication, %s already present" % (key,)
+            meta[key] = value
+        elif marker == MARKER_TIME_N_ZONE:
+            start_time = read_time_and_zone(fileobj)
         elif marker == MARKER_STACKTRACE:
             count = read_word(fileobj)
             # for now
@@ -278,6 +232,8 @@ def read_prof(fileobj, virtual_ips_only=False):
         elif marker == MARKER_TRAILER:
             #if not virtual_ips_only:
             #    symmap = read_ranges(fileobj.read())
+            if version >= VERSION_DURATION:
+                end_time = read_time_and_zone(fileobj)
             break
         else:
             assert not marker, (fileobj.tell(), repr(marker))
@@ -285,4 +241,4 @@ def read_prof(fileobj, virtual_ips_only=False):
     virtual_ips.sort() # I think it's sorted, but who knows
     if virtual_ips_only:
         return virtual_ips
-    return period, profiles, virtual_ips, interp_name
+    return period, profiles, virtual_ips, interp_name, meta, start_time, end_time

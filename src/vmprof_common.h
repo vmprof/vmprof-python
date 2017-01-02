@@ -2,6 +2,12 @@
 
 #include <Python.h>
 #include <stddef.h>
+#include <sys/time.h>
+#include <time.h>
+#include "machine.h"
+
+static int _write_all(const char *buf, size_t bufsize);
+
 #include "vmprof_compat.h"
 #include "_vmprof.h"
 #include "vmprof_mt.h"
@@ -19,7 +25,7 @@ static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
 static int profile_lines = 0;
 
-static int opened_profile(char *interp_name, int memory, int lines);
+static int opened_profile(const char *interp_name, int memory, int lines);
 
 #if defined(__unix__) || defined(__APPLE__)
 static struct profbuf_s *volatile current_codes;
@@ -33,16 +39,33 @@ static struct profbuf_s *volatile current_codes;
 #define MARKER_TRAILER '\x03'
 #define MARKER_INTERP_NAME '\x04'   /* deprecated */
 #define MARKER_HEADER '\x05'
-#define MARKER_NATIVE_STACKTRACE '\x06'
+#define MARKER_TIME_N_ZONE '\x06'
+#define MARKER_META '\x07'
 
 #define VERSION_BASE '\x00'
 #define VERSION_THREAD_ID '\x01'
 #define VERSION_TAG '\x02'
 #define VERSION_MEMORY '\x03'
 #define VERSION_MODE_AWARE '\x04'
+#define VERSION_DURATION '\x05'
+#define VERSION_TIMESTAMP '\x06'
 
 #define PROFILE_MEMORY '\x01'
 #define PROFILE_LINES  '\x02'
+
+static int _write_meta(const char * key, const char * value)
+{
+    char marker = MARKER_META;
+    long x = strlen(key);
+    _write_all(&marker, 1);
+    _write_all((char*)&x, sizeof(long));
+    _write_all(key, x);
+    x = strlen(value);
+    _write_all((char*)&x, sizeof(long));
+    _write_all(value, x);
+    return 0;
+}
+
 
 typedef struct prof_stacktrace_s {
     char padding[sizeof(long) - 1];
@@ -51,9 +74,8 @@ typedef struct prof_stacktrace_s {
     void *stack[];
 } prof_stacktrace_s;
 
-
 RPY_EXTERN
-char *vmprof_init(int fd, double interval, int memory, int lines, char *interp_name)
+char *vmprof_init(int fd, double interval, int memory, int lines, const char *interp_name)
 {
     if (interval < 1e-6 || interval >= 1.0)
         return "bad value for 'interval'";
@@ -118,10 +140,9 @@ static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int ma
     return depth;
 }
 
-static int _write_all(const char *buf, size_t bufsize);
-
-static int opened_profile(char *interp_name, int memory, int lines)
+static int opened_profile(const char *interp_name, int memory, int lines)
 {
+    int success;
     struct {
         long hdr[5];
         char interp_name[259];
@@ -136,13 +157,31 @@ static int opened_profile(char *interp_name, int memory, int lines)
     header.hdr[4] = 0;
     header.interp_name[0] = MARKER_HEADER;
     header.interp_name[1] = '\x00';
-    header.interp_name[2] = VERSION_MODE_AWARE;
+    header.interp_name[2] = VERSION_TIMESTAMP;
     header.interp_name[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES;
-
     header.interp_name[4] = namelen;
+
     memcpy(&header.interp_name[5], interp_name, namelen);
-    return _write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
+    success = _write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
+    if (success < 0) {
+        return success;
+    }
+
+    /* Write the time and the zone to the log file, profiling will start now */
+    (void)_write_time_now(MARKER_TIME_N_ZONE);
+
+    /* write some more meta information */
+    _write_meta("os", vmp_machine_os_name());
+    int bits = vmp_machine_bits();
+    if (bits == 64) {
+        _write_meta("bits", "64");
+    } else if (bits == 32) {
+        _write_meta("bits", "32");
+    }
+
+    return success;
 }
+
 
 /* Seems that CPython 3.5.1 made our job harder.  Did not find out how
    to do that without these hacks.  We can't use PyThreadState_GET(),

@@ -52,7 +52,7 @@ cd vmprof-python
 Run that smallish program which burns CPU cycles (with vmprof enabled):
 
 ```console
-python tests/cpuburn.py
+python vmprof/test/cpuburn.py
 ```
 
 This will produce a profile file `vmprof_cpuburn.dat`.

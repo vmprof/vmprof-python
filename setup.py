@@ -22,6 +22,7 @@ else:
                                #'src/hotpatch/elf.c',
                                #'src/hotpatch/x86_64.c',
                                #'src/hotpatch/x86_gen.c',
+                               'src/machine.c'
                                ],
                            depends=[
                                'src/vmprof_main.h',
@@ -41,7 +42,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.4.0.dev0",
+    version="0.4.0.dev8",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
@@ -49,6 +50,7 @@ setup(
     install_requires=[
         'requests',
         'six',
+        'pytz'
     ] + extra_install_requires,
     tests_require=['pytest','cffi'],
     entry_points = {
@@ -56,7 +58,7 @@ setup(
             'vmprofshow = vmprof.show:main'
     ]},
     classifiers=[
-        'License :: OSI Approved :: BSD License',
+        'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
