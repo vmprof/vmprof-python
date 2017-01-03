@@ -267,8 +267,9 @@ sample_stack_now(PyObject *module, PyObject *noargs)
             PyList_Append(list, name);
         } else {
             // a native routine!
-            const char * name = vmp_get_symbol_for_ip(routine_ip);
-            PyObject * str = PyStr_NEW(name == NULL ? "unknown symbol" : name);
+            const char * name[64];
+            vmp_get_symbol_for_ip(routine_ip, name, 64);
+            PyObject * str = PyStr_NEW(name);
             if (str == NULL) {
                 goto error;
             }

@@ -12,10 +12,6 @@
 #include <stddef.h>
 #include <dlfcn.h>
 
-#include "hotpatch/khash.h"
-KHASH_MAP_INIT_INT64(ptr, char*);
-static khash_t(ptr) * ip_symbol_lookup = 0;
-
 static int vmp_native_traces_enabled = 0;
 static int vmp_native_traces_sp_offset = -1;
 static ptr_t *vmp_ranges = NULL;
@@ -116,28 +112,14 @@ int vmp_native_sp_offset(void) {
     return vmp_native_traces_sp_offset;
 }
 
-const char * vmp_get_symbol_for_ip(void * ip) {
-    int ret;
-    if ((((ptr_t)ip) & 0x1) == 0) {
-        return NULL;
+void vmp_get_symbol_for_ip(void * ip, char * name, int length) {
+    Dl_info info;
+    // ip is off +1, does not matter for dladdr (see manpage)
+    if (dladdr(ip, &info) != 0) {
+        strcpy(name, "unknown symbol");
     }
-
-    khiter_t it = kh_get(ptr, ip_symbol_lookup, (ptr_t)ip);
-    if (it == kh_end(ip_symbol_lookup)) {
-        Dl_info info;
-        // ip is off +1, does not matter for dladdr (see manpage)
-        if (dladdr(ip, &info) != 0) {
-            return NULL;
-        }
-        char * name = (char*)malloc(64);
-        strncpy(name, info.dli_sname, 63);
-        name[63] = '\x00'; // null terminate just in case
-        it = kh_put(ptr, ip_symbol_lookup, (ptr_t)ip, &ret);
-        kh_value(ip_symbol_lookup, it) = name;
-        return name; // short cut
-    }
-
-    return kh_value(ip_symbol_lookup, it);
+    strncpy(name, info.dli_sname, length-1);
+    name[length-1] = '\x00'; // null terminate just in case
 }
 
 #ifdef __unix__

@@ -30,7 +30,7 @@ else:
                                'src/vmprof_common.h',
                            ],
                             extra_compile_args=extra_compile_args,
-                            libraries=['dl','unwind','unwind-x86_64'])] # 'elf','dwarf',
+                            libraries=['dl','unwind','unwind-x86_64'])]
 
 if sys.version_info[:2] >= (3, 3):
     extra_install_requires = []

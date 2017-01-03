@@ -12,7 +12,7 @@ void* vmp_get_virtual_ip(char* sp);
 int vmp_native_enabled(void);
 int vmp_native_sp_offset(void);
 int vmp_native_enable(int offset);
-const char * vmp_get_symbol_for_ip(void * ip);
+void vmp_get_symbol_for_ip(void * ip, char * name, int length);
 int vmp_ignore_ip(ptr_t ip);
 int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count);
 int vmp_native_symbols_read(void);
