@@ -55,7 +55,7 @@ int _redirect_trampoline_and_back(char * callee, char * trump) {
 
     // 2) custom instructions needed
     {
-        // MOV %rdi, %rbx (rbx a caller save register)
+        // MOV %rdi, %rbx (rbx a caller saved register)
         trump[bytes+0] = 0x48;
         trump[bytes+1] = 0x89;
         trump[bytes+2] = 0xfb;

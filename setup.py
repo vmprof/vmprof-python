@@ -12,7 +12,6 @@ else:
         extra_compile_args = ['-Wno-unused']
     elif sys.platform == 'darwin':
         libraries = ['unwind']
-    extra_compile_args.append('-DNATIVE_FRAMES=1')
     extra_compile_args.append('-I src/')
     ext_modules = [Extension('_vmprof',
                            sources=[
