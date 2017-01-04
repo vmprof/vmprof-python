@@ -10,15 +10,12 @@ module _vmprof
 #include <signal.h>
 // sadly that does not work for python < 3#include "clinic/_vmprof.c.h"
 
-
 #include "_vmprof.h"
 
 static volatile int is_enabled = 0;
 
 #if defined(__unix__) || defined(__APPLE__)
 #include "vmprof_main.h"
-#include "hotpatch/tramp.h"
-#include "hotpatch/bin_api.h"
 #include "trampoline.h"
 #include "machine.h"
 #else
@@ -28,8 +25,6 @@ static volatile int is_enabled = 0;
 static destructor Original_code_dealloc = 0;
 static PyObject *(*Original_PyEval_EvalFrameEx)(PyFrameObject *f,
                                                 int throwflag) = 0;
-static ptrdiff_t mainloop_sp_offset;
-
 
 static int emit_code_object(PyCodeObject *co)
 {
@@ -214,6 +209,7 @@ disable_vmprof(PyObject *module, PyObject *noarg)
     is_enabled = 0;
     vmprof_ignore_signals(1);
     emit_all_code_objects();
+
     if (vmprof_disable() < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
@@ -267,7 +263,7 @@ sample_stack_now(PyObject *module, PyObject *noargs)
             PyList_Append(list, name);
         } else {
             // a native routine!
-            const char * name[64];
+            char name[64];
             vmp_get_symbol_for_ip(routine_ip, name, 64);
             PyObject * str = PyStr_NEW(name);
             if (str == NULL) {

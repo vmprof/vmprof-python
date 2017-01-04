@@ -203,7 +203,6 @@ int vmp_read_vmaps(const char * fname) {
 int vmp_native_enable(int offset) {
     vmp_native_traces_enabled = 1;
     vmp_native_traces_sp_offset = offset;
-    ip_symbol_lookup = kh_init(ptr);
 
 #ifdef __unix__
     return vmp_read_vmaps("/proc/self/maps");
