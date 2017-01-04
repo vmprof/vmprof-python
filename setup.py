@@ -7,11 +7,11 @@ if IS_PYPY:
     ext_modules = [] # built-in
 else:
     libraries = []
-    extra_compile_args = []
+    extra_compile_args = ['dl','unwind','unwind-x86_64']
     if sys.platform != 'win32':
         extra_compile_args = ['-Wno-unused']
     elif sys.platform == 'darwin':
-        libraries = ['unwind']
+        libraries = []
     extra_compile_args.append('-I src/')
     ext_modules = [Extension('_vmprof',
                            sources=[
@@ -30,7 +30,7 @@ else:
                                'src/vmprof_common.h',
                            ],
                             extra_compile_args=extra_compile_args,
-                            libraries=['dl','unwind','unwind-x86_64'])]
+                            libraries=libraries)]
 
 if sys.version_info[:2] >= (3, 3):
     extra_install_requires = []

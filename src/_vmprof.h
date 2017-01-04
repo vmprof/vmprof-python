@@ -1,5 +1,9 @@
 #pragma once
 
+#include <frameobject.h>
+#include <Python.h>
+#include <inttypes.h>
+
 /**
  * This whole setup is very strange. There was just one C file called
  * _vmprof.c which included all *.h files to copy code. Unsure what
@@ -9,7 +13,6 @@
  * should not have complex implementations (all of them currently have them)
  */
 
-#include <inttypes.h>
 
 #define SINGLE_BUF_SIZE (8192 - 2 * sizeof(unsigned int))
 

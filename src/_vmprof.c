@@ -140,17 +140,16 @@ static void init_cpyprof(void)
 
 PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 {
+#if CPYTHON_HAS_FRAME_EVALUATION
     // move the frame to a caller saved register. e.g. rbx!
     // the previous method from did not really work for me
     // (it did not find the correct value in the stack slot)
     register PyFrameObject * rbx asm("rbx");
     asm volatile("mov %%rdi, %0\n\t"
                  "call %1\n\t"
-#if CPYTHON_HAS_FRAME_EVALUATION
                 : : "r" (rbx), "r" (_PyEval_EvalFrameDefault));
-#else
-                : : "r" (rbx), "r" (PyEval_EvalFrameEx));
 #endif
+    return NULL;
 }
 
 static PyObject *enable_vmprof(PyObject* self, PyObject *args)

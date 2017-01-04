@@ -1,7 +1,5 @@
 #pragma once
 
-#include <Python.h>
-#include <frameobject.h>
 #include "_vmprof.h"
 
 int vmp_walk_and_record_python_stack(PyFrameObject *frame, void **data,

@@ -17,9 +17,10 @@ void vmp_native_disable();
 """)
 with open("src/stack.c", "rb") as fd:
     source = fd.read().decode()
-    libs = ['unwind', 'unwind-x86_64']
+    libs = [] #['unwind', 'unwind-x86_64']
+    # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
     stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
-                         libraries=libs)
+                         define_macros=[('_CFFI_USE_EMBEDDING',1)], libraries=libs)
 
 sample = None
 
@@ -99,6 +100,11 @@ class TestStack(object):
             min = end
         lib.vmp_native_disable()
 
+
+    @pytest.mark.skipif("not sys.platform.startswith('darwin')")
+    def test_read_vmaps_darwin(self, tmpdir):
+        lib = self.lib
+        assert lib.vmp_read_vmaps(b"") == 0
 
 
 

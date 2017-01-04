@@ -26,7 +26,6 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
     unw_cursor_t cursor;
     unw_context_t uc;
     unw_proc_info_t pip;
-    unw_word_t off = 0;
     unw_word_t rbx;
 
     unw_getcontext(&uc);
@@ -37,7 +36,6 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
     }
 
     PyFrameObject * top_most_frame = frame;
-    PyFrameObject * compare_frame;
     int depth = 0;
     int step_result;
     while (depth < max_depth) {
@@ -200,12 +198,22 @@ int vmp_read_vmaps(const char * fname) {
 }
 #endif
 
+#ifdef __APPLE__
+int vmp_read_vmaps(const char * fname) {
+    kern_return_t kr;
+    task_t task;
+    return 0;
+}
+#endif
+
 int vmp_native_enable(int offset) {
     vmp_native_traces_enabled = 1;
     vmp_native_traces_sp_offset = offset;
 
-#ifdef __unix__
+#if defined(__unix__)
     return vmp_read_vmaps("/proc/self/maps");
+#elif defined(__APPLE__)
+    return vmp_read_vmaps(NULL);
 #endif
 // TODO MAC use mach task interface to extract the same information
 }
