@@ -131,8 +131,14 @@ void vmp_get_symbol_for_ip(void * ip, char * name, int length) {
 }
 
 int _ignore_symbols_from_path(const char * name) {
+    // which symbols should not be considered while walking
+    // the native stack?
     if (strstr(name, "python") != NULL && \
+#ifdef __unix__
+        strstr(name, ".so\n") == NULL) {
+#elif defined(__APPLE__)
         strstr(name, ".so") == NULL) {
+#endif
         return 1;
     }
     return 0;
@@ -225,7 +231,7 @@ int vmp_read_vmaps(const char * fname) {
     mach_msg_type_number_t count;
     memory_object_name_t obj;
 
-    int ret = 1;
+    int ret = 0;
     int max_count = 10;
     vmp_range_count = 0;
     if (vmp_ranges != NULL) { free(vmp_ranges); }
@@ -284,11 +290,10 @@ int vmp_read_vmaps(const char * fname) {
             addr = addr + vmsize;
         } else if (kr != KERN_INVALID_ADDRESS) {
             goto teardown;
-            return 0;
         }
     } while (kr == KERN_SUCCESS);
 
-    ret = 0;
+    ret = 1;
 
 teardown:
     if (task != MACH_PORT_NULL) {
@@ -307,7 +312,6 @@ int vmp_native_enable(int offset) {
 #elif defined(__APPLE__)
     return vmp_read_vmaps(NULL);
 #endif
-// TODO MAC use mach task interface to extract the same information
 }
 
 void vmp_native_disable(void) {

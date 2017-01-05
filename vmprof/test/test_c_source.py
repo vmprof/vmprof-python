@@ -105,7 +105,20 @@ class TestStack(object):
     @pytest.mark.skipif("not sys.platform.startswith('darwin')")
     def test_read_vmaps_darwin(self, tmpdir):
         lib = self.lib
-        assert lib.vmp_read_vmaps(b"") == 0
+        assert lib.vmp_read_vmaps(self.ffi.NULL) == 1
 
-
+    @pytest.mark.skipif("not sys.platform.startswith('linux')")
+    def test_read_vmaps(self, tmpdir):
+        lib = self.lib
+        f1 = tmpdir.join("vmap1")
+        lines = []
+        for l in range(0,10000, 2):
+            # non overlapping ranges that must be considered! 
+            lines.append('%x-%x x y z w python' % (l,l+1))
+        f1.write('\n'.join(lines))
+        filename = str(f1).encode('utf-8')
+        assert lib.vmp_read_vmaps(filename) == 1
+        for l in range(0, 10000):
+            assert self.lib.vmp_ignore_ip(i) == 1
+        assert self.lib.vmp_ignore_ip(10001) == 0
 
