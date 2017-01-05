@@ -260,12 +260,11 @@ int vmp_read_vmaps(const char * fname) {
                 cursor += 2;
             }
             addr += vmsize;
-        } else {
+        } else if (kr != KERN_INVALID_ADDRESS) {
             printf("oh no, no %d\n", kr);
             goto teardown;
             return 0;
         }
-        break;
     } while (kr != KERN_INVALID_ADDRESS);
 
     ret = 0;
