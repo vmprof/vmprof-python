@@ -130,6 +130,14 @@ void vmp_get_symbol_for_ip(void * ip, char * name, int length) {
     name[length-1] = '\x00'; // null terminate just in case
 }
 
+int _ignore_symbols_from_path(const char * name) {
+    if (strstr(name, "python") != NULL && \
+        strstr(name, ".so") == NULL) {
+        return 1;
+    }
+    return 0;
+}
+
 #ifdef __unix__
 int vmp_read_vmaps(const char * fname) {
 
@@ -175,8 +183,7 @@ int vmp_read_vmaps(const char * fname) {
         strtok_r(NULL, " ", &saveptr);
 
         name = saveptr;
-        if (strstr(name, "python") != NULL && \
-            strstr(name, ".so\n") == NULL) {
+        if (_ignore_symbols_from_path(name)) {
             // realloc if the chunk is to small
             ptrdiff_t diff = (cursor - vmp_ranges);
             if (diff + 2 > max_count) {
@@ -214,8 +221,7 @@ int vmp_read_vmaps(const char * fname) {
     task_t task;
     mach_vm_address_t addr;
     mach_vm_size_t vmsize;
-    vm_region_basic_info_data_t info;
-    vm_region_flavor_t flavor;
+    vm_region_top_info_data_t topinfo;
     mach_msg_type_number_t count;
     memory_object_name_t obj;
 
@@ -233,18 +239,25 @@ int vmp_read_vmaps(const char * fname) {
     }
 
     addr = 0;
-    vmsize = 0;
     ptr_t * cursor = vmp_ranges;
     cursor[0] = -1;
 
     do {
-        count = VM_REGION_BASIC_INFO_COUNT_64;
-        flavor = VM_REGION_BASIC_INFO;
-        kr = mach_vm_region(task, &addr, &vmsize, flavor,
-                            (vm_region_info_t)&info, &count, &obj);
+        // extract the top info using vm_region
+        count = VM_REGION_TOP_INFO_COUNT;
+        vmsize = 0;
+        kr = mach_vm_region(task, &addr, &vmsize, VM_REGION_TOP_INFO,
+                          (vm_region_info_t)&topinfo, &count, &obj);
         if (kr == KERN_SUCCESS) {
-            if (1) {//  strstr(name, "python") != NULL && \
-                // strstr(name, ".so\n") == NULL) {
+            vm_address_t start = addr, end = addr + vmsize;
+            // dladdr now gives the path of the shared object
+            Dl_info info;
+            if (dladdr((const void*)start, &info) == 0) {
+                // could not find image containing start
+                addr += vmsize;
+                continue;
+            }
+            if (_ignore_symbols_from_path(info.dli_fname)) {
                 // realloc if the chunk is to small
                 ptrdiff_t diff = (cursor - vmp_ranges);
                 if (diff + 2 > max_count) {
@@ -253,19 +266,27 @@ int vmp_read_vmaps(const char * fname) {
                     cursor = vmp_ranges + diff;
                 }
 
-                cursor[0] = addr;
-                cursor[1] = addr + vmsize;
-                printf("0x%llx-0x%llx\n", cursor[0], cursor[1]);
-                vmp_range_count += 2;
-                cursor += 2;
+                if (cursor[0] == start) {
+                    // the last range is extended, this reduces the entry count
+                    // which makes the querying faster
+                    cursor[0] = end;
+                } else {
+                    if (cursor != vmp_ranges) {
+                        // not pointing to the first entry
+                        cursor++;
+                    }
+                    cursor[0] = start;
+                    cursor[1] = end;
+                    vmp_range_count += 2;
+                    cursor++;
+                }
             }
-            addr += vmsize;
+            addr = addr + vmsize;
         } else if (kr != KERN_INVALID_ADDRESS) {
-            printf("oh no, no %d\n", kr);
             goto teardown;
             return 0;
         }
-    } while (kr != KERN_INVALID_ADDRESS);
+    } while (kr == KERN_SUCCESS);
 
     ret = 0;
 
