@@ -133,15 +133,54 @@ void vmp_get_symbol_for_ip(void * ip, char * name, int length) {
 int _ignore_symbols_from_path(const char * name) {
     // which symbols should not be considered while walking
     // the native stack?
-    if (strstr(name, "python") != NULL && \
+    if (strstr(name, "python") != NULL &&
 #ifdef __unix__
-        strstr(name, ".so\n") == NULL) {
+        strstr(name, ".so\n") == NULL
 #elif defined(__APPLE__)
-        strstr(name, ".so") == NULL) {
+        strstr(name, ".so") == NULL
 #endif
+       ) {
         return 1;
     }
     return 0;
+}
+
+int _reset_vmp_ranges(void) {
+    // initially 10 (start, stop) entries!
+    int max_count = 10;
+    vmp_range_count = 0;
+    if (vmp_ranges != NULL) { free(vmp_ranges); }
+    vmp_ranges = malloc(max_count * sizeof(ptr_t));
+    return max_count;
+}
+
+
+int _resize_ranges(ptr_t * cursor, int max_count) {
+    ptrdiff_t diff = (cursor - vmp_ranges);
+    if (diff + 2 > max_count) {
+        max_count *= 2;
+        vmp_ranges = realloc(vmp_ranges, max_count*sizeof(ptr_t));
+        cursor = vmp_ranges + diff;
+    }
+    return max_count;
+}
+
+ptr_t * _add_to_range(ptr_t * cursor, ptr_t start, ptr_t end) {
+    if (cursor[0] == start) {
+        // the last range is extended, this reduces the entry count
+        // which makes the querying faster
+        cursor[0] = end;
+    } else {
+        if (cursor != vmp_ranges) {
+            // not pointing to the first entry
+            cursor++;
+        }
+        cursor[0] = start;
+        cursor[1] = end;
+        vmp_range_count += 2;
+        cursor++;
+    }
+    return cursor;
 }
 
 #ifdef __unix__
@@ -167,11 +206,7 @@ int vmp_read_vmaps(const char * fname) {
     // 3) libraries containing site-packages are not considered
     //    candidates
 
-    // initially 10 (start, stop) entries!
-    int max_count = 10;
-    vmp_range_count = 0;
-    if (vmp_ranges != NULL) { free(vmp_ranges); }
-    vmp_ranges = malloc(max_count * sizeof(ptr_t));
+    int max_count = _reset_vmp_ranges();
     ptr_t * cursor = vmp_ranges;
     cursor[0] = -1;
     while ((size = getline(&line, &n, fd)) >= 0) {
@@ -190,26 +225,8 @@ int vmp_read_vmaps(const char * fname) {
 
         name = saveptr;
         if (_ignore_symbols_from_path(name)) {
-            // realloc if the chunk is to small
-            ptrdiff_t diff = (cursor - vmp_ranges);
-            if (diff + 2 > max_count) {
-                vmp_ranges = realloc(vmp_ranges, max_count*2*sizeof(ptr_t));
-                max_count *= 2;
-                cursor = vmp_ranges + diff;
-            }
-
-            if (cursor[0] == start) {
-                cursor[0] = end;
-            } else {
-                if (cursor != vmp_ranges) {
-                    // not pointing to the first entry
-                    cursor++;
-                }
-                cursor[0] = start;
-                cursor[1] = end;
-                vmp_range_count += 2;
-                cursor++;
-            }
+            max_count = _resize_ranges(cursor, max_count);
+            cursor = _add_to_range(cursor, start, end);
         }
         free(line);
         line = NULL;
@@ -230,21 +247,17 @@ int vmp_read_vmaps(const char * fname) {
     vm_region_top_info_data_t topinfo;
     mach_msg_type_number_t count;
     memory_object_name_t obj;
-
     int ret = 0;
-    int max_count = 10;
-    vmp_range_count = 0;
-    if (vmp_ranges != NULL) { free(vmp_ranges); }
-    vmp_ranges = malloc(max_count * sizeof(ptr_t));
+    pid_t pid;
 
-    pid_t pid = getpid();
-
+    pid = getpid();
     kr = task_for_pid(mach_task_self(), pid, &task);
     if (kr != KERN_SUCCESS) {
         goto teardown;
     }
 
     addr = 0;
+    int max_count = _reset_vmp_ranges();
     ptr_t * cursor = vmp_ranges;
     cursor[0] = -1;
 
@@ -265,27 +278,8 @@ int vmp_read_vmaps(const char * fname) {
             }
             if (_ignore_symbols_from_path(info.dli_fname)) {
                 // realloc if the chunk is to small
-                ptrdiff_t diff = (cursor - vmp_ranges);
-                if (diff + 2 > max_count) {
-                    vmp_ranges = realloc(vmp_ranges, max_count*2*sizeof(ptr_t));
-                    max_count *= 2;
-                    cursor = vmp_ranges + diff;
-                }
-
-                if (cursor[0] == start) {
-                    // the last range is extended, this reduces the entry count
-                    // which makes the querying faster
-                    cursor[0] = end;
-                } else {
-                    if (cursor != vmp_ranges) {
-                        // not pointing to the first entry
-                        cursor++;
-                    }
-                    cursor[0] = start;
-                    cursor[1] = end;
-                    vmp_range_count += 2;
-                    cursor++;
-                }
+                max_count = _resize_ranges(cursor, max_count);
+                cursor = _add_to_range(cursor, start, end);
             }
             addr = addr + vmsize;
         } else if (kr != KERN_INVALID_ADDRESS) {

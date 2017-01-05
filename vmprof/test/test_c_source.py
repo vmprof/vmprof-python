@@ -103,12 +103,11 @@ class TestStack(object):
 
 
     @pytest.mark.skipif("not sys.platform.startswith('darwin')")
-    def test_read_vmaps_darwin(self, tmpdir):
-        lib = self.lib
-        assert lib.vmp_read_vmaps(self.ffi.NULL) == 1
+    def test_read_vmaps_darwin(self):
+        assert self.lib.vmp_read_vmaps(self.ffi.NULL) == 1
 
     @pytest.mark.skipif("not sys.platform.startswith('linux')")
-    def test_read_vmaps(self, tmpdir):
+    def test_read_vmaps_overflow(self, tmpdir):
         lib = self.lib
         f1 = tmpdir.join("vmap1")
         lines = []
