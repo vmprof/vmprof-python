@@ -1,7 +1,8 @@
 #pragma once
 
-#include <frameobject.h>
 #include <Python.h>
+#include <frameobject.h>
+
 #include <inttypes.h>
 
 /**
@@ -41,3 +42,24 @@ typedef uint64_t ptr_t;
 PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag);
 
 #define SUPPORTS_NATIVE_PROFILING (defined(__unix__) || defined(__APPLE__))
+
+#define MARKER_STACKTRACE '\x01'
+#define MARKER_VIRTUAL_IP '\x02'
+#define MARKER_TRAILER '\x03'
+#define MARKER_INTERP_NAME '\x04'   /* deprecated */
+#define MARKER_HEADER '\x05'
+#define MARKER_TIME_N_ZONE '\x06'
+#define MARKER_META '\x07'
+
+#define VERSION_BASE '\x00'
+#define VERSION_THREAD_ID '\x01'
+#define VERSION_TAG '\x02'
+#define VERSION_MEMORY '\x03'
+#define VERSION_MODE_AWARE '\x04'
+#define VERSION_DURATION '\x05'
+#define VERSION_TIMESTAMP '\x06'
+
+#define PROFILE_MEMORY '\x01'
+#define PROFILE_LINES  '\x02'
+#define PROFILE_NATIVE '\x04'
+

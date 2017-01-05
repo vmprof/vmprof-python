@@ -12,6 +12,16 @@
 #include <stddef.h>
 #include <dlfcn.h>
 
+#ifdef __APPLE__
+#include <mach/mach.h>
+#include <mach/mach_vm.h>
+#include <mach/message.h>
+#include <mach/kern_return.h>
+#include <mach/task_info.h>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
+
 static int vmp_native_traces_enabled = 0;
 static int vmp_native_traces_sp_offset = -1;
 static ptr_t *vmp_ranges = NULL;
@@ -202,7 +212,69 @@ int vmp_read_vmaps(const char * fname) {
 int vmp_read_vmaps(const char * fname) {
     kern_return_t kr;
     task_t task;
-    return 0;
+    mach_vm_address_t addr;
+    mach_vm_size_t vmsize;
+    vm_region_basic_info_data_t info;
+    vm_region_flavor_t flavor;
+    mach_msg_type_number_t count;
+    memory_object_name_t obj;
+
+    int ret = 1;
+    int max_count = 10;
+    vmp_range_count = 0;
+    if (vmp_ranges != NULL) { free(vmp_ranges); }
+    vmp_ranges = malloc(max_count * sizeof(ptr_t));
+
+    pid_t pid = getpid();
+
+    kr = task_for_pid(mach_task_self(), pid, &task);
+    if (kr != KERN_SUCCESS) {
+        goto teardown;
+    }
+
+    addr = 0;
+    vmsize = 0;
+    ptr_t * cursor = vmp_ranges;
+    cursor[0] = -1;
+
+    do {
+        count = VM_REGION_BASIC_INFO_COUNT_64;
+        flavor = VM_REGION_BASIC_INFO;
+        kr = mach_vm_region(task, &addr, &vmsize, flavor,
+                            (vm_region_info_t)&info, &count, &obj);
+        if (kr == KERN_SUCCESS) {
+            if (1) {//  strstr(name, "python") != NULL && \
+                // strstr(name, ".so\n") == NULL) {
+                // realloc if the chunk is to small
+                ptrdiff_t diff = (cursor - vmp_ranges);
+                if (diff + 2 > max_count) {
+                    vmp_ranges = realloc(vmp_ranges, max_count*2*sizeof(ptr_t));
+                    max_count *= 2;
+                    cursor = vmp_ranges + diff;
+                }
+
+                cursor[0] = addr;
+                cursor[1] = addr + vmsize;
+                printf("0x%llx-0x%llx\n", cursor[0], cursor[1]);
+                vmp_range_count += 2;
+                cursor += 2;
+            }
+            addr += vmsize;
+        } else {
+            printf("oh no, no %d\n", kr);
+            goto teardown;
+            return 0;
+        }
+        break;
+    } while (kr != KERN_INVALID_ADDRESS);
+
+    ret = 0;
+
+teardown:
+    if (task != MACH_PORT_NULL) {
+        mach_port_deallocate(mach_task_self(), task);
+    }
+    return ret;
 }
 #endif
 
