@@ -74,18 +74,6 @@ class FlatOp(object):
         return '%s%s(%s%s)' % (suffix, self.opname,
                                 ', '.join(self.args), descr)
 
-    def pretty_print(self):
-        suffix = ''
-        if self.result is not None and self.result != '?':
-            suffix = "%s = " % self.result
-        descr = self.descr
-        if descr is None:
-            descr = ''
-        else:
-            descr = ', @' + descr
-        return '%s%s(%s%s)' % (suffix, self.opname,
-                                ', '.join(self.args), descr)
-
 class MergePoint(FlatOp):
     def __init__(self, values):
         assert isinstance(values, dict)
@@ -126,9 +114,6 @@ class MergePoint(FlatOp):
 
     def __repr__(self):
         return 'debug_merge_point(xxx)'
-
-    def pretty_print(self):
-        return 'impl me debug merge point'
 
 class Stage(object):
     def __init__(self, mark, timeval):
@@ -238,17 +223,6 @@ class Trace(object):
             if len(mps) != 0:
                 return mps[0]
         return None
-
-    def pretty_print(self, args):
-        stage = self.stages.get(args.stage, None)
-        if not stage:
-            return ""
-        resop = []
-
-        for op in stage.ops:
-            resop.append(op.pretty_print())
-
-        return '\n'.join(resop)
 
     def get_stage(self, type):
         assert type is not None
@@ -637,20 +611,3 @@ class TraceForest(object):
             op = point_in_trace.op
             parent.link(op, trace)
             trace.backward_link(point_in_trace)
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("jitlog")
-    parser.add_argument("--stage", default='asm', help='Which stage should be outputted to stdout')
-    args = parser.parse_args()
-
-    trace_forest = read_jitlog(args.jitlog)
-    print(trace_forest)
-    stage = args.stage
-    for _, trace in trace_forest.traces.items():
-        text = trace.pretty_print(args)
-        print(text)
-
-if __name__ == '__main__':
-    main()

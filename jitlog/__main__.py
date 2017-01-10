@@ -28,13 +28,9 @@ def build_argparser():
         help='program arguments'
     )
 
-    parser.add_argument('--query', '-q', dest='query',
+    parser.add_argument('--query', '-q', dest='query', default=None,
         help='Select traces and pretty print them. ' \
-             'Example: -i <file> -q "\'my_func\' in name" ' \
              'The query API can be found on https://vmprof.readthedocs.org'
-    )
-    parser.add_argument('--input', '-i', dest='input',
-        help='Specify the file to read from. Use with in combination with --query'
     )
     parser.add_argument(
         '--web-auth',
@@ -72,11 +68,11 @@ def main():
     args = parser.parse_args(sys.argv[1:])
     web = args.web
 
-    if args.input:
+    if args.query is not None:
         from jitlog import prettyprinter as pp
         sys.stderr.write("Parsing jitlog...")
         sys.stderr.flush()
-        forest = parse_jitlog(args.input)
+        forest = parse_jitlog(args.program)
         sys.stderr.write("done\n")
         query_str = args.query or "traces()"
         q = query.new_unsafe_query(query_str)
