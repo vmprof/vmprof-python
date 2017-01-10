@@ -49,12 +49,14 @@ class FuncFilter(Filter):
 
     def _filter(self, trace):
         name = self.name
-        stage = trace.get_stage('opt')
+        stage = trace.get_stage('noopt')
         if not stage:
             return False
-            for mp in stage.get_merge_points():
-                if name in mp.get_scope():
-                    return True
+
+        for mp in stage.get_merge_points():
+            if name in mp.get_scope():
+                return True
+
         return False
 
 class LoopFilter(Filter):
