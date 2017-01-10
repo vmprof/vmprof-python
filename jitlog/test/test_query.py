@@ -9,7 +9,7 @@ class TestQueries(object):
     def test_query_empty_forest(self):
         f = TraceForest(3, is_32bit=False, machine='s390x')
         assert self.q(f, '') == None
-        assert self.q(f, 'traces()') == []
+        assert self.q(f, 'loops & bridges') == []
 
     def test_query_small_forest(self):
         f = TraceForest(3, is_32bit=False, machine='s390x')
@@ -24,4 +24,28 @@ class TestQueries(object):
         #
         assert len(f.traces) == 2
         assert self.q(f, '') == None
-        assert self.q(f, 'traces(op(name="load"))') == [t]
+        assert self.q(f, 'op("load")') == [t]
+
+    def test_query_loops_and_bridges(self):
+        f = TraceForest(3, is_32bit=False, machine='s390x')
+        #
+        t = f.add_trace('loop', 0, 0, 'jd')
+        t2 = f.add_trace('bridge', 1, 1, 'jd')
+        #
+        assert len(f.traces) == 2
+        assert self.q(f, 'loops') == [t]
+        assert self.q(f, 'bridges') == [t2]
+
+    def test_filter(self):
+        from jitlog.query import loops, bridges, Filter
+        f = TraceForest(3, is_32bit=False, machine='s390x')
+        loop = f.add_trace('loop', 0, 0, 'su')
+        bridge = f.add_trace('bridge', 1, 1, 'shi')
+        assert loops._filter(loop)
+        assert not loops._filter(bridge)
+        assert not bridges._filter(loop)
+        assert bridges._filter(bridge)
+        r = loops | bridges
+        assert isinstance(r, Filter)
+        assert r._filter(loop)
+        assert r._filter(bridge)
