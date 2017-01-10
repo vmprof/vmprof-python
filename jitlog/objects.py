@@ -138,6 +138,9 @@ class Stage(object):
         self.timeval = timeval
         self.stitch_points = []
 
+    def getoperations(self):
+        return self.ops
+
     def get_last_op(self):
         if len(self.ops) == 0:
             return None

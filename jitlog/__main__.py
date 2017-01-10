@@ -3,9 +3,9 @@ import sys, os
 import tempfile
 import argparse
 from jitlog.upload import upload as jitlog_upload
-from vmshare import get_url
 from jitlog.parser import parse_jitlog
 from jitlog import query
+from vmshare.service import Service
 
 try:
     import _jitlog
@@ -73,11 +73,23 @@ def main():
     web = args.web
 
     if args.input:
-        assert args.query is not None, "Using -i requires you to specify -q"
+        from jitlog import prettyprinter as pp
+        sys.stderr.write("Parsing jitlog...")
+        sys.stderr.flush()
         forest = parse_jitlog(args.input)
-        q = query.new_unsafe_query(args.query)
+        sys.stderr.write("done\n")
+        query_str = args.query or "traces()"
+        q = query.new_unsafe_query(query_str)
         objs = q(forest)
-        pretty_printer.write(sys.stdout, objs)
+        color = True
+        pp_clazz = pp.ColoredPrettyPrinter if color else pp.PrettyPrinter
+        with pp_clazz() as ppinst:
+            for trace in objs:
+                ppinst.trace(sys.stdout, trace)
+        if args.query is None:
+            sys.stderr.write("-" * 10 + '\n')
+            sys.stderr.write("Display the jitlog with an empty query (defaults to -q 'traces()'). "
+                    "Add -q 'your query' if you want to narrow down the output\n")
         sys.exit(0)
 
     if args.upload:
@@ -117,7 +129,8 @@ def main():
         if forest.extract_source_code_lines():
             # only copy the tags if the jitlog has no source code yet!
             forest.copy_and_add_source_code_tags()
-        jitlog_upload(forest.filepath, get_url(args.web_url, "api/jitlog//"))
+        service = Service(host, auth)
+        service.post({ Service.File_JIT_PROFILE: forest.filepath })
         forest.unlink_jitlog() # free space!
 
 main()

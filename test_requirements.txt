@@ -2,3 +2,4 @@ six
 requests
 backports.shutil_which
 pytest
+colorama
