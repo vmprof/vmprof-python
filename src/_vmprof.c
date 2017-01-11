@@ -208,6 +208,8 @@ disable_vmprof(PyObject *module, PyObject *noarg)
     is_enabled = 0;
     vmprof_ignore_signals(1);
     emit_all_code_objects();
+    // dump all known native symbols
+    dump_all_known_symbols(profile_file);
 
     if (vmprof_disable() < 0) {
         PyErr_SetFromErrno(PyExc_OSError);

@@ -50,6 +50,7 @@ PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag);
 #define MARKER_HEADER '\x05'
 #define MARKER_TIME_N_ZONE '\x06'
 #define MARKER_META '\x07'
+#define MARKER_NATIVE_SYMBOLS '\x08'
 
 #define VERSION_BASE '\x00'
 #define VERSION_THREAD_ID '\x01'

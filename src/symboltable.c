@@ -1,6 +1,7 @@
 #include "symboltable.h"
 
 #include <stdio.h>
+#include "_vmprof.h"
 
 #ifdef _PY_TEST
 #define LOG printf
@@ -16,13 +17,29 @@
 #include <mach-o/dyld.h>
 #include <mach-o/dyld_images.h>
 
+void write_address_and_name(int fd, uint64_t e, const char * sym) {
+    struct str {
+        long addr;
+        long size;
+        char str[256];
+    } s;
+    s.addr = e;
+    s.size = strlen(sym);
+    if (s.size > 256) {
+        s.size = 256;
+    }
+    (void)memcpy(s.str, sym, s.size);
+    (void)write(fd, "\x08", 1); // MARKER_NATIVE_SYMBOLS as char[1]
+    (void)write(fd, &s, sizeof(long)+sizeof(long)+s.size);
+}
+
 void dump_all_known_symbols(int fd) {
     const struct mach_header_64 * hdr;
     const struct symtab_command *sc;
     const struct nlist_64 * file_symtbl;
     const struct load_command *lc;
     int image_count = 0;
-    //
+
     image_count = _dyld_image_count();
     for (int i = 0; i < image_count; i++) {
         const char * image_name = _dyld_get_image_name(i);
@@ -61,18 +78,7 @@ void dump_all_known_symbols(int fd) {
                         }
                         const char * sym = &strtbl[off];
                         uint64_t e = entry->n_value;
-                        struct str {
-                            long addr;
-                            long size;
-                            char str[256];
-                        } s;
-                        s.addr = e;
-                        s.size = strlen(sym);
-                        if (s.size > 256) {
-                            s.size = 256;
-                        }
-                        (void)memcpy(s.str, sym, s.size);
-                        write(fd, &s, sizeof(long)+sizeof(long)+s.size);
+                        write_address_and_name(fd, e, sym);
                     }
                 }
             }
@@ -80,11 +86,14 @@ void dump_all_known_symbols(int fd) {
         }
     }
 }
-#endif
-
-#ifdef __unix__
+#elif defined(__unix__)
 void dump_all_known_symbols(int fd) {
     //write(fd, buf, size);
     xxx
+}
+#else
+// other platforms than linux & mac os x
+void dump_all_known_symbols(int fd) {
+    // oh, nothing to do!! not supported platform
 }
 #endif
