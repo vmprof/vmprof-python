@@ -1,0 +1,55 @@
+import os
+import sys
+import pytest
+import vmprof
+from vmprof.reader import MARKER_NATIVE_SYMBOLS
+from vmshare.binary import read_word, read_string
+from cffi import FFI
+from array import array
+
+stack_ffi = FFI()
+stack_ffi.cdef("""
+void dump_all_known_symbols(int fd);
+""")
+with open("src/symboltable.c", "rb") as fd:
+    source = fd.read().decode()
+    libs = [] #['unwind', 'unwind-x86_64']
+    # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
+    stack_ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=['src'],
+                         define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
+                         extra_compile_args=['-g', '-O0'])
+
+sample = None
+
+class TestSymbolTable(object):
+    def setup_class(cls):
+        stack_ffi.compile(verbose=True)
+        from vmprof.test import _test_symboltable as clib
+        cls.lib = clib.lib
+        cls.ffi = clib.ffi
+
+    def test_dump_all_known_symbols(self, tmpdir):
+        lib = self.lib
+        f1 = tmpdir.join("symbols")
+        with f1.open('wb') as handle:
+            lib.dump_all_known_symbols(handle.fileno()) # load ALL symbols!
+        addrs = []
+        with f1.open('rb') as fd:
+            fd.seek(0, os.SEEK_END)
+            length = fd.tell()
+            fd.seek(0, os.SEEK_SET)
+            while True:
+                assert fd.read(1) == MARKER_NATIVE_SYMBOLS
+                addr = read_word(fd)
+                string = read_string(fd)
+                addrs.append((addr, string))
+                if fd.tell() >= length:
+                    break
+        assert addrs >= 100 # usually we have many many more!!
+        symbols_to_be_found = ['_PyString_FromString', '_dump_all_known_symbols']
+        for addr, name in addrs:
+            if name in symbols_to_be_found:
+                i = symbols_to_be_found.index(name)
+                del symbols_to_be_found[i]
+        assert len(symbols_to_be_found) == 0
+
