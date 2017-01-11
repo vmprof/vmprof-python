@@ -22,6 +22,7 @@ else:
                                'src/stack.c',
                                'src/trampoline.c',
                                'src/machine.c',
+                               'src/symboltable.c',
                                ],
                            depends=[
                                'src/vmprof_main.h',

@@ -13,7 +13,6 @@
 #endif
 #include "machine.h"
 
-// TODO
 #define PAGE_ALIGNED(a,size) (void*)(((uintptr_t)a) & ~0xfff) 
 
 void _jmp_to(char * a, uintptr_t addr) {
