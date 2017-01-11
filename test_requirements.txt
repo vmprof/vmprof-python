@@ -3,3 +3,4 @@ requests
 backports.shutil_which
 cffi
 pytest
+hypothesis

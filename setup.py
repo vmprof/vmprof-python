@@ -52,7 +52,7 @@ setup(
         'six',
         'pytz'
     ] + extra_install_requires,
-    tests_require=['pytest','cffi'],
+    tests_require=['pytest','cffi','hypothesis'],
     entry_points = {
         'console_scripts': [
             'vmprofshow = vmprof.show:main'
