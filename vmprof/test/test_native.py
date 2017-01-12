@@ -30,7 +30,6 @@ class TestNative(object):
         @self.ffi.def_extern()
         def g():
             global sample
-            import pdb; pdb.set_trace()
             sample = vmprof.sample_stack_now()
         def f():
             native_call()
@@ -41,6 +40,3 @@ class TestNative(object):
         global sample
         assert re.match(r'.*sample_stack_now .*g .*f', ' '.join(sample))
         assert re.match(r'.*sample_stack_now .*g .*native_callback_g .*f', ' '.join(sample))
-
-
-

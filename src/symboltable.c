@@ -4,20 +4,13 @@
 #include "_vmprof.h"
 
 #ifdef _PY_TEST
-#define LOG printf
+#define LOG(...) printf(__VA_ARGS__)
 #else
-#define LOG
+#define LOG(...)
 #endif
 
-#ifdef __APPLE__
-
-#include <mach-o/loader.h>
-#include <mach-o/nlist.h>
-#include <mach-o/stab.h>
-#include <mach-o/dyld.h>
-#include <mach-o/dyld_images.h>
-
-void write_address_and_name(int fd, uint64_t e, const char * sym) {
+static
+void _write_address_and_name(int fd, uint64_t e, const char * sym) {
     struct str {
         long addr;
         long size;
@@ -32,6 +25,15 @@ void write_address_and_name(int fd, uint64_t e, const char * sym) {
     (void)write(fd, "\x08", 1); // MARKER_NATIVE_SYMBOLS as char[1]
     (void)write(fd, &s, sizeof(long)+sizeof(long)+s.size);
 }
+
+#ifdef __APPLE__
+
+#include <mach-o/loader.h>
+#include <mach-o/nlist.h>
+#include <mach-o/stab.h>
+#include <mach-o/dyld.h>
+#include <mach-o/dyld_images.h>
+
 
 void dump_all_known_symbols(int fd) {
     const struct mach_header_64 * hdr;
@@ -78,7 +80,7 @@ void dump_all_known_symbols(int fd) {
                         }
                         const char * sym = &strtbl[off];
                         uint64_t e = entry->n_value;
-                        write_address_and_name(fd, e, sym);
+                        _write_address_and_name(fd, e, sym);
                     }
                 }
             }
@@ -87,13 +89,130 @@ void dump_all_known_symbols(int fd) {
     }
 }
 #elif defined(__unix__)
+
+#include <link.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <dlfcn.h>
+#include <string.h>
+#include <elf.h>
+#include <sys/auxv.h>
+#include <link.h>
+#include <sys/mman.h>
+#include <bits/wordsize.h>
+
+#if __WORDSIZE == 64
+#define ELF_R_SYM ELF64_R_SYM
+#define ELF_ST_BIND ELF64_ST_BIND
+#define ELF_ST_TYPE ELF64_ST_TYPE
+#elif __WORDSIZE == 32
+#define ELF_R_SYM ELF32_R_SYM
+#define ELF_ST_BIND ELF32_ST_BIND
+#define ELF_ST_TYPE ELF32_ST_TYPE
+#else
+#error "unsupported word size"
+#endif
+
+#define F_SYMTAB 0x00001
+#define F_STRTAB 0x00002
+#define F_RELA   0x00004
+
+typedef struct _stab {
+    int flags;
+    char * strtab;
+    ElfW(Xword) strtab_size;
+
+    ElfW(Sym) * symtab;
+    ElfW(Xword) symtab_size;
+
+    ElfW(Rela) *rela;
+    ElfW(Xword) rela_size;
+    ElfW(Xword) rela_ent;
+} stab_t;
+
+int _load_info_from(ElfW(Addr) base, stab_t * t, const ElfW(Phdr) * phdr) {
+    ElfW(Dyn) *dyn;
+    int result = 0;
+
+    for (dyn = (ElfW(Dyn) *)(base + phdr->p_vaddr); dyn->d_tag; dyn++) {
+        if (dyn->d_tag == DT_SYMTAB) {
+            t->symtab = (ElfW(Sym)*)dyn->d_un.d_ptr;
+            result |= F_SYMTAB;
+        } else if (dyn->d_tag == DT_SYMENT) {
+            t->symtab_size = dyn->d_un.d_val;
+        } else if (dyn->d_tag == DT_STRTAB) {
+            t->strtab = (char *)dyn->d_un.d_ptr;
+            result |= F_STRTAB;
+        } else if (dyn->d_tag == DT_STRSZ) {
+            t->strtab_size = dyn->d_un.d_val;
+        } else if (dyn->d_tag == DT_RELA) {
+            t->rela = (ElfW(Rela)*)dyn->d_un.d_ptr;
+            result |= F_RELA;
+        } else if (dyn->d_tag == DT_RELASZ) {
+            t->rela_size = dyn->d_un.d_val;
+        } else if (dyn->d_tag == DT_RELAENT) {
+            t->rela_ent = dyn->d_un.d_val;
+        }
+    }
+    t->flags = result;
+    return ((F_SYMTAB | F_STRTAB) & result) != 0;
+}
+
+static int _dump_symbols2(ElfW(Addr) base, stab_t * table, int fd) {
+    ElfW(Rela) *rela;
+    ElfW(Rela) *relaend;
+    ElfW(Sym) * sym;
+
+    if (table->flags & F_RELA) {
+        // yeah, go ahead, relocation could be found!!
+        relaend = (ElfW(Rela)*)((char*)table->rela + table->rela_size);
+        for (rela = table->rela; rela < relaend; rela++) {
+            sym = &table->symtab[ELF_R_SYM(rela->r_info)];
+            if (ELF_ST_TYPE(sym->st_info) != STT_FUNC) {
+                continue;
+            }
+            char * name = table->strtab + sym->st_name;
+            if (strlen(name) <= 0) {
+                continue;
+            }
+            uint64_t addr = base + rela->r_offset;
+            //LOG("%s\n", name);
+            _write_address_and_name(fd, addr, name);
+        }
+    }
+    return 0;
+}
+
+static int iter_shared_objects(struct dl_phdr_info *info, size_t size, void *data) {
+    int fd = *((int*)data);
+    uint16_t phentsize = getauxval(AT_PHENT);
+    LOG("shared object %s\n", info->dlpi_name);
+    stab_t table;
+    int r;
+
+    int16_t phnum = info->dlpi_phnum;
+    const ElfW(Phdr) * phdr = info->dlpi_phdr;
+    ElfW(Addr) base = info->dlpi_addr;
+    for (int i = 0; i < phnum; i++, (phdr = (ElfW(Phdr) *)((char *)phdr + phentsize))) {
+        if (phdr->p_type != PT_DYNAMIC) {
+            continue;
+        }
+        r = _load_info_from(base, &table, phdr);
+        if (!r) {
+            continue;
+        }
+        (void)_dump_symbols2(base, &table, fd);
+    }
+    return 0;
+}
+
 void dump_all_known_symbols(int fd) {
-    //write(fd, buf, size);
-    xxx
+    (void)dl_iterate_phdr(iter_shared_objects, (void*)&fd);
 }
 #else
 // other platforms than linux & mac os x
 void dump_all_known_symbols(int fd) {
-    // oh, nothing to do!! not supported platform
+    // oh, nothing to do!! a not supported platform
 }
 #endif

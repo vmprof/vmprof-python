@@ -237,9 +237,16 @@ write_all_code_objects(PyObject *module, PyObject *noargs)
 
 
 static PyObject *
-sample_stack_now(PyObject *module, PyObject *noargs)
+sample_stack_now(PyObject *module, PyObject *args)
 {
     PyThreadState * tstate = NULL;
+
+    unsigned char write_to_log = 0;
+
+    if (!PyArg_ParseTuple(args, "|b", &write_to_log)) {
+        return NULL;
+    }
+
     PyObject * list;
     int i;
     int entry_count;

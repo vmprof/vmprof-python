@@ -17,7 +17,7 @@ with open("src/symboltable.c", "rb") as fd:
     # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
     stack_ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=['src'],
                          define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
-                         extra_compile_args=['-g', '-O0'])
+                         extra_compile_args=['-g'])
 
 sample = None
 
@@ -41,15 +41,28 @@ class TestSymbolTable(object):
             while True:
                 assert fd.read(1) == MARKER_NATIVE_SYMBOLS
                 addr = read_word(fd)
-                string = read_string(fd)
+                string = read_string(fd).decode('utf-8')
                 addrs.append((addr, string))
                 if fd.tell() >= length:
                     break
-        assert addrs >= 100 # usually we have many many more!!
-        symbols_to_be_found = ['_PyString_FromString', '_dump_all_known_symbols']
+        assert len(addrs) >= 100 # usually we have many many more!!
+        symbols_to_be_found = ['PyObject_Call', 'dump_all_known_symbols']
+        duplicates = []
+        names = set()
         for addr, name in addrs:
-            if name in symbols_to_be_found:
-                i = symbols_to_be_found.index(name)
-                del symbols_to_be_found[i]
+            assert len(name) > 0
+            for i,sym in enumerate(symbols_to_be_found):
+                if name in sym:
+                    del symbols_to_be_found[i]
+                    break
+            if (addr,name) in names:
+                duplicates.append((addr,name))
+            else:
+                names.add((addr, name))
         assert len(symbols_to_be_found) == 0
+        # property B) see header symboltable.h
+        assert len(duplicates) == 0
+        addrs = [addr for addr,name in names]
+        # property A), see header symboltable.h
+        assert len(addrs) == len(set(addrs))
 

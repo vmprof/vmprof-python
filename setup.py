@@ -6,12 +6,21 @@ IS_PYPY = '__pypy__' in sys.builtin_module_names
 if IS_PYPY:
     ext_modules = [] # built-in
 else:
-    libraries = []
-    extra_compile_args = ['dl','unwind','unwind-x86_64']
-    if sys.platform != 'win32':
-        extra_compile_args = ['-Wno-unused']
+    extra_compile_args = []
+    if sys.platform == 'win32':
+        libraries = []
     elif sys.platform == 'darwin':
         libraries = []
+        extra_compile_args = ['-Wno-unused']
+    elif sys.platform == 'linux':
+        libraries = ['dl','unwind']
+        extra_compile_args = ['-Wno-unused']
+        if sys.maxsize == 2**63-1:
+            libraries.append('unwind-x86_64')
+        else:
+            libraries.append('unwind-x86')
+    else:
+        raise NotImplementedError("platform '%s' is not supported!" % sys.platform)
     extra_compile_args.append('-I src/')
     ext_modules = [Extension('_vmprof',
                            sources=[
