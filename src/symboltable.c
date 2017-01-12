@@ -14,15 +14,24 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym) {
     struct str {
         long addr;
         long size;
-        char str[256];
+        char str[512];
     } s;
     s.addr = e;
+    /* must mach '<lang>:<name>:<line>:<file>'
+     * 'n' has been chosen as lang here, because the symbol
+     * can be generated from several languages (e.g. C, C++, ...)
+     */
+    s.str[0] = 'n';
+    s.str[1] = ':';
     s.size = strlen(sym);
     if (s.size > 256) {
         s.size = 256;
     }
-    (void)memcpy(s.str, sym, s.size);
-    (void)write(fd, "\x08", 1); // MARKER_NATIVE_SYMBOLS as char[1]
+    (void)memcpy(s.str + 2, sym, s.size);
+    // line number and filename missing
+    (void)memcpy(s.str + 2 + s.size, ":0:-", 4);
+    s.size += 4;
+    (void)write(fd, "\x08", 1); // MARKER_NATIVE_SYMBOLS
     (void)write(fd, &s, sizeof(long)+sizeof(long)+s.size);
 }
 
@@ -33,7 +42,6 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym) {
 #include <mach-o/stab.h>
 #include <mach-o/dyld.h>
 #include <mach-o/dyld_images.h>
-
 
 void dump_all_known_symbols(int fd) {
     const struct mach_header_64 * hdr;

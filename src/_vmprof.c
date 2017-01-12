@@ -18,6 +18,7 @@ static volatile int is_enabled = 0;
 #include "vmprof_main.h"
 #include "trampoline.h"
 #include "machine.h"
+#include "symboltable.h"
 #else
 #include "vmprof_main_win32.h"
 #endif
@@ -241,9 +242,9 @@ sample_stack_now(PyObject *module, PyObject *args)
 {
     PyThreadState * tstate = NULL;
 
-    unsigned char write_to_log = 0;
+    long write_to_log = 0;
 
-    if (!PyArg_ParseTuple(args, "|b", &write_to_log)) {
+    if (!PyArg_ParseTuple(args, "|i", &write_to_log)) {
         return NULL;
     }
 
@@ -267,8 +268,8 @@ sample_stack_now(PyObject *module, PyObject *args)
         void * routine_ip = m[i];
         if (ROUTINE_IS_PYTHON(routine_ip)) {
             PyCodeObject * code = (PyCodeObject*)routine_ip;
-            PyObject * name = code->co_name;
-            PyList_Append(list, name);
+            PyObject * t = Py_BuildValue("KO", routine_ip, code->co_name);
+            PyList_Append(list, t);
         } else {
             // a native routine!
             char name[64];
@@ -277,7 +278,8 @@ sample_stack_now(PyObject *module, PyObject *args)
             if (str == NULL) {
                 goto error;
             }
-            PyList_Append(list, str);
+            PyObject * t = Py_BuildValue("KO", routine_ip, str);
+            PyList_Append(list, t);
         }
     }
 
@@ -291,31 +293,13 @@ error:
     return Py_None;
 }
 
-static PyObject *
-testing_enable(PyObject *module, PyObject * noargs)
-{
-    init_cpyprof();
-    is_enabled = 1;
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-
-static PyObject *
-testing_disable(PyObject *module, PyObject * noargs)
-{
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-
-
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
     {"disable", disable_vmprof, METH_NOARGS, "Disable profiling."},
     {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
      "Write eagerly all the IDs of code objects"},
-    {"sample_stack_now", sample_stack_now, METH_NOARGS, "Sample the stack now"},
-    {"test_enable", testing_enable, METH_NOARGS, "Enable vmprof for testing"},
-    {"test_disable", testing_disable, METH_NOARGS, "Enable vmprof for testing"},
+    {"sample_stack_now", sample_stack_now, METH_VARARGS, "Sample the stack now"},
+    //{"test_enable", testing_enable, METH_VARARGS, "lookup symbol"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

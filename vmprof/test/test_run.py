@@ -17,7 +17,7 @@ from vmprof.reader import (gunzip, BufferTooSmallError, _read_header,
         MARKER_TRAILER, FileReadError, read_trace,
         VERSION_THREAD_ID, WORD_SIZE, ReaderStatus,
         read_time_and_zone, MARKER_TIME_N_ZONE, assert_error,
-        MARKER_META)
+        MARKER_META, MARKER_NATIVE_SYMBOLS)
 from vmshare.binary import read_string, read_word
 from vmprof.stats import Stats
 
@@ -203,6 +203,9 @@ if GZIP:
         tmpfile = tempfile.NamedTemporaryFile(delete=False)
         vmprof.enable(tmpfile.fileno())
         vmprof._gzip_proc.kill()
+        vmprof._gzip_proc.wait()
+        # ensure that the gzip process really tries to write
+        # to the gzip proc that was killed
         function_foo()
         with py.test.raises(Exception) as exc_info:
             vmprof.disable()
@@ -251,7 +254,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
             mem_in_kb = 0
         trace.reverse()
         status.profiles.append((trace, 1, thread_id, mem_in_kb))
-    elif marker == MARKER_VIRTUAL_IP:
+    elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
         unique_id = read_word(fileobj)
         name = read_string(fileobj)
         if PY3K:

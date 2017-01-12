@@ -224,7 +224,7 @@ def read_prof(fileobj, virtual_ips_only=False):
             interp_name = fileobj.read(lgt)
             if PY3:
                 interp_name = interp_name.decode()
-        elif marker == MARKER_VIRTUAL_IP:
+        elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
             unique_id = read_word(fileobj)
             name = read_string(fileobj)
             if PY3:

@@ -4,29 +4,32 @@ import vmprof
 from cffi import FFI
 from array import array
 
-stack_ffi = FFI()
-stack_ffi.cdef("""
-typedef uint64_t ptr_t;
-int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count);
-int vmp_ignore_ip(ptr_t ip);
-int vmp_ignore_symbol_count(void);
-ptr_t * vmp_ignore_symbols(void);
-void vmp_set_ignore_symbols(ptr_t * symbols, int count);
-int vmp_read_vmaps(const char * fname);
-void vmp_native_disable();
-""")
-with open("src/stack.c", "rb") as fd:
-    source = fd.read().decode()
-    libs = [] #['unwind', 'unwind-x86_64']
-    # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
-    stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
-                         define_macros=[('_CFFI_USE_EMBEDDING',1)], libraries=libs,
-                         extra_compile_args=['-g'])
-
 sample = None
 
+@pytest.mark.skipif("sys.platform not in ('darwin','linux')")
 class TestStack(object):
     def setup_class(cls):
+        stack_ffi = FFI()
+        stack_ffi.cdef("""
+        typedef uint64_t ptr_t;
+        int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count);
+        int vmp_ignore_ip(ptr_t ip);
+        int vmp_ignore_symbol_count(void);
+        ptr_t * vmp_ignore_symbols(void);
+        void vmp_set_ignore_symbols(ptr_t * symbols, int count);
+        int vmp_read_vmaps(const char * fname);
+        void vmp_native_disable();
+        """)
+        with open("src/stack.c", "rb") as fd:
+            source = fd.read().decode()
+            libs = [] #['unwind', 'unwind-x86_64']
+            if sys.platform == 'linux':
+                libs = ['unwind', 'unwind-x86_64']
+            # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
+            stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
+                                 define_macros=[('_CFFI_USE_EMBEDDING',1)], libraries=libs,
+                                 extra_compile_args=['-g'])
+
         stack_ffi.compile(verbose=True)
         from vmprof.test import _test_stack as clib
         cls.lib = clib.lib
@@ -79,10 +82,12 @@ class TestStack(object):
 
         assert lib.vmp_ignore_symbol_count() == 2
         symbols = lib.vmp_ignore_symbols()
-        assert symbols[0] == 0 and symbols[1] == 0x11111
+        assert symbols[0] == 0 and symbols[1] == 0x22222
         assert lib.vmp_ignore_ip(0x1) == 1
         assert lib.vmp_ignore_ip(0x11111) == 1
-        assert lib.vmp_ignore_ip(0x11112) == 0
+        assert lib.vmp_ignore_ip(0x11112) == 1
+        assert lib.vmp_ignore_ip(0x22222) == 1
+        assert lib.vmp_ignore_ip(0x22223) == 0
         lib.vmp_native_disable()
 
     @pytest.mark.skipif("not sys.platform.startswith('linux')")
@@ -107,7 +112,7 @@ class TestStack(object):
         assert self.lib.vmp_read_vmaps(self.ffi.NULL) == 1
 
     @pytest.mark.skipif("not sys.platform.startswith('linux')")
-    def test_read_vmaps_overflow(self, tmpdir):
+    def test_overflow_vmaps(self, tmpdir):
         lib = self.lib
         f1 = tmpdir.join("vmap1")
         lines = []
@@ -118,6 +123,6 @@ class TestStack(object):
         filename = str(f1).encode('utf-8')
         assert lib.vmp_read_vmaps(filename) == 1
         for l in range(0, 10000):
-            assert self.lib.vmp_ignore_ip(i) == 1
+            assert self.lib.vmp_ignore_ip(l) == 1
         assert self.lib.vmp_ignore_ip(10001) == 0
 

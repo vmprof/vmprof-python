@@ -66,7 +66,11 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             break;
         }
 
-        if ((void*)pip.start_ip == cpython_vmprof_PyEval_EvalFrameEx) {
+#if CPYTHON_HAS_FRAME_EVALUATION
+        if ((void*)pip.start_ip == (void*)_PyEval_EvalFrameDefault) {
+#else
+        if ((void*)pip.start_ip == (void*)PyEval_EvalFrameEx) {
+#endif
             // yes we found one stack entry of the python frames!
             if (rbx != (unw_word_t)top_most_frame) {
                 // uh we are screwed! the ip indicates we are have context
@@ -75,11 +79,12 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
                 // current top_most_frame
                 //printf("oh no!!! %p != %p\n", compare_frame, top_most_frame);
             } else {
-                //printf("yes match!!!!\n");
+                if (top_most_frame != NULL) {
+                    sp = (void*)CODE_ADDR_TO_UID(top_most_frame->f_code);
+                    result[depth++] = sp;
+                    top_most_frame = top_most_frame->f_back;
+                }
             }
-            sp = (void*)CODE_ADDR_TO_UID(top_most_frame->f_code);
-            result[depth++] = sp;
-            top_most_frame = top_most_frame->f_back;
         } else if (vmp_ignore_ip((ptr_t)pip.start_ip)) {
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
@@ -106,12 +111,6 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
     return depth;
 }
 
-
-void *vmp_get_virtual_ip(char* sp) {
-    PyFrameObject *f = *(PyFrameObject **)(sp + vmp_native_sp_offset());
-    return (void *)CODE_ADDR_TO_UID(f->f_code);
-}
-
 int vmp_native_enabled(void) {
     return vmp_native_traces_enabled;
 }
@@ -122,12 +121,18 @@ int vmp_native_sp_offset(void) {
 
 void vmp_get_symbol_for_ip(void * ip, char * name, int length) {
     Dl_info info;
+    assert(length > 0);
+    name[0] = '\x00';
+
     // ip is off +1, does not matter for dladdr (see manpage)
-    if (dladdr(ip, &info) != 0) {
+    if (dladdr(ip, &info) == 0) {
         strcpy(name, "unknown symbol");
+        return;
     }
-    strncpy(name, info.dli_sname, length-1);
-    name[length-1] = '\x00'; // null terminate just in case
+    if (info.dli_sname != NULL) {
+        strncpy(name, info.dli_sname, length-1);
+        name[length-1] = '\x00'; // null terminate just in case
+    }
 }
 
 int _ignore_symbols_from_path(const char * name) {
@@ -155,12 +160,12 @@ int _reset_vmp_ranges(void) {
 }
 
 
-int _resize_ranges(ptr_t * cursor, int max_count) {
-    ptrdiff_t diff = (cursor - vmp_ranges);
+int _resize_ranges(ptr_t ** cursor, int max_count) {
+    ptrdiff_t diff = (*cursor - vmp_ranges);
     if (diff + 2 > max_count) {
         max_count *= 2;
         vmp_ranges = realloc(vmp_ranges, max_count*sizeof(ptr_t));
-        cursor = vmp_ranges + diff;
+        *cursor = vmp_ranges + diff;
     }
     return max_count;
 }
@@ -225,7 +230,7 @@ int vmp_read_vmaps(const char * fname) {
 
         name = saveptr;
         if (_ignore_symbols_from_path(name)) {
-            max_count = _resize_ranges(cursor, max_count);
+            max_count = _resize_ranges(&cursor, max_count);
             cursor = _add_to_range(cursor, start, end);
         }
         free(line);
@@ -278,7 +283,7 @@ int vmp_read_vmaps(const char * fname) {
             }
             if (_ignore_symbols_from_path(info.dli_fname)) {
                 // realloc if the chunk is to small
-                max_count = _resize_ranges(cursor, max_count);
+                max_count = _resize_ranges(&cursor, max_count);
                 cursor = _add_to_range(cursor, start, end);
             }
             addr = addr + vmsize;

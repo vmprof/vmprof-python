@@ -192,8 +192,8 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             /* ignore this signal: there are no free buffers right now */
         } else {
             _vmprof_sample_stack(p, tstate, vmp_native_enabled());
+            commit_buffer(fd, p);
         }
-        commit_buffer(fd, p);
 
         errno = saved_errno;
     }
