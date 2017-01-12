@@ -21,6 +21,7 @@ The following provides more information about CPU profiles and JIT Compiler Logs
 
    vmprof
    jitlog
+   query
    development
 
 .. _`CPython`: http://python.org

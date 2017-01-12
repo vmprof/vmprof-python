@@ -4,3 +4,4 @@ backports.shutil_which
 cffi
 pytest
 hypothesis
+colorama

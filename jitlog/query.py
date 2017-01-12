@@ -1,31 +1,84 @@
 import functools
 
-def queryresult(func):
-    return func
-#@queryresult
-def traces(query, func=None):
-    """
-    """
-    if func is None:
-        return [t for t in query.forest.traces.values()]
-    traces = []
-    for id,trace in query.forest.traces.items():
-        if func(trace):
-            traces.append(trace)
 
-    return traces
 
-def op(query, stage='opt', name=None):
-    def operation_query(trace):
-        for op in trace.get_stage(stage).get_ops():
-            if name is not None and name in op.opname:
-                return True
+class Filter(object):
+    def __and__(self, o):
+        assert isinstance(o, Filter)
+        return AndFilter(self, o)
+
+    def __or__(self, o):
+        assert isinstance(o, Filter)
+        return OrFilter(self, o)
+
+    def _filter(self, trace):
+        return True
+
+class BinaryFilter(Filter):
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+class AndFilter(BinaryFilter):
+    def _filter(self, trace):
+        return self.left._filter(trace) and self.right._filter(trace)
+
+class OrFilter(BinaryFilter):
+    def _filter(self, trace):
+        if self.left._filter(trace):
+            return True
+        if self.right._filter(trace):
+            return True
         return False
-    return operation_query
 
-QUERY_FUNCS = {
-    'traces': traces,
-    'op': op,
+class OpFilter(Filter):
+    def __init__(self, name):
+        self.name = name
+
+    def _filter(self, trace):
+        name = self.name
+        for stage in trace.stages.keys():
+            for op in trace.get_stage(stage).get_ops():
+                if name in op.opname:
+                    return True
+        return False
+
+class FuncFilter(Filter):
+    def __init__(self, name):
+        self.name = name
+
+    def _filter(self, trace):
+        name = self.name
+        stage = trace.get_stage('noopt')
+        if not stage:
+            return False
+
+        for mp in stage.get_merge_points():
+            if name in mp.get_scope():
+                return True
+
+        return False
+
+class LoopFilter(Filter):
+    def _filter(self, trace):
+        return trace.type == 'loop'
+
+class BridgeFilter(Filter):
+    def _filter(self, trace):
+        return trace.type == 'bridge'
+
+loops = LoopFilter()
+
+bridges = BridgeFilter()
+
+
+QUERY_API = {
+    # functions
+    'op': OpFilter,
+    'func': FuncFilter,
+    # variable filters without state
+    'loops': loops,
+    'bridges': bridges,
 }
 
 
@@ -42,13 +95,15 @@ class Query(object):
         if qstr is None or qstr.strip() == '':
             return None
 
-        api_funcs = {k: functools.partial(f,self) \
-                     for k,f in QUERY_FUNCS.items()}
+        api = {}
+        for k,f in QUERY_API.items():
+            api[k] = f
         # ---------------------------------------------
         # SECURITY ISSUE:
         # never execute this in the server environment
         # ---------------------------------------------
-        return eval(qstr, {}, api_funcs)
+        f = eval(qstr, {}, api)
+        return [t for t in forest.traces.values() if f._filter(t)]
 
 def new_unsafe_query(query):
     return Query(query)
