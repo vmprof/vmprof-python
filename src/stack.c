@@ -99,12 +99,12 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             // TODO need to check if this is possible on other 
             // compiler than e.g. gcc/clang too?
             //
-            Dl_info info;
-            if (dladdr(ip, &info) != 0) {
-                printf("se %s %llx\n", info.dli_sname, ip);
-            } else {
-                printf("failed\n");
-            }
+            //Dl_info info;
+            //if (dladdr(ip, &info) != 0) {
+            //    printf("se %s %llx\n", info.dli_sname, ip);
+            //} else {
+            //    printf("failed\n");
+            //}
             result[depth++] = ip;
         }
 
