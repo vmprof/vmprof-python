@@ -63,11 +63,6 @@ void dump_all_known_symbols(int fd) {
             // TODO handle dylibs gracefully
             continue;
         }
-        if (ft == MH_EXECUTE) {
-            // TODO handle executable gracefully
-            // crashes at addr calc
-            continue;
-        }
 
         if (hdr->cputype != CPU_TYPE_X86_64) {
             continue;
@@ -78,12 +73,13 @@ void dump_all_known_symbols(int fd) {
         uint8_t uuid[16];
         struct segment_command_64 * linkedit = NULL;
 
+        int first = 0;
         LOG(" mach-o hdr has %d commands\n", hdr->ncmds);
         for (int j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
             if (lc->cmd == LC_SEGMENT_64) {
                 struct segment_command_64 * sc = (struct segment_command_64*)lc;
                 if (strncmp("__LINKEDIT", sc->segname, 16) == 0) {
-                    LOG("segment command %s\n", sc->segname);
+                    //LOG("segment command %s\n", sc->segname);
                     linkedit = sc;
                 }
                 // for each section?
@@ -100,13 +96,18 @@ void dump_all_known_symbols(int fd) {
         LOG("baseaddrs %llx vs linkedit %llx\n", hdr, linkedit);
         uint64_t fileoff = linkedit->fileoff;
         uint64_t vmaddr = linkedit->vmaddr;
+        if (ft == MH_EXECUTE) {
+            baseaddr = (const char*)(vmaddr - fileoff);
+            fileoff = 0;
+            vmaddr = 0;
+        }
         const char * path = NULL;
         const char * filename = NULL;
 
         lc = (const struct load_command *)(hdr + 1);
         for (int j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
             if (lc->cmd == LC_SYMTAB) {
-                //LOG(" cmd %d/%d is LC_SYMTAB\n", j, hdr->ncmds);
+                LOG(" cmd %d/%d is LC_SYMTAB\n", j, hdr->ncmds);
                 sc = (const struct symtab_command*) lc;
                 // skip if symtab entry is not populated
                 if (sc->symoff == 0) {
@@ -124,9 +125,8 @@ void dump_all_known_symbols(int fd) {
                 }
                 const char * strtbl = (const char*)(baseaddr + sc->stroff - fileoff + vmaddr);
                 struct nlist_64 * l = (struct nlist_64*)(baseaddr + sc->symoff - fileoff + vmaddr);
-                printf("baseaddr %llx fileoff: %lx vmaddr %llx, symoff %llx = %llx\n",
+                LOG("baseaddr %llx fileoff: %lx vmaddr %llx, symoff %llx = %llx\n",
                         baseaddr, fileoff, vmaddr, sc->symoff, l);
-                //LOG(" symtab has %d syms\n", sc->nsyms);
                 for (int s = 0; s < sc->nsyms; s++) {
                     struct nlist_64 * entry = &l[s];
                     uint32_t t = entry->n_type;
@@ -142,10 +142,10 @@ void dump_all_known_symbols(int fd) {
                     if (sym[0] == '\x00') {
                         sym = NULL;
                     }
+                    // switch through the  different types
                     switch (t) {
                         case N_FNAME: {
                             if (sym != NULL) {
-                                printf("---> %s %x\n", sym, entry->n_type);
                                 uint64_t e = entry->n_value;
                                 _write_address_and_name(fd, e, sym, 0, path, filename);
                             }
@@ -153,7 +153,6 @@ void dump_all_known_symbols(int fd) {
                         }
                         case N_FUN: {
                             if (sym != NULL) {
-                                printf("---> %s %x\n", sym, entry->n_type);
                                 uint64_t e = entry->n_value;
                                 _write_address_and_name(fd, e, sym, entry->n_desc, path, filename);
                             }
@@ -161,14 +160,14 @@ void dump_all_known_symbols(int fd) {
                         }
                         case N_STSYM: {
                             if (sym != NULL) {
-                                printf("---> %s %x\n", sym, entry->n_type);
                                 uint64_t e = entry->n_value;
                                 _write_address_and_name(fd, e, sym, 0, path, filename);
                             }
                             break;
                         }
                         case N_SO: {
-                            LOG("so filename %s\n", sym);
+                            // the first entry is the path, the second the filename,
+                            // if a null occurs, the path and filename is reset
                             if (sym == NULL) {
                                 path = NULL;
                                 filename = NULL;
@@ -180,7 +179,6 @@ void dump_all_known_symbols(int fd) {
                             break;
                         }
                     }
-                    // pass
                 }
             }
         }
