@@ -38,7 +38,6 @@ class TestSymbolTable(object):
             fd.seek(0, os.SEEK_END)
             length = fd.tell()
             fd.seek(0, os.SEEK_SET)
-            import pdb; pdb.set_trace()
             while True:
                 assert fd.read(1) == MARKER_NATIVE_SYMBOLS
                 addr = read_word(fd)
@@ -53,7 +52,7 @@ class TestSymbolTable(object):
         for addr, name in addrs:
             assert len(name) > 0
             for i,sym in enumerate(symbols_to_be_found):
-                if name in sym:
+                if sym in name:
                     del symbols_to_be_found[i]
                     break
             if (addr,name) in names:

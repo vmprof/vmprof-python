@@ -10,29 +10,26 @@
 #endif
 
 static
-void _write_address_and_name(int fd, uint64_t e, const char * sym) {
+void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumber,
+                             const char * path, const char * filename) {
     struct str {
         long addr;
         long size;
-        char str[512];
+        char str[1024];
     } s;
     s.addr = e;
     /* must mach '<lang>:<name>:<line>:<file>'
      * 'n' has been chosen as lang here, because the symbol
      * can be generated from several languages (e.g. C, C++, ...)
      */
-    s.str[0] = 'n';
-    s.str[1] = ':';
-    s.size = strlen(sym);
-    if (s.size > 256) {
-        s.size = 256;
+    // MARKER_NATIVE_SYMBOLS is \x08
+    write(fd, "\x08", 1);
+    if (path != NULL && filename != NULL) {
+        s.size = snprintf(s.str, 1024, "n:%s:%d:%s%s", sym, linenumber, path, filename);
+    } else {
+        s.size = snprintf(s.str, 1024, "n:%s:%d:-", sym, linenumber);
     }
-    (void)memcpy(s.str + 2, sym, s.size);
-    // line number and filename missing
-    (void)memcpy(s.str + 2 + s.size, ":0:-", 4);
-    s.size += 4;
-    (void)write(fd, "\x08", 1); // MARKER_NATIVE_SYMBOLS
-    (void)write(fd, &s, sizeof(long)+sizeof(long)+s.size);
+    write(fd, &s, sizeof(long)+sizeof(long)+s.size);
 }
 
 #ifdef __APPLE__
@@ -50,6 +47,8 @@ void dump_all_known_symbols(int fd) {
     const struct load_command *lc;
     int image_count = 0;
 
+    // TODO skip if 32bit mac
+
     image_count = _dyld_image_count();
     for (int i = 0; i < image_count; i++) {
         const char * image_name = _dyld_get_image_name(i);
@@ -58,9 +57,15 @@ void dump_all_known_symbols(int fd) {
         if (hdr->magic != MH_MAGIC_64) {
             continue;
         }
+
         uint32_t ft = hdr->filetype;
         if (ft == MH_DYLIB) {
             // TODO handle dylibs gracefully
+            continue;
+        }
+        if (ft == MH_EXECUTE) {
+            // TODO handle executable gracefully
+            // crashes at addr calc
             continue;
         }
 
@@ -70,41 +75,112 @@ void dump_all_known_symbols(int fd) {
 
         lc = (const struct load_command *)(hdr + 1);
 
+        uint8_t uuid[16];
+        struct segment_command_64 * linkedit = NULL;
+
         LOG(" mach-o hdr has %d commands\n", hdr->ncmds);
         for (int j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
+            if (lc->cmd == LC_SEGMENT_64) {
+                struct segment_command_64 * sc = (struct segment_command_64*)lc;
+                if (strncmp("__LINKEDIT", sc->segname, 16) == 0) {
+                    LOG("segment command %s\n", sc->segname);
+                    linkedit = sc;
+                }
+                // for each section?
+                //struct section_64 * sec = (struct section_64*)(sc + 1);
+                //for (int i = 0; i < sc->nsects; i++) {
+                //    LOG("got %s\n", sec->sectname);
+                //}
+            } else if (lc->cmd == LC_UUID) {
+                struct uuid_command * uc = (struct uuid_command *)lc;
+                (void)memcpy(uuid, uc->uuid, 16);
+            }
+        }
+        const char * baseaddr = (const char*)hdr;
+        LOG("baseaddrs %llx vs linkedit %llx\n", hdr, linkedit);
+        uint64_t fileoff = linkedit->fileoff;
+        uint64_t vmaddr = linkedit->vmaddr;
+        const char * path = NULL;
+        const char * filename = NULL;
+
+        lc = (const struct load_command *)(hdr + 1);
+        for (int j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
             if (lc->cmd == LC_SYMTAB) {
-                LOG(" cmd %d/%d is LC_SYMTAB\n", j, hdr->ncmds);
+                //LOG(" cmd %d/%d is LC_SYMTAB\n", j, hdr->ncmds);
                 sc = (const struct symtab_command*) lc;
                 // skip if symtab entry is not populated
                 if (sc->symoff == 0) {
-                    LOG("symoff == 0\n");
+                    LOG("LC_SYMTAB.symoff == 0\n");
                     continue;
                 } else if (sc->stroff == 0) {
-                    LOG("stroff == 0\n");
+                    LOG("LC_SYMTAB.stroff == 0\n");
                     continue;
                 } else if (sc->nsyms == 0) {
-                    LOG("nsym == 0\n");
+                    LOG("LC_SYMTAB.nsym == 0\n");
                     continue;
                 } else if (sc->strsize == 0) {
-                    LOG("strsize == 0\n");
+                    LOG("LC_SYMTAB.strsize == 0\n");
                     continue;
                 }
-                const char * strtbl = (const char*)((const char*)hdr + sc->stroff);
-                struct nlist_64 * l = (struct nlist_64*)((const char*)hdr + sc->symoff);
-                LOG(" symtab has %d syms\n", sc->nsyms);
+                const char * strtbl = (const char*)(baseaddr + sc->stroff - fileoff + vmaddr);
+                struct nlist_64 * l = (struct nlist_64*)(baseaddr + sc->symoff - fileoff + vmaddr);
+                printf("baseaddr %llx fileoff: %lx vmaddr %llx, symoff %llx = %llx\n",
+                        baseaddr, fileoff, vmaddr, sc->symoff, l);
+                //LOG(" symtab has %d syms\n", sc->nsyms);
                 for (int s = 0; s < sc->nsyms; s++) {
                     struct nlist_64 * entry = &l[s];
                     uint32_t t = entry->n_type;
-                    if ((N_STAB & t) & N_FUN) {
-                        uint32_t off = entry->n_un.n_strx;
-                        if (off >= sc->strsize || off == 0) {
-                            continue;
-                        }
-                        const char * sym = &strtbl[off];
-                        printf("---> %s %x\n", sym, entry->n_type);
-                        uint64_t e = entry->n_value;
-                        _write_address_and_name(fd, e, sym);
+                    bool is_debug = (t & N_STAB) != 0;
+                    if (!is_debug) {
+                        continue;
                     }
+                    uint32_t off = entry->n_un.n_strx;
+                    if (off >= sc->strsize || off == 0) {
+                        continue;
+                    }
+                    const char * sym = &strtbl[off];
+                    if (sym[0] == '\x00') {
+                        sym = NULL;
+                    }
+                    switch (t) {
+                        case N_FNAME: {
+                            if (sym != NULL) {
+                                printf("---> %s %x\n", sym, entry->n_type);
+                                uint64_t e = entry->n_value;
+                                _write_address_and_name(fd, e, sym, 0, path, filename);
+                            }
+                            break;
+                        }
+                        case N_FUN: {
+                            if (sym != NULL) {
+                                printf("---> %s %x\n", sym, entry->n_type);
+                                uint64_t e = entry->n_value;
+                                _write_address_and_name(fd, e, sym, entry->n_desc, path, filename);
+                            }
+                            break;
+                        }
+                        case N_STSYM: {
+                            if (sym != NULL) {
+                                printf("---> %s %x\n", sym, entry->n_type);
+                                uint64_t e = entry->n_value;
+                                _write_address_and_name(fd, e, sym, 0, path, filename);
+                            }
+                            break;
+                        }
+                        case N_SO: {
+                            LOG("so filename %s\n", sym);
+                            if (sym == NULL) {
+                                path = NULL;
+                                filename = NULL;
+                            } else if (path == NULL) {
+                                path = sym;
+                            } else if (filename == NULL) {
+                                filename = sym;
+                            }
+                            break;
+                        }
+                    }
+                    // pass
                 }
             }
         }
@@ -200,7 +276,7 @@ static int _dump_symbols2(ElfW(Addr) base, stab_t * table, int fd) {
             }
             uint64_t addr = base + rela->r_offset;
             //LOG("%s\n", name);
-            _write_address_and_name(fd, addr, name);
+            _write_address_and_name(fd, addr, name, 0, NULL, NULL);
         }
     }
     return 0;
