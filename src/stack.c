@@ -23,7 +23,6 @@
 #endif
 
 static int vmp_native_traces_enabled = 0;
-static int vmp_native_traces_sp_offset = -1;
 static ptr_t *vmp_ranges = NULL;
 static ssize_t vmp_range_count = 0;
 
@@ -77,7 +76,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
                 // to a PyEval_EvalFrameEx function, but when we tried to retrieve
                 // the stack located py frame it has a different address than the
                 // current top_most_frame
-                //printf("oh no!!! %p != %p\n", compare_frame, top_most_frame);
+                // printf("oh no!!!\n");
             } else {
                 if (top_most_frame != NULL) {
                     sp = (void*)CODE_ADDR_TO_UID(top_most_frame->f_code);
@@ -90,6 +89,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
             //char name[64];
+            //int off;
             //unw_get_proc_name(&cursor, name, 64, &off);
             //printf("ignore ip %p %s\n", pip.start_ip, name);
         } else {
@@ -99,6 +99,12 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             // TODO need to check if this is possible on other 
             // compiler than e.g. gcc/clang too?
             //
+            Dl_info info;
+            if (dladdr(ip, &info) != 0) {
+                printf("se %s %llx\n", info.dli_sname, ip);
+            } else {
+                printf("failed\n");
+            }
             result[depth++] = ip;
         }
 
@@ -113,10 +119,6 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
 
 int vmp_native_enabled(void) {
     return vmp_native_traces_enabled;
-}
-
-int vmp_native_sp_offset(void) {
-    return vmp_native_traces_sp_offset;
 }
 
 void vmp_get_symbol_for_ip(void * ip, char * name, int length) {
@@ -302,9 +304,8 @@ teardown:
 }
 #endif
 
-int vmp_native_enable(int offset) {
+int vmp_native_enable(void) {
     vmp_native_traces_enabled = 1;
-    vmp_native_traces_sp_offset = offset;
 
 #if defined(__unix__)
     return vmp_read_vmaps("/proc/self/maps");
@@ -315,7 +316,6 @@ int vmp_native_enable(int offset) {
 
 void vmp_native_disable(void) {
     vmp_native_traces_enabled = 0;
-    vmp_native_traces_sp_offset = 0;
     if (vmp_ranges != NULL) {
         free(vmp_ranges);
         vmp_ranges = NULL;

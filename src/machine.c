@@ -18,7 +18,7 @@ const char * vmp_machine_os_name(void)
 #elif __APPLE__
     #include "TargetConditionals.h"
     #if TARGET_OS_MAC
-        return "macos";
+        return "mac os x";
     #endif
 #elif __linux__
     return "linux";

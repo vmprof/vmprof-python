@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include "_vmprof.h"
+#include <dlfcn.h>
 
 #ifdef _PY_TEST
 #define LOG(...) printf(__VA_ARGS__)
@@ -17,7 +18,16 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumbe
         long size;
         char str[1024];
     } s;
-    s.addr = e;
+    s.addr = e + 1;
+    // DEBUGvoid * addr = (void*)e;
+    // DEBUGDl_info info;
+    // DEBUGif (dladdr(addr, &info) == 0) {
+    // DEBUG    printf("failed at %p, name %s\n", addr, sym);
+    // DEBUG} else {
+    // DEBUG    if (strcmp(sym+1, info.dli_sname) != 0) {
+    // DEBUG        printf("failed name match! at %p, name %s != %s\n", addr, sym, info.dli_sname);
+    // DEBUG    }
+    // DEBUG}
     /* must mach '<lang>:<name>:<line>:<file>'
      * 'n' has been chosen as lang here, because the symbol
      * can be generated from several languages (e.g. C, C++, ...)
@@ -63,6 +73,9 @@ void dump_all_known_symbols(int fd) {
             // TODO handle dylibs gracefully
             continue;
         }
+        if (ft == MH_EXECUTE) {
+            continue;
+        }
 
         if (hdr->cputype != CPU_TYPE_X86_64) {
             continue;
@@ -75,7 +88,7 @@ void dump_all_known_symbols(int fd) {
 
         int first = 0;
         LOG(" mach-o hdr has %d commands\n", hdr->ncmds);
-        for (int j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
+        for (uint32_t j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
             if (lc->cmd == LC_SEGMENT_64) {
                 struct segment_command_64 * sc = (struct segment_command_64*)lc;
                 if (strncmp("__LINKEDIT", sc->segname, 16) == 0) {
@@ -105,7 +118,7 @@ void dump_all_known_symbols(int fd) {
         const char * filename = NULL;
 
         lc = (const struct load_command *)(hdr + 1);
-        for (int j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
+        for (uint32_t j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
             if (lc->cmd == LC_SYMTAB) {
                 LOG(" cmd %d/%d is LC_SYMTAB\n", j, hdr->ncmds);
                 sc = (const struct symtab_command*) lc;
@@ -127,7 +140,7 @@ void dump_all_known_symbols(int fd) {
                 struct nlist_64 * l = (struct nlist_64*)(baseaddr + sc->symoff - fileoff + vmaddr);
                 LOG("baseaddr %llx fileoff: %lx vmaddr %llx, symoff %llx = %llx\n",
                         baseaddr, fileoff, vmaddr, sc->symoff, l);
-                for (int s = 0; s < sc->nsyms; s++) {
+                for (uint32_t s = 0; s < sc->nsyms; s++) {
                     struct nlist_64 * entry = &l[s];
                     uint32_t t = entry->n_type;
                     bool is_debug = (t & N_STAB) != 0;
@@ -146,21 +159,21 @@ void dump_all_known_symbols(int fd) {
                     switch (t) {
                         case N_FNAME: {
                             if (sym != NULL) {
-                                uint64_t e = entry->n_value;
+                                uint64_t e = entry->n_value + (uint64_t)baseaddr;
                                 _write_address_and_name(fd, e, sym, 0, path, filename);
                             }
                             break;
                         }
                         case N_FUN: {
                             if (sym != NULL) {
-                                uint64_t e = entry->n_value;
+                                uint64_t e = entry->n_value + (uint64_t)baseaddr;
                                 _write_address_and_name(fd, e, sym, entry->n_desc, path, filename);
                             }
                             break;
                         }
                         case N_STSYM: {
                             if (sym != NULL) {
-                                uint64_t e = entry->n_value;
+                                uint64_t e = entry->n_value + (uint64_t)baseaddr;
                                 _write_address_and_name(fd, e, sym, 0, path, filename);
                             }
                             break;

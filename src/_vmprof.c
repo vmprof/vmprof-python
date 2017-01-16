@@ -24,8 +24,6 @@ static volatile int is_enabled = 0;
 #endif
 
 static destructor Original_code_dealloc = 0;
-static PyObject *(*Original_PyEval_EvalFrameEx)(PyFrameObject *f,
-                                                int throwflag) = 0;
 
 static int emit_code_object(PyCodeObject *co)
 {
@@ -126,14 +124,27 @@ static void init_cpyprof(void)
 #if CPYTHON_HAS_FRAME_EVALUATION
     PyThreadState *tstate = PyThreadState_GET();
     tstate->interp->eval_frame = cpython_vmprof_PyEval_EvalFrameEx;
-    vmp_native_enable(0);
-    Original_PyEval_EvalFrameEx = cpython_vmprof_PyEval_EvalFrameEx;
 #else
     if (vmp_patch_callee_trampoline("PyEval_EvalFrameEx") == 0) {
-        Original_PyEval_EvalFrameEx = PyEval_EvalFrameEx;
     } else {
-        printf("could not insert trampline\n");
+        fprintf(stderr, "FATAL: could not insert trampline, try with --no-native\n");
         // TODO dump the first few bytes and tell them to create an issue!
+        exit(-1);
+    }
+#endif
+    vmp_native_enable();
+}
+
+static void disable_cpyprof(void)
+{
+    vmp_native_disable();
+#if CPYTHON_HAS_FRAME_EVALUATION
+    PyThreadState *tstate = PyThreadState_GET();
+    tstate->interp->eval_frame = _PyEval_EvalFrameDefault;
+#else
+    if (vmp_unpatch_callee_trampoline("PyEval_EvalFrameEx") > 0) {
+        fprintf(stderr, "FATAL: could not remove trampoline\n");
+        // do not exit, the program might complete with the trampoline in place
     }
 #endif
 }
@@ -208,6 +219,7 @@ disable_vmprof(PyObject *module, PyObject *noarg)
     }
     is_enabled = 0;
     vmprof_ignore_signals(1);
+    disable_cpyprof();
     emit_all_code_objects();
     // dump all known native symbols
     dump_all_known_symbols(profile_file);

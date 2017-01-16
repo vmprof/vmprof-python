@@ -165,10 +165,6 @@ static int opened_profile(const char *interp_name, int memory, int lines, int na
         _write_meta("bits", "32");
     }
 
-    if (native) {
-        vmp_native_enable(0);
-    }
-
     return success;
 }
 

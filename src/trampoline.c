@@ -15,6 +15,13 @@
 
 #define PAGE_ALIGNED(a,size) (void*)(((uintptr_t)a) & ~0xfff) 
 
+static
+int g_patched = 0;
+
+static char * g_trampoline = NULL;
+// the machine code size copied over from the callee
+static int g_trampoline_length;
+
 void _jmp_to(char * a, uintptr_t addr) {
     a[0] = 0x48; // REX.W
     a[1] = 0xb8;
@@ -50,6 +57,7 @@ int _redirect_trampoline_and_back(char * callee, char * trump) {
         bytes += res;
         ptr+=res;
     }
+    bytes = g_trampoline_length;
     (void)memcpy(trump, callee, bytes);
 
     // 2) custom instructions needed
@@ -78,12 +86,12 @@ int vmp_patch_callee_trampoline(const char * callee_name)
     int pagesize = sysconf(_SC_PAGESIZE);
     errno = 0;
 
-    // create a new page and set it all of it writable
     result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_WRITE);
     if (result != 0) {
         dprintf(2, "read|write protecting callee_addr\n");
         return -1;
     }
+    // create a new page and set it all of it writable
     char * page = (char*)mmap(NULL, pagesize, PROT_READ|PROT_WRITE|PROT_EXEC,
                               MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
     if (page == NULL) {
@@ -107,6 +115,40 @@ int vmp_patch_callee_trampoline(const char * callee_name)
         return -1;
     }
 
+    g_trampoline = page;
+
     return 0;
 }
 
+int vmp_unpatch_callee_trampoline(const char * callee_name)
+{
+    if (!g_patched) {
+        return -1;
+    }
+
+    void ** callee_addr = (void**)dlsym(RTLD_DEFAULT, callee_name);
+    int result;
+    int pagesize = sysconf(_SC_PAGESIZE);
+    errno = 0;
+
+    result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_WRITE);
+    if (result != 0) {
+        dprintf(2, "read|write protecting callee_addr\n");
+        return 1;
+    }
+
+    // copy back as if nothing ever happened!!
+    (void)memcpy(callee_addr, g_trampoline, g_trampoline_length);
+
+    result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_EXEC);
+    if (result != 0) {
+        dprintf(2, "read|exec protecting callee addr\n");
+        return 1;
+    }
+
+    munmap(g_trampoline, pagesize);
+    g_trampoline = NULL;
+    g_trampoline_length = 0;
+
+    return 0;
+}

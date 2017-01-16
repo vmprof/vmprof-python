@@ -227,6 +227,8 @@ def read_prof(fileobj, virtual_ips_only=False):
         elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
             unique_id = read_word(fileobj)
             name = read_string(fileobj)
+            #if unique_id & 0x1:
+            #    import pdb; pdb.set_trace()
             if PY3:
                 name = name.decode()
             virtual_ips.append((unique_id, name))
