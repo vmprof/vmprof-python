@@ -54,7 +54,7 @@ void dump_all_known_symbols(int fd) {
     for (int i = 0; i < image_count; i++) {
         const char * image_name = _dyld_get_image_name(i);
         hdr = (const struct mach_header_64*)_dyld_get_image_header(i);
-        LOG("searching mach-o image %s %llx\n", image_name, hdr);
+        LOG("searching mach-o image %s %llx\n", image_name, (void*)hdr);
         if (hdr->magic != MH_MAGIC_64) {
             continue;
         }
@@ -71,28 +71,42 @@ void dump_all_known_symbols(int fd) {
         lc = (const struct load_command *)(hdr + 1);
 
         LOG(" mach-o hdr has %d commands\n", hdr->ncmds);
-        for (int j = 0; j < hdr->ncmds; j++) {
+        for (int j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
             if (lc->cmd == LC_SYMTAB) {
                 LOG(" cmd %d/%d is LC_SYMTAB\n", j, hdr->ncmds);
                 sc = (const struct symtab_command*) lc;
+                // skip if symtab entry is not populated
+                if (sc->symoff == 0) {
+                    LOG("symoff == 0\n");
+                    continue;
+                } else if (sc->stroff == 0) {
+                    LOG("stroff == 0\n");
+                    continue;
+                } else if (sc->nsyms == 0) {
+                    LOG("nsym == 0\n");
+                    continue;
+                } else if (sc->strsize == 0) {
+                    LOG("strsize == 0\n");
+                    continue;
+                }
                 const char * strtbl = (const char*)((const char*)hdr + sc->stroff);
                 struct nlist_64 * l = (struct nlist_64*)((const char*)hdr + sc->symoff);
                 LOG(" symtab has %d syms\n", sc->nsyms);
                 for (int s = 0; s < sc->nsyms; s++) {
                     struct nlist_64 * entry = &l[s];
                     uint32_t t = entry->n_type;
-                    if (t & N_EXT) {
+                    if ((N_STAB & t) & N_FUN) {
                         uint32_t off = entry->n_un.n_strx;
                         if (off >= sc->strsize || off == 0) {
                             continue;
                         }
                         const char * sym = &strtbl[off];
+                        printf("---> %s %x\n", sym, entry->n_type);
                         uint64_t e = entry->n_value;
                         _write_address_and_name(fd, e, sym);
                     }
                 }
             }
-            lc = (const struct load_command *)((char *)lc + lc->cmdsize);
         }
     }
 }
