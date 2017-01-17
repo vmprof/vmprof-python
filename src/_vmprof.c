@@ -15,10 +15,10 @@ module _vmprof
 static volatile int is_enabled = 0;
 
 #if defined(__unix__) || defined(__APPLE__)
-#include "vmprof_main.h"
 #include "trampoline.h"
 #include "machine.h"
 #include "symboltable.h"
+#include "vmprof_main.h"
 #else
 #include "vmprof_main_win32.h"
 #endif
@@ -173,7 +173,6 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
     double interval;
     char *p_error;
 
-
     if (!PyArg_ParseTuple(args, "id|iii", &fd, &interval, &memory, &lines, &native)) {
         return NULL;
     }
@@ -184,6 +183,8 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "vmprof is already enabled");
         return NULL;
     }
+
+    profile_lines = lines;
 
     init_cpyprof();
 
@@ -204,7 +205,6 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
     }
 
     is_enabled = 1;
-    profile_lines = lines;
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -221,8 +221,6 @@ disable_vmprof(PyObject *module, PyObject *noarg)
     vmprof_ignore_signals(1);
     disable_cpyprof();
     emit_all_code_objects();
-    // dump all known native symbols
-    dump_all_known_symbols(profile_file);
 
     if (vmprof_disable() < 0) {
         PyErr_SetFromErrno(PyExc_OSError);

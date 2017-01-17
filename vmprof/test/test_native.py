@@ -32,13 +32,16 @@ class TestNative(object):
         @self.ffi.def_extern()
         def g():
             global sample
-            sample = vmprof.sample_stack_now()
+            pass #sample = vmprof.sample_stack_now()
 
         def f():
-            native_call()
+            pass
+            #native_call()
         p = Profiler()
         with p.measure():
+            print("yeah here")
             f()
+            print("pass over")
 
         names = [name for (addr, name) in sample]
         assert re.match(r'.*sample_stack_now .*g .*f', ' '.join(names))

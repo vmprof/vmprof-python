@@ -43,6 +43,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
         // could not initialize lib unwind cursor and context
         return -1;
     }
+    return 0;
 
     PyFrameObject * top_most_frame = frame;
     int depth = 0;

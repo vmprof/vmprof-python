@@ -303,7 +303,6 @@ int vmprof_enable(int memory)
     if (install_sigprof_timer() == -1)
         goto error;
     vmprof_ignore_signals(0);
-    //PyEval_SetTrace(vmprof_trace_func, NULL);
     return 0;
 
  error:
@@ -328,6 +327,8 @@ int vmprof_disable(void)
 {
     vmprof_ignore_signals(1);
     profile_interval_usec = 0;
+    // dump all known native symbols
+    dump_all_known_symbols(profile_file);
 
     if (remove_sigprof_timer() == -1)
         return -1;

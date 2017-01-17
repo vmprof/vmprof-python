@@ -55,9 +55,9 @@ int _redirect_trampoline_and_back(char * callee, char * trump) {
             return 1;
         }
         bytes += res;
-        ptr+=res;
+        ptr += res;
     }
-    bytes = g_trampoline_length;
+    g_trampoline_length = bytes;
     (void)memcpy(trump, callee, bytes);
 
     // 2) custom instructions needed
@@ -88,7 +88,7 @@ int vmp_patch_callee_trampoline(const char * callee_name)
 
     result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_WRITE);
     if (result != 0) {
-        dprintf(2, "read|write protecting callee_addr\n");
+        fprintf(stderr, "read|write protecting callee_addr\n");
         return -1;
     }
     // create a new page and set it all of it writable
@@ -105,13 +105,13 @@ int vmp_patch_callee_trampoline(const char * callee_name)
 
     result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_EXEC);
     if (result != 0) {
-        dprintf(2, "read|exec protecting callee addr\n");
+        fprintf(stderr, "read|exec protecting callee addr\n");
         return -1;
     }
     // revert, the page should not be writable any more now!
     result = mprotect((void*)page, pagesize, PROT_READ|PROT_EXEC);
     if (result != 0) {
-        dprintf(2, "read|exec protecting tramp\n");
+        fprintf(stderr, "read|exec protecting tramp\n");
         return -1;
     }
 
@@ -133,7 +133,7 @@ int vmp_unpatch_callee_trampoline(const char * callee_name)
 
     result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_WRITE);
     if (result != 0) {
-        dprintf(2, "read|write protecting callee_addr\n");
+        fprintf(stderr, "read|write protecting callee_addr\n");
         return 1;
     }
 
@@ -142,7 +142,7 @@ int vmp_unpatch_callee_trampoline(const char * callee_name)
 
     result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_EXEC);
     if (result != 0) {
-        dprintf(2, "read|exec protecting callee addr\n");
+        fprintf(stderr, "read|exec protecting callee addr\n");
         return 1;
     }
 
