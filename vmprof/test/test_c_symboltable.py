@@ -64,5 +64,9 @@ class TestSymbolTable(object):
         assert len(duplicates) == 0
         addrs = [addr for addr,name in names]
         # property A), see header symboltable.h
-        assert len(addrs) == len(set(addrs))
+        lookup = {}
+        for addr,name in names:
+            if addr in lookup:
+                assert lookup[addr] == name
+            lookup[addr] = name
 

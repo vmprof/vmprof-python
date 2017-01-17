@@ -19,15 +19,16 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumbe
         char str[1024];
     } s;
     s.addr = e + 1;
-    // DEBUGvoid * addr = (void*)e;
-    // DEBUGDl_info info;
-    // DEBUGif (dladdr(addr, &info) == 0) {
-    // DEBUG    printf("failed at %p, name %s\n", addr, sym);
-    // DEBUG} else {
-    // DEBUG    if (strcmp(sym+1, info.dli_sname) != 0) {
-    // DEBUG        printf("failed name match! at %p, name %s != %s\n", addr, sym, info.dli_sname);
-    // DEBUG    }
-    // DEBUG}
+    void * addr = (void*)e;
+    Dl_info info;
+    if (dladdr(addr, &info) == 0) {
+        LOG("failed at %p, name %s\n", addr, sym);
+    } else {
+        if (strcmp(sym+1, info.dli_sname) != 0) {
+            LOG("failed name match! at %p, name %s != %s\n", addr, sym, info.dli_sname);
+        }
+    }
+    // LOG("sym %s\n", sym);
     /* must mach '<lang>:<name>:<line>:<file>'
      * 'n' has been chosen as lang here, because the symbol
      * can be generated from several languages (e.g. C, C++, ...)
@@ -49,6 +50,7 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumbe
 #include <mach-o/stab.h>
 #include <mach-o/dyld.h>
 #include <mach-o/dyld_images.h>
+#include <mach-o/fat.h>
 
 void dump_all_known_symbols(int fd) {
     const struct mach_header_64 * hdr;
@@ -63,37 +65,41 @@ void dump_all_known_symbols(int fd) {
     for (int i = 0; i < image_count; i++) {
         const char * image_name = _dyld_get_image_name(i);
         hdr = (const struct mach_header_64*)_dyld_get_image_header(i);
-        LOG("searching mach-o image %s %llx\n", image_name, (void*)hdr);
+        intptr_t slide = _dyld_get_image_vmaddr_slide(i);
+        if (hdr->magic == FAT_MAGIC) {
+            LOG("fat mach-o image %s %llx\n", image_name, (void*)hdr);
+            continue;
+        }
         if (hdr->magic != MH_MAGIC_64) {
             continue;
         }
 
         uint32_t ft = hdr->filetype;
-        if (ft == MH_DYLIB) {
-            // TODO handle dylibs gracefully
-            continue;
-        }
-        if (ft == MH_EXECUTE) {
-            continue;
-        }
 
         if (hdr->cputype != CPU_TYPE_X86_64) {
             continue;
         }
 
+        LOG("searching mach-o image %s %llx\n", image_name, (void*)hdr);
         lc = (const struct load_command *)(hdr + 1);
 
         uint8_t uuid[16];
-        struct segment_command_64 * linkedit = NULL;
+        struct segment_command_64 * __linkedit = NULL;
+        struct segment_command_64 * __text = NULL;
 
         int first = 0;
         LOG(" mach-o hdr has %d commands\n", hdr->ncmds);
         for (uint32_t j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
             if (lc->cmd == LC_SEGMENT_64) {
                 struct segment_command_64 * sc = (struct segment_command_64*)lc;
+                LOG("segment command %s %llx %llx foff %llx fsize %llx\n",
+                    sc->segname, sc->vmaddr, sc->vmsize, sc->fileoff, sc->filesize);
                 if (strncmp("__LINKEDIT", sc->segname, 16) == 0) {
                     //LOG("segment command %s\n", sc->segname);
-                    linkedit = sc;
+                    __linkedit = sc;
+                }
+                if (strncmp("__TEXT", sc->segname, 16) == 0) {
+                    __text = sc;
                 }
                 // for each section?
                 //struct section_64 * sec = (struct section_64*)(sc + 1);
@@ -105,17 +111,23 @@ void dump_all_known_symbols(int fd) {
                 (void)memcpy(uuid, uc->uuid, 16);
             }
         }
-        const char * baseaddr = (const char*)hdr;
-        LOG("baseaddrs %llx vs linkedit %llx\n", hdr, linkedit);
-        uint64_t fileoff = linkedit->fileoff;
-        uint64_t vmaddr = linkedit->vmaddr;
-        if (ft == MH_EXECUTE) {
-            baseaddr = (const char*)(vmaddr - fileoff);
-            fileoff = 0;
-            vmaddr = 0;
+
+        if (__linkedit == NULL) {
+            LOG("couldn't find __linkedit\n");
+            continue;
+        } else if (__text == NULL) {
+            LOG("couldn't find __text\n");
+            continue;
         }
+
+        uint64_t fileoff = __linkedit->fileoff;
+        uint64_t vmaddr = __linkedit->vmaddr;
+        const char * baseaddr = (const char*) vmaddr + slide - fileoff;
+        const char * __text_baseaddr = (const char*) slide - __text->fileoff;
+        //LOG("%llx %llx %llx\n", slide, __text->vmaddr, __text->fileoff);
         const char * path = NULL;
         const char * filename = NULL;
+        uint32_t src_line = 0;
 
         lc = (const struct load_command *)(hdr + 1);
         for (uint32_t j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
@@ -136,10 +148,10 @@ void dump_all_known_symbols(int fd) {
                     LOG("LC_SYMTAB.strsize == 0\n");
                     continue;
                 }
-                const char * strtbl = (const char*)(baseaddr + sc->stroff - fileoff + vmaddr);
-                struct nlist_64 * l = (struct nlist_64*)(baseaddr + sc->symoff - fileoff + vmaddr);
-                LOG("baseaddr %llx fileoff: %lx vmaddr %llx, symoff %llx = %llx\n",
-                        baseaddr, fileoff, vmaddr, sc->symoff, l);
+                const char * strtbl = (const char*)(baseaddr + sc->stroff);
+                struct nlist_64 * l = (struct nlist_64*)(baseaddr + sc->symoff);
+                //LOG("baseaddr %llx fileoff: %lx vmaddr %llx, symoff %llx stroff %llx slide %llx %d\n",
+                //        baseaddr, fileoff, vmaddr, sc->symoff, sc->stroff, slide, sc->nsyms);
                 for (uint32_t s = 0; s < sc->nsyms; s++) {
                     struct nlist_64 * entry = &l[s];
                     uint32_t t = entry->n_type;
@@ -159,23 +171,21 @@ void dump_all_known_symbols(int fd) {
                     switch (t) {
                         case N_FNAME: {
                             if (sym != NULL) {
-                                uint64_t e = entry->n_value + (uint64_t)baseaddr;
+                                uint64_t e = entry->n_value + (uint64_t)__text_baseaddr;
                                 _write_address_and_name(fd, e, sym, 0, path, filename);
                             }
                             break;
                         }
                         case N_FUN: {
                             if (sym != NULL) {
-                                uint64_t e = entry->n_value + (uint64_t)baseaddr;
+                                uint64_t e = entry->n_value + (uint64_t)__text_baseaddr;
                                 _write_address_and_name(fd, e, sym, entry->n_desc, path, filename);
                             }
                             break;
                         }
-                        case N_STSYM: {
-                            if (sym != NULL) {
-                                uint64_t e = entry->n_value + (uint64_t)baseaddr;
-                                _write_address_and_name(fd, e, sym, 0, path, filename);
-                            }
+                        case N_SLINE: {
+                            // does not seem to occur
+                            src_line = entry->n_desc;
                             break;
                         }
                         case N_SO: {
