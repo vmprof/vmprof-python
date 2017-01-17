@@ -35,7 +35,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
     unw_cursor_t cursor;
     unw_context_t uc;
     unw_proc_info_t pip;
-    unw_word_t rbx;
+    unw_word_t rbp;
 
     unw_getcontext(&uc);
     int ret = unw_init_local(&cursor, &uc);
@@ -43,13 +43,13 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
         // could not initialize lib unwind cursor and context
         return -1;
     }
-    return 0;
 
     PyFrameObject * top_most_frame = frame;
     int depth = 0;
     int step_result;
     while (depth < max_depth) {
         if (!vmp_native_enabled()) {
+            printf("not enabled!\n");
             if (top_most_frame == NULL) {
                 break;
             }
@@ -60,19 +60,29 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             continue;
         }
         unw_get_proc_info(&cursor, &pip);
+        //Dl_info info;
+        //if (dladdr((const void*)pip.start_ip, &info) != 0) {
+        //    printf("se %s %p\n", info.dli_sname, pip.start_ip);
+        //}
+        //char name[64];
+        //int off;
+        //unw_get_proc_name(&cursor, name, 64, &off);
+        //printf("ignore ip %p %s\n", pip.start_ip, name);
 
-        if (unw_get_reg(&cursor, UNW_X86_64_RBX, &rbx) < 0) {
+        if (unw_get_reg(&cursor, UNW_X86_64_RBP, &rbp) < 0) {
             // could not retrieve
             break;
         }
+        unw_word_t * addr = (unw_word_t*)rbp;
 
 #if CPYTHON_HAS_FRAME_EVALUATION
-        if ((void*)pip.start_ip == (void*)_PyEval_EvalFrameDefault) {
+        if ((void*)pip.start_ip == (void*)cpython_vmprof_PyEval_EvalFrameEx) {
 #else
         if ((void*)pip.start_ip == (void*)PyEval_EvalFrameEx) {
 #endif
             // yes we found one stack entry of the python frames!
-            if (rbx != (unw_word_t)top_most_frame) {
+            asm("int $3;");
+            if (*(addr-10) != (unw_word_t)top_most_frame) {
                 // uh we are screwed! the ip indicates we are have context
                 // to a PyEval_EvalFrameEx function, but when we tried to retrieve
                 // the stack located py frame it has a different address than the
@@ -127,15 +137,14 @@ void vmp_get_symbol_for_ip(void * ip, char * name, int length) {
     assert(length > 0);
     name[0] = '\x00';
 
+    printf("%llx\n", ip);
     // ip is off +1, does not matter for dladdr (see manpage)
-    if (dladdr(ip, &info) == 0) {
+    if (!dladdr(ip, &info) || info.dli_sname == NULL) {
         strcpy(name, "unknown symbol");
         return;
     }
-    if (info.dli_sname != NULL) {
-        strncpy(name, info.dli_sname, length-1);
-        name[length-1] = '\x00'; // null terminate just in case
-    }
+    strncpy(name, info.dli_sname, length-1);
+    name[length-1] = '\x00'; // null terminate just in case
 }
 
 int _ignore_symbols_from_path(const char * name) {

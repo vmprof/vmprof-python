@@ -10,3 +10,5 @@ int vmp_patch_callee_trampoline(const char * callee_addr);
  * Any other value indicates a fatal error!
  */
 int vmp_unpatch_callee_trampoline(const char * callee_name);
+
+int vmp_find_frameobj_on_stack(const char * callee_addr);

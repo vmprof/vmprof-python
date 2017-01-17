@@ -24,6 +24,7 @@ static volatile int is_enabled = 0;
 #endif
 
 static destructor Original_code_dealloc = 0;
+static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
 static int emit_code_object(PyCodeObject *co)
 {
@@ -124,13 +125,19 @@ static void init_cpyprof(void)
 #if CPYTHON_HAS_FRAME_EVALUATION
     PyThreadState *tstate = PyThreadState_GET();
     tstate->interp->eval_frame = cpython_vmprof_PyEval_EvalFrameEx;
+    _default_eval_loop = _PyEval_EvalFrameDefault;
 #else
-    if (vmp_patch_callee_trampoline("PyEval_EvalFrameEx") == 0) {
-    } else {
-        fprintf(stderr, "FATAL: could not insert trampline, try with --no-native\n");
-        // TODO dump the first few bytes and tell them to create an issue!
+    int stackpos = vmp_find_frameobj_on_stack("PyEval_EvalFrameEx");
+    if (stackpos == -1) {
+        printf("failed to find pos on stack\n");
         exit(-1);
     }
+    //if (vmp_patch_callee_trampoline("PyEval_EvalFrameEx") == 0) {
+    //} else {
+    //    fprintf(stderr, "FATAL: could not insert trampline, try with --no-native\n");
+    //    // TODO dump the first few bytes and tell them to create an issue!
+    //    exit(-1);
+    //}
 #endif
     vmp_native_enable();
 }
@@ -147,21 +154,25 @@ static void disable_cpyprof(void)
         // do not exit, the program might complete with the trampoline in place
     }
 #endif
+    _default_eval_loop = NULL;
 }
 
 
 PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 {
-#if CPYTHON_HAS_FRAME_EVALUATION
+    // TODO!!
     // move the frame to a caller saved register. e.g. rbx!
     // the previous method from did not really work for me
     // (it did not find the correct value in the stack slot)
-    register PyFrameObject * rbx asm("rbx");
-    asm volatile("mov %%rdi, %0\n\t"
-                 "call %1\n\t"
-                : : "r" (rbx), "r" (_PyEval_EvalFrameDefault));
-#endif
-    return NULL;
+    register PyFrameObject * rbx asm("rbx") = 0;
+    register PyObject * out;
+    asm volatile("\tmovq %%rdi, %1\n"
+                 "\tcallq *%2\n"
+                 "\tmovq %%rax, %0\n"
+                : "=r" (out) // output
+                : "r" (rbx), "r" (_default_eval_loop) // input
+                );
+    return out;
 }
 
 static PyObject *enable_vmprof(PyObject* self, PyObject *args)
@@ -252,11 +263,8 @@ sample_stack_now(PyObject *module, PyObject *args)
 {
     PyThreadState * tstate = NULL;
 
-    long write_to_log = 0;
-
-    if (!PyArg_ParseTuple(args, "|i", &write_to_log)) {
-        return NULL;
-    }
+    // stop any signal to occur
+    vmprof_ignore_signals(1);
 
     PyObject * list;
     int i;
@@ -270,36 +278,27 @@ sample_stack_now(PyObject *module, PyObject *args)
     void ** m = (void**)malloc(SINGLE_BUF_SIZE);
     if (m == NULL) {
         PyErr_SetString(PyExc_MemoryError, "could not allocate buffer for stack trace");
+        vmprof_ignore_signals(0);
         return NULL;
     }
     entry_count = get_stack_trace(tstate, m, MAX_STACK_DEPTH-1, 1);
 
     for (i = 0; i < entry_count; i++) {
         void * routine_ip = m[i];
-        if (ROUTINE_IS_PYTHON(routine_ip)) {
-            PyCodeObject * code = (PyCodeObject*)routine_ip;
-            PyObject * t = Py_BuildValue("KO", routine_ip, code->co_name);
-            PyList_Append(list, t);
-        } else {
-            // a native routine!
-            char name[64];
-            vmp_get_symbol_for_ip(routine_ip, name, 64);
-            PyObject * str = PyStr_NEW(name);
-            if (str == NULL) {
-                goto error;
-            }
-            PyObject * t = Py_BuildValue("KO", routine_ip, str);
-            PyList_Append(list, t);
-        }
+        PyList_Append(list, PyLong_NEW(routine_ip));
     }
 
     free(m);
 
     Py_INCREF(list);
+
+    vmprof_ignore_signals(0);
     return list;
 error:
     Py_DECREF(list);
     Py_INCREF(Py_None);
+
+    vmprof_ignore_signals(0);
     return Py_None;
 }
 
@@ -308,7 +307,7 @@ static PyMethodDef VMProfMethods[] = {
     {"disable", disable_vmprof, METH_NOARGS, "Disable profiling."},
     {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
      "Write eagerly all the IDs of code objects"},
-    {"sample_stack_now", sample_stack_now, METH_VARARGS, "Sample the stack now"},
+    {"sample_stack_now", sample_stack_now, METH_NOARGS, "Sample the stack now"},
     //{"test_enable", testing_enable, METH_VARARGS, "lookup symbol"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };

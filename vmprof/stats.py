@@ -21,6 +21,12 @@ class Stats(object):
         self.start_time = start_time
         self.end_time = end_time
 
+    def get_name(self, addr):
+        if addr not in self.adr_dict:
+            return "unknown"
+        line = self.adr_dict[addr]
+        return line.split(":")[1]
+
     def getargv(self):
         return self.meta.get('argv', '')
 
