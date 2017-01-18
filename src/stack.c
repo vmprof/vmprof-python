@@ -38,7 +38,6 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
     unw_cursor_t cursor;
     unw_context_t uc;
     unw_proc_info_t pip;
-    unw_word_t rbp;
 
     unw_getcontext(&uc);
     int ret = unw_init_local(&cursor, &uc);
@@ -77,20 +76,14 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             func_addr = (intptr_t)info.dli_saddr;
         }
 
-        // TODO
-        if (unw_get_reg(&cursor, UNW_X86_64_RBP, &rbp) < 0) {
-            // could not retrieve
-            break;
-        }
-        unw_word_t * addr = (unw_word_t*)rbp;
 
-#if CPYTHON_HAS_FRAME_EVALUATION
-        if ((void*)func_addr == (void*)cpython_vmprof_PyEval_EvalFrameEx) {
-#else
-        if (false && (void*)func_addr == (void*)PyEval_EvalFrameEx) {
-#endif
+        if ((void*)func_addr == (void*)vmprof_eval) {
             // yes we found one stack entry of the python frames!
-            if (*(addr-10) != (unw_word_t)top_most_frame) {
+            unw_word_t rbx = 0;
+            if (unw_get_reg(&cursor, UNW_X86_64_RBX, &rbx) < 0) {
+                return 0; // TODO better error message
+            }
+            if (rbx != (unw_word_t)top_most_frame) {
                 // uh we are screwed! the ip indicates we are have context
                 // to a PyEval_EvalFrameEx function, but when we tried to retrieve
                 // the stack located py frame it has a different address than the

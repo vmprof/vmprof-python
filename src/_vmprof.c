@@ -24,7 +24,27 @@ static volatile int is_enabled = 0;
 #endif
 
 static destructor Original_code_dealloc = 0;
-static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
+PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
+
+__attribute__((optimize("O0")))
+__attribute__((naked))
+PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
+{
+    asm volatile(
+            "pushq %%rbp\t\n"
+            "movq %%rsp, %%rbp\t\n"
+            "pushq %%rbx\t\n"
+            "pushq %%rbx\t\n"
+            "movq %%rdi, %%rbx\t\n"
+            "call *%0\t\n"
+            "popq %%rbx\t\n"
+            "popq %%rbx\t\n"
+            "movq %%rbp, %%rsp\t\n"
+            "popq %%rbp\t\n"
+            "retq\t\n"
+
+            : : "r" (_default_eval_loop) );
+}
 
 static int emit_code_object(PyCodeObject *co)
 {
@@ -124,10 +144,11 @@ static void init_cpyprof(void)
 {
 #if CPYTHON_HAS_FRAME_EVALUATION
     PyThreadState *tstate = PyThreadState_GET();
-    tstate->interp->eval_frame = cpython_vmprof_PyEval_EvalFrameEx;
+    tstate->interp->eval_frame = vmprof_eval;
     _default_eval_loop = _PyEval_EvalFrameDefault;
 #else
-    if (vmp_patch_callee_trampoline(PyEval_EvalFrameEx) == 0) {
+    if (vmp_patch_callee_trampoline(PyEval_EvalFrameEx,
+                vmprof_eval, (void*)&_default_eval_loop) == 0) {
     } else {
         fprintf(stderr, "FATAL: could not insert trampline, try with --no-native\n");
         // TODO dump the first few bytes and tell them to create an issue!
@@ -142,33 +163,18 @@ static void disable_cpyprof(void)
     vmp_native_disable();
 #if CPYTHON_HAS_FRAME_EVALUATION
     PyThreadState *tstate = PyThreadState_GET();
-    tstate->interp->eval_frame = _PyEval_EvalFrameDefault;
+    tstate->interp->eval_frame = NULL;
 #else
-    //if (vmp_unpatch_callee_trampoline("PyEval_EvalFrameEx") > 0) {
-    //    fprintf(stderr, "FATAL: could not remove trampoline\n");
-    //    // do not exit, the program might complete with the trampoline in place
-    //}
+    if (vmp_unpatch_callee_trampoline(PyEval_EvalFrameEx) > 0) {
+        fprintf(stderr, "FATAL: could not remove trampoline\n");
+        exit(-1);
+    }
+    // do not set to NULL, will crash, because it canno unwind
+    // the stack
+    // _default_eval_loop = NULL;
 #endif
-    _default_eval_loop = NULL;
 }
 
-
-PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
-{
-    // TODO!!
-    // move the frame to a caller saved register. e.g. rbx!
-    // the previous method from did not really work for me
-    // (it did not find the correct value in the stack slot)
-    register PyFrameObject * rbx asm("rbx") = 0;
-    register PyObject * out;
-    asm volatile("\tmovq %%rdi, %1\n"
-                 "\tcallq *%2\n"
-                 "\tmovq %%rax, %0\n"
-                : "=r" (out) // output
-                : "r" (rbx), "r" (_default_eval_loop) // input
-                );
-    return out;
-}
 
 static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {

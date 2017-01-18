@@ -20,6 +20,8 @@
  *
  * cpython_vmprof_PyEval_EvalFrameEx called 'tramp' in the following
  *
+ * TODO
+ *
  *          +--- PyEval_Loop ---+
  *     +----| jmp page          | <-- patched, original bits moved to page
  *     |    | asm instr 1       | <+- label PyEval
@@ -73,12 +75,12 @@ void _jmp_to(char * a, uintptr_t addr, int call) {
 }
 
 // a hilarious typo, tramp -> trump :)
-int _redirect_trampoline_and_back(char * callee, char * trump) {
+int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval) {
 
     char * trump_first_byte = trump;
     int needed_bytes = 12;
     int bytes = 0;
-    char * ptr = callee;
+    char * ptr = eval;
     struct ud u;
 
     // 1) copy the instructions that should be redone in the trampoline
@@ -94,31 +96,47 @@ int _redirect_trampoline_and_back(char * callee, char * trump) {
 
     // 2) initiate the first few instructions of the eval loop
     {
-        // TODO 64bit only
-        //0:	48 8b 04 24 	movq	(%rsp), %rax
-        (void) memcpy(trump, "\x48\x8b\x04\x24", 4);
-        //4:	48 89 44 24 08 	movq	%rax, 16(%rsp)
-        (void) memcpy(trump+4, "\x48\x89\x44\x24\x10", 5);
-        //9:	48 89 3c 24 	movq	%rdi, (%rsp)
-        (void) memcpy(trump+9, "\x48\x89\x3c\x24", 4);
-        //d:	48 83 c4 08 	addq	$16, %rsp
-        (void) memcpy(trump+13, "\x48\x83\xc4\x10", 4);
-        // copy the instr from py_eval
-        trump[17] = 0xcc;
-        (void)memcpy(trump+18, callee, bytes);
-        _jmp_to(trump+bytes+18, (uintptr_t)callee+bytes, 0);
-        asm("int $3");
+        (void)memcpy(trump, eval, bytes);
+        _jmp_to(trump+bytes, (uintptr_t)eval+bytes, 0);
+        //char * wptr = trump;
+        //*wptr++ = 0x55;
+
+        //*wptr++ = 0x48;
+        //*wptr++ = 0x89;
+        //*wptr++ = 0xe5;
+
+        //*wptr++ = 0x53;
+        //*wptr++ = 0x53;
+
+        //*wptr++ = 0x48;
+        //*wptr++ = 0x89;
+        //*wptr++ = 0xfb;
+
+        //char * trampcall = wptr;
+        //wptr += 12;
+
+        //// pop 
+        //*wptr++ = 0x5b;
+        //*wptr++ = 0x5b;
+        //*wptr++ = 0x5d;
+        //*wptr++ = 0xc3;
+
+        //_jmp_to(trampcall, (uintptr_t)wptr, 1);
+
+        //(void)memcpy(wptr, eval, bytes);
+        //wptr += bytes;
+        //_jmp_to(wptr, (uintptr_t)eval+bytes, 0);
     }
 
     // 3) overwrite the first few bytes of callee to jump to tramp
     // callee must call back 
-    _jmp_to(callee, (uintptr_t)trump, 0);
+    _jmp_to(eval, (uintptr_t)vmprof_eval, 0);
 
     return 0;
 }
 
 
-int vmp_patch_callee_trampoline(void * callee_addr)
+int vmp_patch_callee_trampoline(void * callee_addr, void * vmprof_eval, void ** vmprof_eval_target)
 {
     int result;
     int pagesize = sysconf(_SC_PAGESIZE);
@@ -137,7 +155,7 @@ int vmp_patch_callee_trampoline(void * callee_addr)
     }
 
     char * a = (char*)callee_addr;
-    if (_redirect_trampoline_and_back(a, page) != 0) {
+    if (_redirect_trampoline_and_back(a, page, vmprof_eval) != 0) {
         return -1;
     }
 
@@ -154,17 +172,17 @@ int vmp_patch_callee_trampoline(void * callee_addr)
     }
 
     g_trampoline = page;
+    *vmprof_eval_target = page;
 
     return 0;
 }
 
-int vmp_unpatch_callee_trampoline(const char * callee_name)
+int vmp_unpatch_callee_trampoline(void * callee_addr)
 {
     if (!g_patched) {
         return -1;
     }
 
-    void ** callee_addr = (void**)dlsym(RTLD_DEFAULT, callee_name);
     int result;
     int pagesize = sysconf(_SC_PAGESIZE);
     errno = 0;
@@ -175,7 +193,7 @@ int vmp_unpatch_callee_trampoline(const char * callee_name)
         return 1;
     }
 
-    // copy back as if nothing ever happened!!
+    // copy back, assume everything is as if nothing ever happened!!
     (void)memcpy(callee_addr, g_trampoline, g_trampoline_length);
 
     result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_EXEC);
