@@ -37,6 +37,7 @@
 #include "vmprof_getpc.h"
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
+#include "compat.h"
 
 #if defined(__unix__)
 #include "rss_unix.h"
@@ -295,7 +296,7 @@ int vmprof_enable(int memory)
 
 static int close_profile(void)
 {
-    (void)_write_time_now(MARKER_TRAILER);
+    (void)vmp_write_time_now(MARKER_TRAILER);
 
     teardown_rss();
     /* don't close() the file descriptor from here */

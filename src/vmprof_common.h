@@ -4,11 +4,10 @@
 #include <stddef.h>
 #include <sys/time.h>
 #include <time.h>
+
+#include "_vmprof.h"
 #include "machine.h"
 #include "compat.h"
-
-#include "vmprof_compat.h"
-#include "_vmprof.h"
 #include "vmprof_mt.h"
 
 #define MAX_FUNC_NAME 1024
@@ -32,20 +31,6 @@ static struct profbuf_s *volatile current_codes;
 
 #define MAX_STACK_DEPTH   \
     ((SINGLE_BUF_SIZE - sizeof(struct prof_stacktrace_s)) / sizeof(void *))
-
-static int vmp_write_meta(const char * key, const char * value)
-{
-    char marker = MARKER_META;
-    long x = strlen(key);
-    vmp_write_all(&marker, 1);
-    vmp_write_all((char*)&x, sizeof(long));
-    vmp_write_all(key, x);
-    x = strlen(value);
-    vmp_write_all((char*)&x, sizeof(long));
-    vmp_write_all(value, x);
-    return 0;
-}
-
 
 typedef struct prof_stacktrace_s {
     char padding[sizeof(long) - 1];
@@ -74,9 +59,9 @@ char *vmprof_init(int fd, double interval, int memory, int lines, const char *in
     }
 #endif
     assert(fd >= 0);
-    profile_file = fd;
+    vmp_set_profile_fileno(fd);
     if (opened_profile(interp_name, memory, lines, native) < 0) {
-        profile_file = -1;
+        vmp_set_profile_fileno(0);
         return strerror(errno);
     }
     return NULL;

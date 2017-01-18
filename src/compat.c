@@ -9,13 +9,22 @@
 
 #endif
 
+static int _vmp_profile_fileno = 0;
+
+int vmp_profile_fileno(void) {
+    return _vmp_profile_fileno;
+}
+void vmp_set_profile_fileno(int fileno) {
+    _vmp_profile_fileno = fileno;
+}
+
 int vmp_write_all(const char *buf, size_t bufsize)
 {
-    if (profile_file == -1) {
+    if (_vmp_profile_fileno == 0) {
         return -1;
     }
     while (bufsize > 0) {
-        ssize_t count = write(profile_file, buf, bufsize);
+        ssize_t count = write(_vmp_profile_fileno, buf, bufsize);
         if (count <= 0)
             return -1;   /* failed */
         buf += count;
