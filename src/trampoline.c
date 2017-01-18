@@ -13,7 +13,7 @@
 #endif
 #include "machine.h"
 
-#define PAGE_ALIGNED(a,size) (void*)(((uintptr_t)a) & ~0xfff) 
+#define PAGE_ALIGNED(a,size) (void*)(((uintptr_t)a) & ~(size - 1)) 
 
 /*
  * The trampoline works the following way:
@@ -72,41 +72,6 @@ void _jmp_to(char * a, uintptr_t addr, int call) {
     }
 }
 
-int vmp_find_frameobj_on_stack(const char * callee_name) {
-    return 0;
-    char * callee_addr = (char*)dlsym(RTLD_DEFAULT, callee_name);
-    struct ud u;
-    const struct ud_operand * op1;
-    const struct ud_operand * op2;
-    int off = 0;
-    int bytes = 0;
-    int scan_bytes = 100;
-    char * ptr = callee_addr;
-
-    //asm("int $3");
-    // 1) copy the instructions that should be redone in the trampoline
-    while (bytes < scan_bytes) {
-        int res = vmp_machine_code_instr_length(ptr, &u);
-        if (res == 0) {
-            return -1;
-        }
-        enum ud_mnemonic_code code = ud_insn_mnemonic(&u);
-        printf("%s, %s\n", ud_lookup_mnemonic(code), ud_insn_asm(&u));
-        //if (code == UD_Ipsubq || code == UD_Ivpsubq) {
-        //    op1 = ud_insn_opr(&u, 0);
-        //    op2 = ud_insn_opr(&u, 1);
-        //    if (op1->type == UD_OP_IMM && op2->type == UD_OP_REG) {
-        //        //off = op->lval.udword;
-        //        //const char * c = ud_reg_tab[op->base - UD_R_AL];
-        //    }
-        //    asm("int $3");
-        //}
-        bytes += res;
-        ptr += res;
-    }
-    return -10;
-}
-
 // a hilarious typo, tramp -> trump :)
 int _redirect_trampoline_and_back(char * callee, char * trump) {
 
@@ -115,23 +80,10 @@ int _redirect_trampoline_and_back(char * callee, char * trump) {
     int bytes = 0;
     char * ptr = callee;
     struct ud u;
-    const struct ud_operand * op1;
-    const struct ud_operand * op2;
-    int off = 0;
 
     // 1) copy the instructions that should be redone in the trampoline
     while (bytes < needed_bytes) {
         int res = vmp_machine_code_instr_length(ptr, &u);
-        enum ud_mnemonic_code code = ud_insn_mnemonic(&u);
-        //if (code == UD_Ipsubq || code == UD_Ivpsubq) {
-        //    op1 = ud_insn_opr(&u, 0);
-        //    op2 = ud_insn_opr(&u, 1);
-        //    if (op1->type == UD_OP_IMM && op2->type == UD_OP_REG) {
-        //        //off = op->lval.udword;
-        //        //const char * c = ud_reg_tab[op->base - UD_R_AL];
-        //    }
-        //    asm("int $3");
-        //}
         if (res == 0) {
             return 1;
         }
@@ -141,9 +93,22 @@ int _redirect_trampoline_and_back(char * callee, char * trump) {
     g_trampoline_length = bytes;
 
     // 2) initiate the first few instructions of the eval loop
-    (void)memcpy(trump, callee, bytes);
-    // TODO 32bit
-    _jmp_to(trump+bytes+6, (uintptr_t)callee+bytes, 0);
+    {
+        // TODO 64bit only
+        //0:	48 8b 04 24 	movq	(%rsp), %rax
+        (void) memcpy(trump, "\x48\x8b\x04\x24", 4);
+        //4:	48 89 44 24 08 	movq	%rax, 16(%rsp)
+        (void) memcpy(trump+4, "\x48\x89\x44\x24\x10", 5);
+        //9:	48 89 3c 24 	movq	%rdi, (%rsp)
+        (void) memcpy(trump+9, "\x48\x89\x3c\x24", 4);
+        //d:	48 83 c4 08 	addq	$16, %rsp
+        (void) memcpy(trump+13, "\x48\x83\xc4\x10", 4);
+        // copy the instr from py_eval
+        trump[17] = 0xcc;
+        (void)memcpy(trump+18, callee, bytes);
+        _jmp_to(trump+bytes+18, (uintptr_t)callee+bytes, 0);
+        asm("int $3");
+    }
 
     // 3) overwrite the first few bytes of callee to jump to tramp
     // callee must call back 
@@ -153,9 +118,8 @@ int _redirect_trampoline_and_back(char * callee, char * trump) {
 }
 
 
-int vmp_patch_callee_trampoline(const char * callee_name)
+int vmp_patch_callee_trampoline(void * callee_addr)
 {
-    void ** callee_addr = (void**)dlsym(RTLD_DEFAULT, callee_name);
     int result;
     int pagesize = sysconf(_SC_PAGESIZE);
     errno = 0;

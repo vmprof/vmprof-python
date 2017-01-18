@@ -127,17 +127,12 @@ static void init_cpyprof(void)
     tstate->interp->eval_frame = cpython_vmprof_PyEval_EvalFrameEx;
     _default_eval_loop = _PyEval_EvalFrameDefault;
 #else
-    int stackpos = vmp_find_frameobj_on_stack("PyEval_EvalFrameEx");
-    if (stackpos == -1) {
-        printf("failed to find pos on stack\n");
+    if (vmp_patch_callee_trampoline(PyEval_EvalFrameEx) == 0) {
+    } else {
+        fprintf(stderr, "FATAL: could not insert trampline, try with --no-native\n");
+        // TODO dump the first few bytes and tell them to create an issue!
         exit(-1);
     }
-    //if (vmp_patch_callee_trampoline("PyEval_EvalFrameEx") == 0) {
-    //} else {
-    //    fprintf(stderr, "FATAL: could not insert trampline, try with --no-native\n");
-    //    // TODO dump the first few bytes and tell them to create an issue!
-    //    exit(-1);
-    //}
 #endif
     vmp_native_enable();
 }
@@ -149,10 +144,10 @@ static void disable_cpyprof(void)
     PyThreadState *tstate = PyThreadState_GET();
     tstate->interp->eval_frame = _PyEval_EvalFrameDefault;
 #else
-    if (vmp_unpatch_callee_trampoline("PyEval_EvalFrameEx") > 0) {
-        fprintf(stderr, "FATAL: could not remove trampoline\n");
-        // do not exit, the program might complete with the trampoline in place
-    }
+    //if (vmp_unpatch_callee_trampoline("PyEval_EvalFrameEx") > 0) {
+    //    fprintf(stderr, "FATAL: could not remove trampoline\n");
+    //    // do not exit, the program might complete with the trampoline in place
+    //}
 #endif
     _default_eval_loop = NULL;
 }
@@ -285,7 +280,7 @@ sample_stack_now(PyObject *module, PyObject *args)
 
     for (i = 0; i < entry_count; i++) {
         void * routine_ip = m[i];
-        PyList_Append(list, PyLong_NEW(routine_ip));
+        PyList_Append(list, PyLong_NEW((intptr_t)routine_ip));
     }
 
     free(m);

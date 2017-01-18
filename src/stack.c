@@ -123,7 +123,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             //} else {
             //    printf("failed\n");
             //}
-            result[depth++] = func_addr | 0x1;
+            result[depth++] = (void*)(func_addr | 0x1);
         }
 
         step_result = unw_step(&cursor);
@@ -137,21 +137,6 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
 
 int vmp_native_enabled(void) {
     return vmp_native_traces_enabled;
-}
-
-void vmp_get_symbol_for_ip(void * ip, char * name, int length) {
-    Dl_info info;
-    assert(length > 0);
-    name[0] = '\x00';
-
-    printf("%llx\n", ip);
-    // ip is off +1, does not matter for dladdr (see manpage)
-    if (!dladdr(ip, &info) || info.dli_sname == NULL) {
-        strcpy(name, "unknown symbol");
-        return;
-    }
-    strncpy(name, info.dli_sname, length-1);
-    name[length-1] = '\x00'; // null terminate just in case
 }
 
 int _ignore_symbols_from_path(const char * name) {

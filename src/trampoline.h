@@ -3,7 +3,7 @@
 /**
  * Returns 0 on success
  */
-int vmp_patch_callee_trampoline(const char * callee_addr);
+int vmp_patch_callee_trampoline(void * callee_addr);
 
 /**
  * Return 0 on success, -1 if the trampoline is not in place.

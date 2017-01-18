@@ -7,7 +7,6 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void **data,
 
 int vmp_native_enabled(void);
 int vmp_native_enable(void);
-void vmp_get_symbol_for_ip(void * ip, char * name, int length);
 int vmp_ignore_ip(ptr_t ip);
 int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count);
 int vmp_native_symbols_read(void);
