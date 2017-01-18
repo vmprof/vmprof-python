@@ -45,7 +45,7 @@ class TestNative(object):
         for addr in sample:
             assert addr in stats.adr_dict
             name = stats.get_name(addr)
-            print(addr, name)
+            print(hex(addr), name)
             names.append(name)
             #if (addr & ~1) not in stats.adr_dict:
             #    not_found.append((addr, name))

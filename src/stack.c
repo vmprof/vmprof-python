@@ -27,11 +27,14 @@ static ptr_t *vmp_ranges = NULL;
 static ssize_t vmp_range_count = 0;
 
 
+// vmp_walk_and_record_python_stack
+
 int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
                                      int max_depth)
 {
     // called in signal handler
     void *ip, *sp;
+    intptr_t func_addr;
     unw_cursor_t cursor;
     unw_context_t uc;
     unw_proc_info_t pip;
@@ -60,15 +63,21 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             continue;
         }
         unw_get_proc_info(&cursor, &pip);
-        //Dl_info info;
-        //if (dladdr((const void*)pip.start_ip, &info) != 0) {
-        //    printf("se %s %p\n", info.dli_sname, pip.start_ip);
-        //}
-        //char name[64];
-        //int off;
-        //unw_get_proc_name(&cursor, name, 64, &off);
-        //printf("ignore ip %p %s\n", pip.start_ip, name);
 
+        unw_word_t rip;
+        if (unw_get_reg(&cursor, UNW_REG_IP, &rip) < 0) {
+            break;
+        }
+
+        int off;
+        Dl_info info;
+        if (dladdr((const void*)rip, &info) != 0) {
+            //printf("dla %p %s\n", (void*)rip, info.dli_sname);
+            off = ((intptr_t)rip - (intptr_t)info.dli_saddr);
+            func_addr = (intptr_t)info.dli_saddr;
+        }
+
+        // TODO
         if (unw_get_reg(&cursor, UNW_X86_64_RBP, &rbp) < 0) {
             // could not retrieve
             break;
@@ -76,12 +85,11 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
         unw_word_t * addr = (unw_word_t*)rbp;
 
 #if CPYTHON_HAS_FRAME_EVALUATION
-        if ((void*)pip.start_ip == (void*)cpython_vmprof_PyEval_EvalFrameEx) {
+        if ((void*)func_addr == (void*)cpython_vmprof_PyEval_EvalFrameEx) {
 #else
-        if ((void*)pip.start_ip == (void*)PyEval_EvalFrameEx) {
+        if (false && (void*)func_addr == (void*)PyEval_EvalFrameEx) {
 #endif
             // yes we found one stack entry of the python frames!
-            asm("int $3;");
             if (*(addr-10) != (unw_word_t)top_most_frame) {
                 // uh we are screwed! the ip indicates we are have context
                 // to a PyEval_EvalFrameEx function, but when we tried to retrieve
@@ -95,7 +103,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
                     top_most_frame = top_most_frame->f_back;
                 }
             }
-        } else if (vmp_ignore_ip((ptr_t)pip.start_ip)) {
+        } else if (vmp_ignore_ip((ptr_t)func_addr)) {
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
@@ -104,7 +112,6 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             //unw_get_proc_name(&cursor, name, 64, &off);
             //printf("ignore ip %p %s\n", pip.start_ip, name);
         } else {
-            ip = (void*)((ptr_t)pip.start_ip | 0x1);
             // mark native routines with the first bit set,
             // this is possible because compiler align to 8 bytes.
             // TODO need to check if this is possible on other 
@@ -116,7 +123,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
             //} else {
             //    printf("failed\n");
             //}
-            result[depth++] = ip;
+            result[depth++] = func_addr | 0x1;
         }
 
         step_result = unw_step(&cursor);

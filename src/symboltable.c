@@ -55,26 +55,20 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumbe
 void dump_all_known_symbols(int fd) {
     const struct mach_header_64 * hdr;
     const struct symtab_command *sc;
-    const struct nlist_64 * file_symtbl;
     const struct load_command *lc;
     int image_count = 0;
 
     // TODO skip if 32bit mac
-
     image_count = _dyld_image_count();
     for (int i = 0; i < image_count; i++) {
         const char * image_name = _dyld_get_image_name(i);
         hdr = (const struct mach_header_64*)_dyld_get_image_header(i);
         intptr_t slide = _dyld_get_image_vmaddr_slide(i);
-        if (hdr->magic == FAT_MAGIC) {
-            LOG("fat mach-o image %s %llx\n", image_name, (void*)hdr);
-            continue;
-        }
         if (hdr->magic != MH_MAGIC_64) {
             continue;
         }
 
-        uint32_t ft = hdr->filetype;
+        //uint32_t ft = hdr->filetype;
 
         if (hdr->cputype != CPU_TYPE_X86_64) {
             continue;
@@ -87,7 +81,6 @@ void dump_all_known_symbols(int fd) {
         struct segment_command_64 * __linkedit = NULL;
         struct segment_command_64 * __text = NULL;
 
-        int first = 0;
         LOG(" mach-o hdr has %d commands\n", hdr->ncmds);
         for (uint32_t j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
             if (lc->cmd == LC_SEGMENT_64) {
@@ -100,6 +93,9 @@ void dump_all_known_symbols(int fd) {
                 }
                 if (strncmp("__TEXT", sc->segname, 16) == 0) {
                     __text = sc;
+                }
+                if ((sc->flags & SECTION_TYPE) == S_SYMBOL_STUBS) {
+                    LOG("-----> found SYMBOL STUBS\n");
                 }
                 // for each section?
                 //struct section_64 * sec = (struct section_64*)(sc + 1);
