@@ -1,29 +1,46 @@
-#pragma once
+#include "compat.h"
 
-#include <Python.h>
-
-#if PY_MAJOR_VERSION >= 3
-    #define PyStr_AS_STRING PyBytes_AS_STRING
-    #define PyStr_GET_SIZE PyBytes_GET_SIZE
-    #define PyStr_NEW      PyUnicode_FromString
-    #define PyLong_NEW     PyLong_FromLong
-#else
-    #define PyStr_AS_STRING PyString_AS_STRING
-    #define PyStr_GET_SIZE PyString_GET_SIZE
-    #define PyStr_NEW      PyString_FromString
-    #define PyLong_NEW     PyInt_FromLong
-#endif
+#include "_vmprof.h"
 
 #if !(defined(__unix__) || defined(__APPLE__))
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <stdint.h> // portable: uint64_t   MSVC: __int64 
+
 #endif
+
+int vmp_write_all(const char *buf, size_t bufsize)
+{
+    if (profile_file == -1) {
+        return -1;
+    }
+    while (bufsize > 0) {
+        ssize_t count = write(profile_file, buf, bufsize);
+        if (count <= 0)
+            return -1;   /* failed */
+        buf += count;
+        bufsize -= count;
+    }
+    return 0;
+}
+
+int vmp_write_meta(const char * key, const char * value)
+{
+    char marker = MARKER_META;
+    long x = strlen(key);
+    vmp_write_all(&marker, 1);
+    vmp_write_all((char*)&x, sizeof(long));
+    vmp_write_all(key, x);
+    x = strlen(value);
+    vmp_write_all((char*)&x, sizeof(long));
+    vmp_write_all(value, x);
+    return 0;
+}
 
 /**
  * Write the time and zone now.
  */
-int _write_time_now(int marker) {
+int vmp_write_time_now(int marker) {
     struct timezone_buf {
         int64_t tv_sec;
         int64_t tv_usec;
@@ -82,6 +99,6 @@ int _write_time_now(int marker) {
 
     buffer[0] = marker;
     (void)memcpy(buffer+1, &buf, sizeof(struct timezone_buf));
-    _write_all(buffer, size);
+    vmp_write_all(buffer, size);
     return 0;
 }

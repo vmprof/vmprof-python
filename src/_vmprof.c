@@ -22,11 +22,12 @@ static volatile int is_enabled = 0;
 #else
 #include "vmprof_main_win32.h"
 #endif
+#include "stack.h"
 
 static destructor Original_code_dealloc = 0;
 PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
-__attribute__((optimize("O0")))
+//__attribute__((optimize("O0")))
 __attribute__((naked))
 PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
 {
@@ -169,9 +170,6 @@ static void disable_cpyprof(void)
         fprintf(stderr, "FATAL: could not remove trampoline\n");
         exit(-1);
     }
-    // do not set to NULL, will crash, because it canno unwind
-    // the stack
-    // _default_eval_loop = NULL;
 #endif
 }
 
@@ -196,7 +194,7 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
         return NULL;
     }
 
-    profile_lines = lines;
+    vmp_profile_lines(lines);
 
     init_cpyprof();
 

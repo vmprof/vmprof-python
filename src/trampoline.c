@@ -18,23 +18,34 @@
 /*
  * The trampoline works the following way:
  *
- * cpython_vmprof_PyEval_EvalFrameEx called 'tramp' in the following
+ * `eval` is the traditional PyEval_EvalFrameEx (for 2.7)
+ * `page` is allocated and used as memory block to execute
+ *        the first few instructions from eval
+ * `vmprof_eval` is a function just saving the
+ *               frame in rbx
  *
- * TODO
- *
- *          +--- PyEval_Loop ---+
- *     +----| jmp page          | <-- patched, original bits moved to page
- *     |    | asm instr 1       | <+- label PyEval
- *     |    | asm instr 2       |  |
- *     |    | ...               |  |
+ *          +--- eval ----------+
+ *     +----| jmp vmprof_eval   | <-- patched, original bits moved to page
+ *     | +->| asm instr 1       |
+ *     | |  | asm instr 2       |
+ *     | |  | ...               |
+ *     | |  +-------------------+
+ *     | |                          
+ *     | |  +--- page ----------+<-+
+ *     | |  | push rbp          | <-- copied from PyEval_Loop
+ *     | |  | mov rsp -> rbp    |  |
+ *     | |  | ...               |  |
+ *     | |  | ...               |  |
+ *     | +--| jmp eval+copied   |  |
  *     |    +-------------------+  |
  *     |                           |
- *     +--->+--- page ----------+  |
- *          | push rbp          | <-- copied from PyEval_Loop
- *          | mov rsp -> rbp    |  |
+ *     +--->+--- vmprof_eval ---+  |
  *          | ...               |  |
- *          | push rdi          | <-- save the frame, custom method
- *          | jmp PyEval        |--+
+ *          | push rbx          |  |
+ *          | mov rdi -> rbx    | <-- save the frame, custom method
+ *          | call eval         |--+
+ *          | ...               |
+ *          | retq              |
  *          +-------------------+
  */
 
@@ -81,11 +92,10 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
     int needed_bytes = 12;
     int bytes = 0;
     char * ptr = eval;
-    struct ud u;
 
     // 1) copy the instructions that should be redone in the trampoline
     while (bytes < needed_bytes) {
-        int res = vmp_machine_code_instr_length(ptr, &u);
+        int res = vmp_machine_code_instr_length(ptr);
         if (res == 0) {
             return 1;
         }

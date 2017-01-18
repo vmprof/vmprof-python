@@ -35,6 +35,7 @@ else:
                                'src/trampoline.c',
                                'src/machine.c',
                                'src/symboltable.c',
+                               'src/compat.c',
                                ],
                            depends=[
                                'src/vmprof_main.h',

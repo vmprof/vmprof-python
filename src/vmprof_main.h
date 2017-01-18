@@ -57,21 +57,6 @@ static void flush_codes(void);
    are a counter for how many threads are currently in a signal handler */
 static long volatile signal_handler_value = 1;
 
-static int _write_all(const char *buf, size_t bufsize)
-{
-    if (profile_file == -1) {
-        return -1;
-    }
-    while (bufsize > 0) {
-        ssize_t count = write(profile_file, buf, bufsize);
-        if (count <= 0)
-            return -1;   /* failed */
-        buf += count;
-        bufsize -= count;
-    }
-    return 0;
-}
-
 RPY_EXTERN
 void vmprof_ignore_signals(int ignored)
 {
@@ -108,11 +93,7 @@ static int get_stack_trace(PyThreadState * current, void** result, int max_depth
         return 0;
     }
     frame = current->frame;
-    if (native) {
-        return vmp_walk_and_record_python_stack(frame, result, max_depth);
-    } else {
-        return read_trace_from_cpy_frame(frame, result, max_depth);
-    }
+    return vmp_walk_and_record_stack(frame, result, max_depth, native);
 }
 
 

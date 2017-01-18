@@ -5,8 +5,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include "machine.h"
-
-static int _write_all(const char *buf, size_t bufsize);
+#include "compat.h"
 
 #include "vmprof_compat.h"
 #include "_vmprof.h"
@@ -34,16 +33,16 @@ static struct profbuf_s *volatile current_codes;
 #define MAX_STACK_DEPTH   \
     ((SINGLE_BUF_SIZE - sizeof(struct prof_stacktrace_s)) / sizeof(void *))
 
-static int _write_meta(const char * key, const char * value)
+static int vmp_write_meta(const char * key, const char * value)
 {
     char marker = MARKER_META;
     long x = strlen(key);
-    _write_all(&marker, 1);
-    _write_all((char*)&x, sizeof(long));
-    _write_all(key, x);
+    vmp_write_all(&marker, 1);
+    vmp_write_all((char*)&x, sizeof(long));
+    vmp_write_all(key, x);
     x = strlen(value);
-    _write_all((char*)&x, sizeof(long));
-    _write_all(value, x);
+    vmp_write_all((char*)&x, sizeof(long));
+    vmp_write_all(value, x);
     return 0;
 }
 
@@ -148,21 +147,21 @@ static int opened_profile(const char *interp_name, int memory, int lines, int na
     header.interp_name[4] = namelen;
 
     memcpy(&header.interp_name[5], interp_name, namelen);
-    success = _write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
+    success = vmp_write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
     if (success < 0) {
         return success;
     }
 
     /* Write the time and the zone to the log file, profiling will start now */
-    (void)_write_time_now(MARKER_TIME_N_ZONE);
+    (void)vmp_write_time_now(MARKER_TIME_N_ZONE);
 
     /* write some more meta information */
-    _write_meta("os", vmp_machine_os_name());
+    vmp_write_meta("os", vmp_machine_os_name());
     int bits = vmp_machine_bits();
     if (bits == 64) {
-        _write_meta("bits", "64");
+        vmp_write_meta("bits", "64");
     } else if (bits == 32) {
-        _write_meta("bits", "32");
+        vmp_write_meta("bits", "32");
     }
 
     return success;

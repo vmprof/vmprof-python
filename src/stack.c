@@ -4,13 +4,17 @@
 #define _GNU_SOURCE
 #endif
 
-#include <libunwind.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include "_vmprof.h"
 #include <stddef.h>
-#include <dlfcn.h>
+
+#include "_vmprof.h"
+#include "compat.h"
+
+#if VMP_SUPPORTS_NATIVE_PROFILING
+#include <libunwind.h>
+#endif
 
 #ifdef __APPLE__
 #include <mach/mach.h>
@@ -20,24 +24,97 @@
 #include <mach/task_info.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <dlfcn.h>
+#elif defined(__unix__)
+#include <dlfcn.h>
 #endif
 
 static int vmp_native_traces_enabled = 0;
 static ptr_t *vmp_ranges = NULL;
 static ssize_t vmp_range_count = 0;
+static int _vmp_profiles_lines = 0;
 
+void vmp_profile_lines(int lines) {
+    _vmp_profiles_lines = lines;
+}
+int vmp_profiles_python_lines(void) {
+    return _vmp_profiles_lines;
+}
 
-// vmp_walk_and_record_python_stack
-
-int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
-                                     int max_depth)
+static PyFrameObject * _write_python_stack_entry(PyFrameObject * frame, void ** result, int * depth)
 {
+    if (vmp_profiles_python_lines()) {
+        // In the line profiling mode we save a line number for every frame.
+        // Actual line number isn't stored in the frame directly (f_lineno
+        // points to the beginning of the frame), so we need to compute it
+        // from f_lasti and f_code->co_lnotab. Here is explained what co_lnotab
+        // is:
+        // https://svn.python.org/projects/python/trunk/Objects/lnotab_notes.txt
+
+        // NOTE: the profiling overhead can be reduced by storing co_lnotab in the dump and
+        // moving this computation to the reader instead of doing it here.
+        char *lnotab = PyStr_AS_STRING(frame->f_code->co_lnotab);
+
+        if (lnotab != NULL) {
+            long line = (long)frame->f_lineno;
+            int addr = 0;
+
+            int len = PyStr_GET_SIZE(frame->f_code->co_lnotab);
+
+            for (int j = 0; j < len; j += 2) {
+                addr += lnotab[j];
+                if (addr > frame->f_lasti) {
+                    break;
+                }
+                line += lnotab[j+1];
+            }
+            result[*depth] = (void*) line;
+            *depth = *depth + 1;
+        } else {
+            result[*depth] = (void*) 0;
+            *depth = *depth + 1;
+        }
+    } else {
+        result[*depth] = (void*)CODE_ADDR_TO_UID(frame->f_code);
+        *depth = *depth + 1;
+    }
+
+    return frame->f_back;
+}
+
+int vmp_walk_and_record_python_stack_only(PyFrameObject *frame, void ** result,
+                                     int max_depth, int depth)
+{
+    while (depth < max_depth && frame) {
+        frame = _write_python_stack_entry(frame, result, &depth);
+    }
+    return depth;
+}
+
+#if VMP_SUPPORTS_NATIVE_PROFILING
+int _write_native_stack(void* addr, void ** result, int depth) {
+    result[depth++] = addr;
+    if (vmp_profiles_python_lines()) {
+        // even if we do not log a python stack frame,
+        // we must keep the profile readable
+        result[depth++] = 0;
+    }
+    return depth;
+}
+#endif
+
+int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
+                                     int max_depth, int native) {
     // called in signal handler
-    void *ip, *sp;
+#if VMP_SUPPORTS_NATIVE_PROFILING
     intptr_t func_addr;
     unw_cursor_t cursor;
     unw_context_t uc;
     unw_proc_info_t pip;
+
+    if (!vmp_native_enabled()) {
+        return vmp_walk_and_record_python_stack_only(frame, result, max_depth, 0);
+    }
 
     unw_getcontext(&uc);
     int ret = unw_init_local(&cursor, &uc);
@@ -48,19 +125,7 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
 
     PyFrameObject * top_most_frame = frame;
     int depth = 0;
-    int step_result;
     while (depth < max_depth) {
-        if (!vmp_native_enabled()) {
-            printf("not enabled!\n");
-            if (top_most_frame == NULL) {
-                break;
-            }
-            // TODO add line profiling
-            sp = (void*)CODE_ADDR_TO_UID(top_most_frame->f_code);
-            result[depth++] = sp;
-            top_most_frame = top_most_frame->f_back;
-            continue;
-        }
         unw_get_proc_info(&cursor, &pip);
 
         unw_word_t rip;
@@ -88,48 +153,47 @@ int vmp_walk_and_record_python_stack(PyFrameObject *frame, void ** result,
                 // to a PyEval_EvalFrameEx function, but when we tried to retrieve
                 // the stack located py frame it has a different address than the
                 // current top_most_frame
-                // printf("oh no!!!\n");
             } else {
-                if (top_most_frame != NULL) {
-                    sp = (void*)CODE_ADDR_TO_UID(top_most_frame->f_code);
-                    result[depth++] = sp;
-                    top_most_frame = top_most_frame->f_back;
+                if (top_most_frame == NULL) {
+                    break;
                 }
+                top_most_frame = _write_python_stack_entry(top_most_frame, result, &depth);
             }
         } else if (vmp_ignore_ip((ptr_t)func_addr)) {
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
-            //char name[64];
-            //int off;
-            //unw_get_proc_name(&cursor, name, 64, &off);
-            //printf("ignore ip %p %s\n", pip.start_ip, name);
         } else {
             // mark native routines with the first bit set,
             // this is possible because compiler align to 8 bytes.
             // TODO need to check if this is possible on other 
             // compiler than e.g. gcc/clang too?
             //
-            //Dl_info info;
-            //if (dladdr(ip, &info) != 0) {
-            //    printf("se %s %llx\n", info.dli_sname, ip);
-            //} else {
-            //    printf("failed\n");
-            //}
-            result[depth++] = (void*)(func_addr | 0x1);
+            depth = _write_native_stack((void*)(func_addr | 0x1), result, depth);
         }
 
-        step_result = unw_step(&cursor);
-        if (step_result <= 0) {
+        if (unw_step(&cursor) <= 0) {
             break;
         }
     }
 
-    return depth;
+    if (top_most_frame == NULL) {
+        return depth;
+    }
+    // Whenever the trampoline is inserted, there might be a view python
+    // stack levels that do not have the trampoline! consume them here!
+    return vmp_walk_and_record_python_stack_only(top_most_frame, result, max_depth, depth);
+#else
+    return vmp_walk_and_record_python_stack_only(frame, result, max_depth, 0);
+#endif
 }
 
 int vmp_native_enabled(void) {
+#if VMP_SUPPORTS_NATIVE_PROFILING
     return vmp_native_traces_enabled;
+#else
+    return 0;
+#endif
 }
 
 int _ignore_symbols_from_path(const char * name) {

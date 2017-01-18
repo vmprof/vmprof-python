@@ -41,7 +41,7 @@ typedef uint64_t ptr_t;
 
 PyObject* vmprof_eval(PyFrameObject *f, int throwflag);
 
-#define SUPPORTS_NATIVE_PROFILING (defined(__unix__) || defined(__APPLE__))
+#define VMP_SUPPORTS_NATIVE_PROFILING (defined(__unix__) || defined(__APPLE__))
 
 #define MARKER_STACKTRACE '\x01'
 #define MARKER_VIRTUAL_IP '\x02'
