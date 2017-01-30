@@ -130,17 +130,16 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
 
         unw_word_t rip;
         if (unw_get_reg(&cursor, UNW_REG_IP, &rip) < 0) {
+            printf("could not restore\n");
             break;
         }
 
         int off;
         Dl_info info;
         if (dladdr((const void*)rip, &info) != 0) {
-            //printf("dla %p %s\n", (void*)rip, info.dli_sname);
             off = ((intptr_t)rip - (intptr_t)info.dli_saddr);
             func_addr = (intptr_t)info.dli_saddr;
         }
-
 
         if ((void*)func_addr == (void*)vmprof_eval) {
             // yes we found one stack entry of the python frames!
@@ -163,6 +162,7 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
+            //printf("ignoring %s\n", info.dli_sname);
         } else {
             // mark native routines with the first bit set,
             // this is possible because compiler align to 8 bytes.
@@ -172,7 +172,8 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
             depth = _write_native_stack((void*)(func_addr | 0x1), result, depth);
         }
 
-        if (unw_step(&cursor) <= 0) {
+        int err = unw_step(&cursor);
+        if (err <= 0) {
             break;
         }
     }

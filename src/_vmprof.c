@@ -27,24 +27,16 @@ static volatile int is_enabled = 0;
 static destructor Original_code_dealloc = 0;
 PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
-//__attribute__((optimize("O0")))
-__attribute__((naked))
+//__attribute__((optimize("O1"))) // for gcc?
+__attribute__((disable_tail_calls)) // for clang
 PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
 {
+    register PyFrameObject * callee_saved asm("rbx");
     asm volatile(
-            "pushq %%rbp\t\n"
-            "movq %%rsp, %%rbp\t\n"
-            "pushq %%rbx\t\n"
-            "pushq %%rbx\t\n"
-            "movq %%rdi, %%rbx\t\n"
-            "call *%0\t\n"
-            "popq %%rbx\t\n"
-            "popq %%rbx\t\n"
-            "movq %%rbp, %%rsp\t\n"
-            "popq %%rbp\t\n"
-            "retq\t\n"
-
-            : : "r" (_default_eval_loop) );
+        "movq %1, %0\t\n"
+        : "=r" (callee_saved)
+        : "r" (f) );
+    return _default_eval_loop(f, throwflag);
 }
 
 static int emit_code_object(PyCodeObject *co)

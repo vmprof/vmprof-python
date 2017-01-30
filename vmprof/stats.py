@@ -27,6 +27,19 @@ class Stats(object):
         line = self.adr_dict[addr]
         return line.split(":")[1]
 
+    def find_addrs_containing_name(self, part):
+        for adr, name in self.adr_dict.items():
+            n, symbol, _, _ = name.split(':')
+            if part in symbol:
+                yield adr
+
+    def get_addr_info(self, addr):
+        name = self.adr_dict.get(addr, None)
+        if not name:
+            return None
+        lang, symbol, line, file = name.split(':')
+        return lang, symbol, line, file
+
     def getargv(self):
         return self.meta.get('argv', '')
 

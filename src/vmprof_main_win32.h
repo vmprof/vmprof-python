@@ -1,6 +1,7 @@
 #pragma once
 
 #include "windows.h"
+#include "compat.h"
 
 HANDLE write_mutex;
 
@@ -23,13 +24,17 @@ volatile int enabled = 0;
 static int _write_all(const char *buf, size_t bufsize)
 {
     int res;
+    int fd;
+
     res = WaitForSingleObject(write_mutex, INFINITE);
-    if (profile_file == -1) {
+    fd = vmp_profile_fileno();
+
+    if (fd == -1) {
         ReleaseMutex(write_mutex);
         return -1;
     }
     while (bufsize > 0) {
-        ssize_t count = write(profile_file, buf, bufsize);
+        ssize_t count = write(fd, buf, bufsize);
         if (count <= 0) {
             ReleaseMutex(write_mutex);
             return -1;   /* failed */
@@ -135,7 +140,7 @@ int vmprof_disable(void)
     enabled = 0;
     if (_write_all(&marker, 1) < 0)
         return -1;
-    profile_file = -1;
+    vmp_set_profile_fileno(-1);
     return 0;
 }
 

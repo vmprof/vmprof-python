@@ -46,7 +46,7 @@ class TestSymbolTable(object):
                 if fd.tell() >= length:
                     break
         assert len(addrs) >= 100 # usually we have many many more!!
-        symbols_to_be_found = ['PyObject_Call', 'dump_all_known_symbols']
+        symbols_to_be_found = ['dump_all_known_symbols']
         duplicates = []
         names = set()
         for addr, name in addrs:

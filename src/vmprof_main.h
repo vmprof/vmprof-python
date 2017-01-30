@@ -166,7 +166,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 
     if ((val & 1) == 0) {
         int saved_errno = errno;
-        int fd = profile_file;
+        int fd = vmp_profile_fileno();
         assert(fd >= 0);
 
         struct profbuf_s *p = reserve_buffer(fd);
@@ -246,8 +246,10 @@ static void atfork_enable_timer(void) {
 }
 
 static void atfork_close_profile_file(void) {
-    if (profile_file != -1)
-        close(profile_file);
+    int fd = vmp_profile_fileno();
+    if (fd != -1)
+        close(fd);
+    vmp_set_profile_fileno(-1);
 }
 
 static int install_pthread_atfork_hooks(void) {
@@ -273,7 +275,7 @@ static int install_pthread_atfork_hooks(void) {
 RPY_EXTERN
 int vmprof_enable(int memory)
 {
-    assert(profile_file >= 0);
+    assert(vmp_profile_fileno() >= 0);
     assert(prepare_interval_usec > 0);
     profile_interval_usec = prepare_interval_usec;
     if (memory && setup_rss() == -1)
@@ -288,7 +290,7 @@ int vmprof_enable(int memory)
     return 0;
 
  error:
-    profile_file = -1;
+    vmp_set_profile_fileno(-1);
     profile_interval_usec = 0;
     return -1;
 }
@@ -300,7 +302,7 @@ static int close_profile(void)
 
     teardown_rss();
     /* don't close() the file descriptor from here */
-    profile_file = -1;
+    vmp_set_profile_fileno(-1);
     return 0;
 }
 
@@ -310,14 +312,14 @@ int vmprof_disable(void)
     vmprof_ignore_signals(1);
     profile_interval_usec = 0;
     // dump all known native symbols
-    dump_all_known_symbols(profile_file);
+    dump_all_known_symbols(vmp_profile_fileno());
 
     if (remove_sigprof_timer() == -1)
         return -1;
     if (remove_sigprof_handler() == -1)
         return -1;
     flush_codes();
-    if (shutdown_concurrent_bufs(profile_file) < 0)
+    if (shutdown_concurrent_bufs(vmp_profile_fileno()) < 0)
         return -1;
     return close_profile();
 }
@@ -340,7 +342,7 @@ int vmprof_register_virtual_function(char *code_name, long code_uid,
             size_t freesize = SINGLE_BUF_SIZE - p->data_size;
             if (freesize < (size_t)blocklen) {
                 /* full: flush it */
-                commit_buffer(profile_file, p);
+                commit_buffer(vmp_profile_fileno(), p);
                 p = NULL;
             }
         }
@@ -351,7 +353,7 @@ int vmprof_register_virtual_function(char *code_name, long code_uid,
     }
 
     if (p == NULL) {
-        p = reserve_buffer(profile_file);
+        p = reserve_buffer(vmp_profile_fileno());
         if (p == NULL) {
             /* can't get a free block; should almost never be the
                case.  Spin loop if allowed, or return a failure code
@@ -376,7 +378,7 @@ int vmprof_register_virtual_function(char *code_name, long code_uid,
     /* try to reattach 'p' to 'current_codes' */
     if (!__sync_bool_compare_and_swap(&current_codes, NULL, p)) {
         /* failed, flush it */
-        commit_buffer(profile_file, p);
+        commit_buffer(vmp_profile_fileno(), p);
     }
     return 0;
 }
@@ -386,6 +388,6 @@ static void flush_codes(void)
     struct profbuf_s *p = current_codes;
     if (p != NULL) {
         current_codes = NULL;
-        commit_buffer(profile_file, p);
+        commit_buffer(vmp_profile_fileno(), p);
     }
 }

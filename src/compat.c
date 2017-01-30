@@ -9,7 +9,7 @@
 
 #endif
 
-static int _vmp_profile_fileno = 0;
+static int _vmp_profile_fileno = -1;
 
 int vmp_profile_fileno(void) {
     return _vmp_profile_fileno;
@@ -20,7 +20,7 @@ void vmp_set_profile_fileno(int fileno) {
 
 int vmp_write_all(const char *buf, size_t bufsize)
 {
-    if (_vmp_profile_fileno == 0) {
+    if (_vmp_profile_fileno == -1) {
         return -1;
     }
     while (bufsize > 0) {
