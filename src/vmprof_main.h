@@ -87,7 +87,6 @@ static char atfork_hook_installed = 0;
  * *************************************************************
  */
 
-__attribute__((always_inline))
 static int get_stack_trace(PyThreadState * current, void** result, int max_depth)
 {
     PyFrameObject *frame;
@@ -120,7 +119,6 @@ static void segfault_handler(int arg)
     longjmp(restore_point, SIGSEGV);
 }
 
-__attribute__((always_inline))
 void _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate)
 {
     int depth;
