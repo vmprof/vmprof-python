@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "_vmprof.h"
 #include <dlfcn.h>
+#include "machine.h"
 
 #ifdef _PY_TEST
 #define LOG(...) printf(__VA_ARGS__)
@@ -21,6 +22,7 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumbe
     } s;
     s.addr = e + 1;
     void * addr = (void*)e;
+#ifdef _PY_TEST
     Dl_info info;
     if (dladdr(addr, &info) == 0) {
         LOG("failed at %p, name %s\n", addr, sym);
@@ -29,9 +31,10 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumbe
             LOG("failed name match! at %p, name %s != %s\n", addr, sym, info.dli_sname);
         }
     }
-    // LOG("sym %s\n", sym);
+#endif
+    //printf("sym %llx %s\n", e+1, sym);
     /* must mach '<lang>:<name>:<line>:<file>'
-     * 'n' has been chosen as lang here, because the symbol
+     * 'n' (= native) has been chosen as lang here, because the symbol
      * can be generated from several languages (e.g. C, C++, ...)
      */
     // MARKER_NATIVE_SYMBOLS is \x08
@@ -56,26 +59,23 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumbe
 void dump_all_known_symbols(int fd) {
     const struct mach_header_64 * hdr;
     const struct symtab_command *sc;
-    const struct nlist_64 * file_symtbl;
     const struct load_command *lc;
     int image_count = 0;
 
-    // TODO skip if 32bit mac
+    if (vmp_machine_bits() == 32) {
+        return; // not supported
+    }
 
     image_count = _dyld_image_count();
     for (int i = 0; i < image_count; i++) {
         const char * image_name = _dyld_get_image_name(i);
         hdr = (const struct mach_header_64*)_dyld_get_image_header(i);
         intptr_t slide = _dyld_get_image_vmaddr_slide(i);
-        if (hdr->magic == FAT_MAGIC) {
-            LOG("fat mach-o image %s %llx\n", image_name, (void*)hdr);
-            continue;
-        }
         if (hdr->magic != MH_MAGIC_64) {
             continue;
         }
 
-        uint32_t ft = hdr->filetype;
+        //uint32_t ft = hdr->filetype;
 
         if (hdr->cputype != CPU_TYPE_X86_64) {
             continue;
@@ -88,7 +88,6 @@ void dump_all_known_symbols(int fd) {
         struct segment_command_64 * __linkedit = NULL;
         struct segment_command_64 * __text = NULL;
 
-        int first = 0;
         LOG(" mach-o hdr has %d commands\n", hdr->ncmds);
         for (uint32_t j = 0; j < hdr->ncmds; j++, (lc = (const struct load_command *)((char *)lc + lc->cmdsize))) {
             if (lc->cmd == LC_SEGMENT_64) {
@@ -101,6 +100,9 @@ void dump_all_known_symbols(int fd) {
                 }
                 if (strncmp("__TEXT", sc->segname, 16) == 0) {
                     __text = sc;
+                }
+                if ((sc->flags & SECTION_TYPE) == S_SYMBOL_STUBS) {
+                    //LOG("-----> found SYMBOL STUBS\n");
                 }
                 // for each section?
                 //struct section_64 * sec = (struct section_64*)(sc + 1);

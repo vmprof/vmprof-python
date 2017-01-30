@@ -37,6 +37,7 @@
 #include "vmprof_getpc.h"
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
+#include "compat.h"
 
 #if defined(__unix__)
 #include "rss_unix.h"
@@ -56,21 +57,6 @@ static void flush_codes(void);
 /* value: last bit is 1 if signals must be ignored; all other bits
    are a counter for how many threads are currently in a signal handler */
 static long volatile signal_handler_value = 1;
-
-static int _write_all(const char *buf, size_t bufsize)
-{
-    if (profile_file == -1) {
-        return -1;
-    }
-    while (bufsize > 0) {
-        ssize_t count = write(profile_file, buf, bufsize);
-        if (count <= 0)
-            return -1;   /* failed */
-        buf += count;
-        bufsize -= count;
-    }
-    return 0;
-}
 
 RPY_EXTERN
 void vmprof_ignore_signals(int ignored)
@@ -101,18 +87,19 @@ static char atfork_hook_installed = 0;
  * *************************************************************
  */
 
-static int get_stack_trace(PyThreadState * current, void** result, int max_depth, int native)
+static int get_stack_trace(PyThreadState * current, void** result, int max_depth)
 {
     PyFrameObject *frame;
     if (!current) {
         return 0;
     }
     frame = current->frame;
-    if (native) {
-        return vmp_walk_and_record_python_stack(frame, result, max_depth);
-    } else {
-        return read_trace_from_cpy_frame(frame, result, max_depth);
-    }
+    // skip over
+    // _sigtramp
+    // sigprof_handler
+    // vmp_walk_and_record_stack
+    int d = vmp_walk_and_record_stack(frame, result, max_depth, 3);
+    return d;
 }
 
 
@@ -132,13 +119,13 @@ static void segfault_handler(int arg)
     longjmp(restore_point, SIGSEGV);
 }
 
-void _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate, int native)
+void _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate)
 {
     int depth;
     struct prof_stacktrace_s *st = (struct prof_stacktrace_s *)p->data;
     st->marker = MARKER_STACKTRACE;
     st->count = 1;
-    depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1, native);
+    depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1);
     //st->stack[0] = GetPC((ucontext_t*)ucontext);
     // we gonna need that for pypy
     st->depth = depth;
@@ -184,14 +171,14 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 
     if ((val & 1) == 0) {
         int saved_errno = errno;
-        int fd = profile_file;
+        int fd = vmp_profile_fileno();
         assert(fd >= 0);
 
         struct profbuf_s *p = reserve_buffer(fd);
         if (p == NULL) {
             /* ignore this signal: there are no free buffers right now */
         } else {
-            _vmprof_sample_stack(p, tstate, vmp_native_enabled());
+            _vmprof_sample_stack(p, tstate);
             commit_buffer(fd, p);
         }
 
@@ -264,8 +251,10 @@ static void atfork_enable_timer(void) {
 }
 
 static void atfork_close_profile_file(void) {
-    if (profile_file != -1)
-        close(profile_file);
+    int fd = vmp_profile_fileno();
+    if (fd != -1)
+        close(fd);
+    vmp_set_profile_fileno(-1);
 }
 
 static int install_pthread_atfork_hooks(void) {
@@ -291,7 +280,7 @@ static int install_pthread_atfork_hooks(void) {
 RPY_EXTERN
 int vmprof_enable(int memory)
 {
-    assert(profile_file >= 0);
+    assert(vmp_profile_fileno() >= 0);
     assert(prepare_interval_usec > 0);
     profile_interval_usec = prepare_interval_usec;
     if (memory && setup_rss() == -1)
@@ -306,7 +295,7 @@ int vmprof_enable(int memory)
     return 0;
 
  error:
-    profile_file = -1;
+    vmp_set_profile_fileno(-1);
     profile_interval_usec = 0;
     return -1;
 }
@@ -314,11 +303,11 @@ int vmprof_enable(int memory)
 
 static int close_profile(void)
 {
-    (void)_write_time_now(MARKER_TRAILER);
+    (void)vmp_write_time_now(MARKER_TRAILER);
 
     teardown_rss();
     /* don't close() the file descriptor from here */
-    profile_file = -1;
+    vmp_set_profile_fileno(-1);
     return 0;
 }
 
@@ -328,14 +317,14 @@ int vmprof_disable(void)
     vmprof_ignore_signals(1);
     profile_interval_usec = 0;
     // dump all known native symbols
-    dump_all_known_symbols(profile_file);
+    dump_all_known_symbols(vmp_profile_fileno());
 
     if (remove_sigprof_timer() == -1)
         return -1;
     if (remove_sigprof_handler() == -1)
         return -1;
     flush_codes();
-    if (shutdown_concurrent_bufs(profile_file) < 0)
+    if (shutdown_concurrent_bufs(vmp_profile_fileno()) < 0)
         return -1;
     return close_profile();
 }
@@ -358,7 +347,7 @@ int vmprof_register_virtual_function(char *code_name, long code_uid,
             size_t freesize = SINGLE_BUF_SIZE - p->data_size;
             if (freesize < (size_t)blocklen) {
                 /* full: flush it */
-                commit_buffer(profile_file, p);
+                commit_buffer(vmp_profile_fileno(), p);
                 p = NULL;
             }
         }
@@ -369,7 +358,7 @@ int vmprof_register_virtual_function(char *code_name, long code_uid,
     }
 
     if (p == NULL) {
-        p = reserve_buffer(profile_file);
+        p = reserve_buffer(vmp_profile_fileno());
         if (p == NULL) {
             /* can't get a free block; should almost never be the
                case.  Spin loop if allowed, or return a failure code
@@ -394,7 +383,7 @@ int vmprof_register_virtual_function(char *code_name, long code_uid,
     /* try to reattach 'p' to 'current_codes' */
     if (!__sync_bool_compare_and_swap(&current_codes, NULL, p)) {
         /* failed, flush it */
-        commit_buffer(profile_file, p);
+        commit_buffer(vmp_profile_fileno(), p);
     }
     return 0;
 }
@@ -404,6 +393,6 @@ static void flush_codes(void)
     struct profbuf_s *p = current_codes;
     if (p != NULL) {
         current_codes = NULL;
-        commit_buffer(profile_file, p);
+        commit_buffer(vmp_profile_fileno(), p);
     }
 }

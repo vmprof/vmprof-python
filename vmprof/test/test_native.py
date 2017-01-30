@@ -16,8 +16,9 @@ class TestNative(object):
         """)
         ffi.set_source("vmprof.test._test_native", """
         static void g(void);
+        __attribute__((noinline)) // clang, do not inline
         void native_callback_g(void) { g(); }
-        """, extra_compile_args=['-g', '-O3'])
+        """, extra_compile_args=['-g'])
         ffi.compile()
         from vmprof.test import _test_native
 
@@ -45,13 +46,14 @@ class TestNative(object):
         for addr in sample:
             assert addr in stats.adr_dict
             name = stats.get_name(addr)
-            print(addr, name)
             names.append(name)
-            #if (addr & ~1) not in stats.adr_dict:
-            #    not_found.append((addr, name))
+
+        found = list(stats.find_addrs_containing_name('_native_callback_g'))
+        assert len(found) >= 1
+        addr = found[0]
+
+        lang, sym, line, file = stats.get_addr_info(addr)
+        assert lang == 'n' and '_native_callback_g' in sym
 
         assert re.match(r'.*sample_stack_now .*g .*f', ' '.join(names))
         assert re.match(r'.*sample_stack_now .*g .*native_callback_g .*f', ' '.join(names))
-
-
-        assert len(not_found) == 0, "there are some symbols that cannot be connected"

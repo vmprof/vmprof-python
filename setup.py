@@ -35,6 +35,7 @@ else:
                                'src/trampoline.c',
                                'src/machine.c',
                                'src/symboltable.c',
+                               'src/compat.c',
                                ],
                            depends=[
                                'src/vmprof_main.h',
@@ -42,8 +43,8 @@ else:
                                'src/vmprof_mt.h',
                                'src/vmprof_common.h',
                            ],
-                            extra_compile_args=extra_compile_args,
-                            libraries=libraries)]
+                           extra_compile_args=extra_compile_args,
+                           libraries=libraries)]
 
 if sys.version_info[:2] >= (3, 3):
     extra_install_requires = []

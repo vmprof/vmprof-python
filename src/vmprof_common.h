@@ -4,12 +4,10 @@
 #include <stddef.h>
 #include <sys/time.h>
 #include <time.h>
-#include "machine.h"
 
-static int _write_all(const char *buf, size_t bufsize);
-
-#include "vmprof_compat.h"
 #include "_vmprof.h"
+#include "machine.h"
+#include "compat.h"
 #include "vmprof_mt.h"
 
 #define MAX_FUNC_NAME 1024
@@ -20,10 +18,8 @@ static int _write_all(const char *buf, size_t bufsize);
 #define CPYTHON_GET_CUSTOM_OFFSET
 static void *tramp_start, *tramp_end;
 
-static int profile_file = -1;
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
-static int profile_lines = 0;
 
 static int opened_profile(const char *interp_name, int memory, int lines, int native);
 
@@ -33,20 +29,6 @@ static struct profbuf_s *volatile current_codes;
 
 #define MAX_STACK_DEPTH   \
     ((SINGLE_BUF_SIZE - sizeof(struct prof_stacktrace_s)) / sizeof(void *))
-
-static int _write_meta(const char * key, const char * value)
-{
-    char marker = MARKER_META;
-    long x = strlen(key);
-    _write_all(&marker, 1);
-    _write_all((char*)&x, sizeof(long));
-    _write_all(key, x);
-    x = strlen(value);
-    _write_all((char*)&x, sizeof(long));
-    _write_all(value, x);
-    return 0;
-}
-
 
 typedef struct prof_stacktrace_s {
     char padding[sizeof(long) - 1];
@@ -75,54 +57,12 @@ char *vmprof_init(int fd, double interval, int memory, int lines, const char *in
     }
 #endif
     assert(fd >= 0);
-    profile_file = fd;
+    vmp_set_profile_fileno(fd);
     if (opened_profile(interp_name, memory, lines, native) < 0) {
-        profile_file = -1;
+        vmp_set_profile_fileno(0);
         return strerror(errno);
     }
     return NULL;
-}
-
-static int read_trace_from_cpy_frame(PyFrameObject *frame, void **result, int max_depth)
-{
-    int depth = 0;
-
-    while (frame && depth < max_depth) {
-        if (profile_lines) {
-            // In the line profiling mode we save a line number for every frame.
-            // Actual line number isn't stored in the frame directly (f_lineno points to the
-            // beginning of the frame), so we need to compute it from f_lasti and f_code->co_lnotab.
-            // Here is explained what co_lnotab is:
-            //    https://svn.python.org/projects/python/trunk/Objects/lnotab_notes.txt
-
-            // NOTE: the profiling overhead can be reduced by storing co_lnotab in the dump and
-            // moving this computation to the reader instead of doing it here.
-            char *lnotab = PyStr_AS_STRING(frame->f_code->co_lnotab);
-
-            if (lnotab != NULL) {
-                long line = (long)frame->f_lineno;
-                int addr = 0;
-
-                int len = PyStr_GET_SIZE(frame->f_code->co_lnotab);
-
-                int j;
-                for (j = 0; j<len; j+=2) {
-                    addr += lnotab[j];
-                    if (addr>frame->f_lasti) {
-                        break;
-                    }
-                    line += lnotab[j+1];
-                }
-                result[depth++] = (void*) line;
-            } else {
-                result[depth++] = (void*) 0;
-            }
-        }
-
-        result[depth++] = (void*)CODE_ADDR_TO_UID(frame->f_code);
-        frame = frame->f_back;
-    }
-    return depth;
 }
 
 static int opened_profile(const char *interp_name, int memory, int lines, int native)
@@ -148,21 +88,21 @@ static int opened_profile(const char *interp_name, int memory, int lines, int na
     header.interp_name[4] = namelen;
 
     memcpy(&header.interp_name[5], interp_name, namelen);
-    success = _write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
+    success = vmp_write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
     if (success < 0) {
         return success;
     }
 
     /* Write the time and the zone to the log file, profiling will start now */
-    (void)_write_time_now(MARKER_TIME_N_ZONE);
+    (void)vmp_write_time_now(MARKER_TIME_N_ZONE);
 
     /* write some more meta information */
-    _write_meta("os", vmp_machine_os_name());
+    vmp_write_meta("os", vmp_machine_os_name());
     int bits = vmp_machine_bits();
     if (bits == 64) {
-        _write_meta("bits", "64");
+        vmp_write_meta("bits", "64");
     } else if (bits == 32) {
-        _write_meta("bits", "32");
+        vmp_write_meta("bits", "32");
     }
 
     return success;

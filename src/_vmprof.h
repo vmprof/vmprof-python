@@ -39,9 +39,9 @@ typedef uint64_t ptr_t;
 
 #define CPYTHON_HAS_FRAME_EVALUATION PY_VERSION_HEX >= 0x30600B0
 
-PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag);
+PyObject* vmprof_eval(PyFrameObject *f, int throwflag);
 
-#define SUPPORTS_NATIVE_PROFILING (defined(__unix__) || defined(__APPLE__))
+#define VMP_SUPPORTS_NATIVE_PROFILING (defined(__unix__) || defined(__APPLE__))
 
 #define MARKER_STACKTRACE '\x01'
 #define MARKER_VIRTUAL_IP '\x02'

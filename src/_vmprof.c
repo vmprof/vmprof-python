@@ -22,9 +22,22 @@ static volatile int is_enabled = 0;
 #else
 #include "vmprof_main_win32.h"
 #endif
+#include "stack.h"
 
 static destructor Original_code_dealloc = 0;
-static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
+PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
+
+//__attribute__((optimize("O1"))) // for gcc?
+__attribute__((disable_tail_calls)) // for clang
+PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
+{
+    register PyFrameObject * callee_saved asm("rbx");
+    asm volatile(
+        "movq %1, %0\t\n"
+        : "=r" (callee_saved)
+        : "r" (f) );
+    return _default_eval_loop(f, throwflag);
+}
 
 static int emit_code_object(PyCodeObject *co)
 {
@@ -120,24 +133,25 @@ static void cpyprof_code_dealloc(PyObject *co)
     Original_code_dealloc(co);
 }
 
-static void init_cpyprof(void)
+static void init_cpyprof(int native)
 {
+    // skip this if native shoul not be enabled
+    if (!native) {
+        vmp_native_disable();
+        return;
+    }
 #if CPYTHON_HAS_FRAME_EVALUATION
     PyThreadState *tstate = PyThreadState_GET();
-    tstate->interp->eval_frame = cpython_vmprof_PyEval_EvalFrameEx;
+    tstate->interp->eval_frame = vmprof_eval;
     _default_eval_loop = _PyEval_EvalFrameDefault;
 #else
-    int stackpos = vmp_find_frameobj_on_stack("PyEval_EvalFrameEx");
-    if (stackpos == -1) {
-        printf("failed to find pos on stack\n");
+    if (vmp_patch_callee_trampoline(PyEval_EvalFrameEx,
+                vmprof_eval, (void*)&_default_eval_loop) == 0) {
+    } else {
+        fprintf(stderr, "FATAL: could not insert trampline, try with --no-native\n");
+        // TODO dump the first few bytes and tell them to create an issue!
         exit(-1);
     }
-    //if (vmp_patch_callee_trampoline("PyEval_EvalFrameEx") == 0) {
-    //} else {
-    //    fprintf(stderr, "FATAL: could not insert trampline, try with --no-native\n");
-    //    // TODO dump the first few bytes and tell them to create an issue!
-    //    exit(-1);
-    //}
 #endif
     vmp_native_enable();
 }
@@ -147,33 +161,15 @@ static void disable_cpyprof(void)
     vmp_native_disable();
 #if CPYTHON_HAS_FRAME_EVALUATION
     PyThreadState *tstate = PyThreadState_GET();
-    tstate->interp->eval_frame = _PyEval_EvalFrameDefault;
+    tstate->interp->eval_frame = NULL;
 #else
-    if (vmp_unpatch_callee_trampoline("PyEval_EvalFrameEx") > 0) {
+    if (vmp_unpatch_callee_trampoline(PyEval_EvalFrameEx) > 0) {
         fprintf(stderr, "FATAL: could not remove trampoline\n");
-        // do not exit, the program might complete with the trampoline in place
+        exit(-1);
     }
 #endif
-    _default_eval_loop = NULL;
 }
 
-
-PyObject* cpython_vmprof_PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
-{
-    // TODO!!
-    // move the frame to a caller saved register. e.g. rbx!
-    // the previous method from did not really work for me
-    // (it did not find the correct value in the stack slot)
-    register PyFrameObject * rbx asm("rbx") = 0;
-    register PyObject * out;
-    asm volatile("\tmovq %%rdi, %1\n"
-                 "\tcallq *%2\n"
-                 "\tmovq %%rax, %0\n"
-                : "=r" (out) // output
-                : "r" (rbx), "r" (_default_eval_loop) // input
-                );
-    return out;
-}
 
 static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 {
@@ -195,9 +191,9 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
         return NULL;
     }
 
-    profile_lines = lines;
+    vmp_profile_lines(lines);
 
-    init_cpyprof();
+    init_cpyprof(native);
 
     if (!Original_code_dealloc) {
         Original_code_dealloc = PyCode_Type.tp_dealloc;
@@ -281,11 +277,11 @@ sample_stack_now(PyObject *module, PyObject *args)
         vmprof_ignore_signals(0);
         return NULL;
     }
-    entry_count = get_stack_trace(tstate, m, MAX_STACK_DEPTH-1, 1);
+    entry_count = vmp_walk_and_record_stack(tstate->frame, m, MAX_STACK_DEPTH-1, 0);
 
     for (i = 0; i < entry_count; i++) {
         void * routine_ip = m[i];
-        PyList_Append(list, PyLong_NEW(routine_ip));
+        PyList_Append(list, PyLong_NEW((intptr_t)routine_ip));
     }
 
     free(m);
@@ -302,13 +298,31 @@ error:
     return Py_None;
 }
 
+static PyObject *
+resolve_addr(PyObject *module, PyObject *args) {
+    long long addr;
+
+    if (!PyArg_ParseTuple(args, "L", &addr)) {
+        return NULL;
+    }
+    Dl_info info;
+    if (dladdr((const void*)addr, &info) == 0) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
+    PyObject * str = PyStr_NEW(info.dli_sname);
+    Py_INCREF(str);
+    return str;
+}
+
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
     {"disable", disable_vmprof, METH_NOARGS, "Disable profiling."},
     {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
      "Write eagerly all the IDs of code objects"},
     {"sample_stack_now", sample_stack_now, METH_NOARGS, "Sample the stack now"},
-    //{"test_enable", testing_enable, METH_VARARGS, "lookup symbol"},
+    {"resolve_addr", resolve_addr, METH_VARARGS, "Return the name of the addr"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
