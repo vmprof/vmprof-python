@@ -133,8 +133,13 @@ static void cpyprof_code_dealloc(PyObject *co)
     Original_code_dealloc(co);
 }
 
-static void init_cpyprof(void)
+static void init_cpyprof(int native)
 {
+    // skip this if native shoul not be enabled
+    if (!native) {
+        vmp_native_disable();
+        return;
+    }
 #if CPYTHON_HAS_FRAME_EVALUATION
     PyThreadState *tstate = PyThreadState_GET();
     tstate->interp->eval_frame = vmprof_eval;
@@ -188,7 +193,7 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 
     vmp_profile_lines(lines);
 
-    init_cpyprof();
+    init_cpyprof(native);
 
     if (!Original_code_dealloc) {
         Original_code_dealloc = PyCode_Type.tp_dealloc;
@@ -293,13 +298,31 @@ error:
     return Py_None;
 }
 
+static PyObject *
+resolve_addr(PyObject *module, PyObject *args) {
+    long long addr;
+
+    if (!PyArg_ParseTuple(args, "L", &addr)) {
+        return NULL;
+    }
+    Dl_info info;
+    if (dladdr((const void*)addr, &info) == 0) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
+    PyObject * str = PyStr_NEW(info.dli_sname);
+    Py_INCREF(str);
+    return str;
+}
+
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
     {"disable", disable_vmprof, METH_NOARGS, "Disable profiling."},
     {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
      "Write eagerly all the IDs of code objects"},
     {"sample_stack_now", sample_stack_now, METH_NOARGS, "Sample the stack now"},
-    //{"test_enable", testing_enable, METH_VARARGS, "lookup symbol"},
+    {"resolve_addr", resolve_addr, METH_VARARGS, "Return the name of the addr"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

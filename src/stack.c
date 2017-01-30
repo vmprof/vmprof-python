@@ -74,10 +74,9 @@ static PyFrameObject * _write_python_stack_entry(PyFrameObject * frame, void ** 
             result[*depth] = (void*) 0;
             *depth = *depth + 1;
         }
-    } else {
-        result[*depth] = (void*)CODE_ADDR_TO_UID(frame->f_code);
-        *depth = *depth + 1;
     }
+    result[*depth] = (void*)CODE_ADDR_TO_UID(frame->f_code);
+    *depth = *depth + 1;
 
     return frame->f_back;
 }
@@ -93,12 +92,12 @@ int vmp_walk_and_record_python_stack_only(PyFrameObject *frame, void ** result,
 
 #if VMP_SUPPORTS_NATIVE_PROFILING
 int _write_native_stack(void* addr, void ** result, int depth) {
-    result[depth++] = addr;
     if (vmp_profiles_python_lines()) {
         // even if we do not log a python stack frame,
         // we must keep the profile readable
         result[depth++] = 0;
     }
+    result[depth++] = addr;
     return depth;
 }
 #endif
