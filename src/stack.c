@@ -130,16 +130,10 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
 
         unw_word_t rip;
         if (unw_get_reg(&cursor, UNW_REG_IP, &rip) < 0) {
-            printf("could not restore\n");
             break;
         }
 
-        int off;
-        Dl_info info;
-        if (dladdr((const void*)rip, &info) != 0) {
-            off = ((intptr_t)rip - (intptr_t)info.dli_saddr);
-            func_addr = (intptr_t)info.dli_saddr;
-        }
+        func_addr = pip.start_ip;
 
         if ((void*)func_addr == (void*)vmprof_eval) {
             // yes we found one stack entry of the python frames!
