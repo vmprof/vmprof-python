@@ -104,7 +104,7 @@ int _write_native_stack(void* addr, void ** result, int depth) {
 #endif
 
 int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
-                                     int max_depth, int native) {
+                                     int max_depth, int native_skip) {
     // called in signal handler
 #if VMP_SUPPORTS_NATIVE_PROFILING
     intptr_t func_addr;
@@ -121,6 +121,14 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
     if (ret < 0) {
         // could not initialize lib unwind cursor and context
         return -1;
+    }
+
+    while (native_skip > 0) {
+        int err = unw_step(&cursor);
+        if (err <= 0) {
+            return 0;
+        }
+        native_skip--;
     }
 
     PyFrameObject * top_most_frame = frame;
@@ -146,6 +154,7 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
                 // to a PyEval_EvalFrameEx function, but when we tried to retrieve
                 // the stack located py frame it has a different address than the
                 // current top_most_frame
+                break;
             } else {
                 if (top_most_frame == NULL) {
                     break;

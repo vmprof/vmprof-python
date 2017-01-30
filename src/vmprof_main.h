@@ -87,14 +87,20 @@ static char atfork_hook_installed = 0;
  * *************************************************************
  */
 
-static int get_stack_trace(PyThreadState * current, void** result, int max_depth, int native)
+__attribute__((always_inline))
+static int get_stack_trace(PyThreadState * current, void** result, int max_depth)
 {
     PyFrameObject *frame;
     if (!current) {
         return 0;
     }
     frame = current->frame;
-    return vmp_walk_and_record_stack(frame, result, max_depth, native);
+    // skip over
+    // _sigtramp
+    // sigprof_handler
+    // vmp_walk_and_record_stack
+    int d = vmp_walk_and_record_stack(frame, result, max_depth, 3);
+    return d;
 }
 
 
@@ -114,13 +120,14 @@ static void segfault_handler(int arg)
     longjmp(restore_point, SIGSEGV);
 }
 
-void _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate, int native)
+__attribute__((always_inline))
+void _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate)
 {
     int depth;
     struct prof_stacktrace_s *st = (struct prof_stacktrace_s *)p->data;
     st->marker = MARKER_STACKTRACE;
     st->count = 1;
-    depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1, native);
+    depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1);
     //st->stack[0] = GetPC((ucontext_t*)ucontext);
     // we gonna need that for pypy
     st->depth = depth;
@@ -173,7 +180,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
         if (p == NULL) {
             /* ignore this signal: there are no free buffers right now */
         } else {
-            _vmprof_sample_stack(p, tstate, vmp_native_enabled());
+            _vmprof_sample_stack(p, tstate);
             commit_buffer(fd, p);
         }
 

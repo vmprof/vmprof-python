@@ -149,7 +149,13 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
 int vmp_patch_callee_trampoline(void * callee_addr, void * vmprof_eval, void ** vmprof_eval_target)
 {
     int result;
-    int pagesize = sysconf(_SC_PAGESIZE);
+    int pagesize;
+
+    if (g_trampoline != NULL) {
+        return 0; // already patched
+    }
+
+    pagesize = sysconf(_SC_PAGESIZE);
     errno = 0;
 
     result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_WRITE);
@@ -189,32 +195,34 @@ int vmp_patch_callee_trampoline(void * callee_addr, void * vmprof_eval, void ** 
 
 int vmp_unpatch_callee_trampoline(void * callee_addr)
 {
-    if (!g_patched) {
-        return -1;
-    }
+    return 0; // currently the trampoline is not removed
 
-    int result;
-    int pagesize = sysconf(_SC_PAGESIZE);
-    errno = 0;
+    //if (!g_patched) {
+    //    return -1;
+    //}
 
-    result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_WRITE);
-    if (result != 0) {
-        fprintf(stderr, "read|write protecting callee_addr\n");
-        return 1;
-    }
+    //int result;
+    //int pagesize = sysconf(_SC_PAGESIZE);
+    //errno = 0;
 
-    // copy back, assume everything is as if nothing ever happened!!
-    (void)memcpy(callee_addr, g_trampoline, g_trampoline_length);
+    //result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_WRITE);
+    //if (result != 0) {
+    //    fprintf(stderr, "read|write protecting callee_addr\n");
+    //    return 1;
+    //}
 
-    result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_EXEC);
-    if (result != 0) {
-        fprintf(stderr, "read|exec protecting callee addr\n");
-        return 1;
-    }
+    //// copy back, assume everything is as if nothing ever happened!!
+    //(void)memcpy(callee_addr, g_trampoline, g_trampoline_length);
 
-    munmap(g_trampoline, pagesize);
-    g_trampoline = NULL;
-    g_trampoline_length = 0;
+    //result = mprotect(PAGE_ALIGNED(callee_addr, pagesize), pagesize*2, PROT_READ|PROT_EXEC);
+    //if (result != 0) {
+    //    fprintf(stderr, "read|exec protecting callee addr\n");
+    //    return 1;
+    //}
 
-    return 0;
+    //munmap(g_trampoline, pagesize);
+    //g_trampoline = NULL;
+    //g_trampoline_length = 0;
+
+    //return 0;
 }

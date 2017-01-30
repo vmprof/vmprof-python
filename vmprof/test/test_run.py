@@ -127,7 +127,7 @@ def test_nested_call():
         assert len([x for x in names if x == foo_full_name]) == 1
     else:
         if sys.version_info.major == 2:
-            assert names == [foo_full_name]
+            assert foo_full_name in names
         else:
             assert foo_full_name in names
     t = stats.get_tree()

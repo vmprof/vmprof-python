@@ -272,7 +272,7 @@ sample_stack_now(PyObject *module, PyObject *args)
         vmprof_ignore_signals(0);
         return NULL;
     }
-    entry_count = get_stack_trace(tstate, m, MAX_STACK_DEPTH-1, 1);
+    entry_count = vmp_walk_and_record_stack(tstate->frame, m, MAX_STACK_DEPTH-1, 0);
 
     for (i = 0; i < entry_count; i++) {
         void * routine_ip = m[i];
