@@ -1,5 +1,6 @@
 #include "trampoline.h"
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <unistd.h>
+
 #if __APPLE__
 #include <mach-o/dyld.h>
 #endif

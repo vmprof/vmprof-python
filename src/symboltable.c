@@ -1,5 +1,6 @@
 #include "symboltable.h"
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include "_vmprof.h"
 #include <dlfcn.h>
