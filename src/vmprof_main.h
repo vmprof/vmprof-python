@@ -316,8 +316,6 @@ int vmprof_disable(void)
 {
     vmprof_ignore_signals(1);
     profile_interval_usec = 0;
-    // dump all known native symbols
-    dump_all_known_symbols(vmp_profile_fileno());
 
     if (remove_sigprof_timer() == -1)
         return -1;

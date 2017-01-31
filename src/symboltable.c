@@ -4,12 +4,14 @@
 #include "_vmprof.h"
 #include <dlfcn.h>
 #include "machine.h"
+#include <stdlib.h>
 
 #ifdef _PY_TEST
 #define LOG(...) printf(__VA_ARGS__)
 #else
 #define LOG(...)
 #endif
+
 
 static
 void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumber,
@@ -29,6 +31,7 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumbe
         if (strcmp(sym+1, info.dli_sname) != 0) {
             LOG("failed name match! at %p, name %s != %s\n", addr, sym, info.dli_sname);
         }
+        LOG(" -> %s\n", info.dli_sname);
     }
 #endif
     //printf("sym %llx %s\n", e+1, sym);

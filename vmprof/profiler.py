@@ -16,6 +16,7 @@ class ProfilerContext(object):
             self.tmpfile = tempfile.NamedTemporaryFile(delete=False)
         else:
             self.tmpfile = open(name, "wb")
+        self.filename = self.tmpfile.name
         self.memory = memory
         self.native = native
 
@@ -24,7 +25,7 @@ class ProfilerContext(object):
 
     def __exit__(self, type, value, traceback):
         vmprof.disable()
-        self.tmpfile.close()
+        self.tmpfile.close() # flushes the stream
         self.done = True
 
 

@@ -156,6 +156,20 @@ static void init_cpyprof(int native)
     vmp_native_enable();
 }
 
+void dump_native_symbols(int fileno)
+{
+    PyObject * mod = NULL;
+
+    mod = PyImport_ImportModuleNoBlock("vmprof");
+    if (mod == NULL)
+        goto error;
+
+    PyObject_CallMethod(mod, "dump_native_symbols", "(l)", fileno);
+
+error:
+    Py_XDECREF(mod);
+}
+
 static void disable_cpyprof(void)
 {
     vmp_native_disable();
@@ -168,6 +182,7 @@ static void disable_cpyprof(void)
         exit(-1);
     }
 #endif
+    dump_native_symbols(vmp_profile_fileno());
 }
 
 
@@ -226,8 +241,8 @@ disable_vmprof(PyObject *module, PyObject *noarg)
     }
     is_enabled = 0;
     vmprof_ignore_signals(1);
-    disable_cpyprof();
     emit_all_code_objects();
+    disable_cpyprof();
 
     if (vmprof_disable() < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
@@ -312,8 +327,9 @@ resolve_addr(PyObject *module, PyObject *args) {
     }
 
     PyObject * str = PyStr_NEW(info.dli_sname);
-    Py_INCREF(str);
-    return str;
+    PyObject * lineno = PyLong_NEW(0);
+    PyObject * srcfile = PyStr_NEW("-");
+    return PyTuple_Pack(3, str, lineno, srcfile);
 }
 
 static PyMethodDef VMProfMethods[] = {
