@@ -112,8 +112,15 @@ void dump_all_known_symbols(int fd) {
                 //    LOG("got %s\n", sec->sectname);
                 //}
             } else if (lc->cmd == LC_UUID) {
-                struct uuid_command * uc = (struct uuid_command *)lc;
-                (void)memcpy(uuid, uc->uuid, 16);
+                //struct uuid_command * uc = (struct uuid_command *)lc;
+                //(void)memcpy(uuid, uc->uuid, 16);
+                //char hex[16] = "0123456789abcdef";
+                //for (int i = 0; i < 16; i++) {
+                //    char c = (char)uuid[i];
+                //    printf("%c", hex[c & 0xf]);
+                //    printf("%c", hex[(c >> 4) & 0xf]);
+                //}
+                //printf("\n");
             }
         }
 
@@ -212,6 +219,25 @@ void dump_all_known_symbols(int fd) {
         }
     }
 }
+
+//#include "dyld_priv.h"
+
+void lookup_vmprof_debug_info(const char * name, char * srcfile, int srcfile_len, int * lineno) {
+
+    //struct dyld_unwind_sections info;
+    //if ( _dyld_find_unwind_sections((void*)addr, &info) == 0 ) {
+    //    return;
+    //}
+    //if (info.dwarf_section == 0) {
+    //    // no dwarf info avail
+    //    return;
+    //}
+    //LOG("dwarf %p %d\n", info.dwarf_section, info.dwarf_section_length);
+    //LOG("compact unwind %p %d\n", info.compact_unwind_section, info.compact_unwind_section_length);
+}
+
+
+
 #elif defined(__unix__)
 
 #include <link.h>
@@ -340,3 +366,19 @@ void dump_all_known_symbols(int fd) {
     // oh, nothing to do!! a not supported platform
 }
 #endif
+
+int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno,
+                      char * srcfile, int srcfile_len)
+{
+    Dl_info info;
+    if (dladdr((const void*)addr, &info) == 0) {
+        return 1;
+    }
+
+    (void)strncpy(name, info.dli_sname, name_len-1);
+    name[name_len-1] = 0;
+
+    lookup_vmprof_debug_info(name, srcfile, srcfile_len, lineno);
+
+    return 0;
+}

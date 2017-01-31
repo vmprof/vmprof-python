@@ -12,3 +12,6 @@
  * B) No duplicates are logged
  */
 void dump_all_known_symbols(int fd);
+
+int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno,
+                      char * srcfile, int srcfile_len);

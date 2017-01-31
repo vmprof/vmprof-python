@@ -77,7 +77,11 @@ from vmprof.reader import read_prof, MARKER_NATIVE_SYMBOLS
 def dump_native_symbols(fileno):
     # native symbols cannot be resolved in the signal handler.
     # it would take far too long. Thus this method should be called
-    # just after the sampling finished.
+    # just after the sampling finished and before the file descriptor
+    # is closed.
+
+    # called from C with the fileno that has been used for this profile
+    # duplicates are avoided if this function is only called once for a profile
     fileobj = io.open(fileno, mode='rb', closefd=False)
     fileobj.seek(0)
     _, profiles, _, _, _, _, _ = read_prof(fileobj)
@@ -98,7 +102,6 @@ def dump_native_symbols(fileno):
                        struct.pack("l", len(str)),
                        str]
                 fileobj.write(b''.join(out))
-    fileobj.flush()
 
 _gzip_proc = None
 

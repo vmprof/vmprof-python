@@ -10,9 +10,20 @@ from array import array
 stack_ffi = FFI()
 stack_ffi.cdef("""
 void dump_all_known_symbols(int fd);
+int test_extract(char ** name, int * lineno, char ** src);
 """)
 with open("src/symboltable.c", "rb") as fd:
     source = fd.read().decode()
+    source += """
+static char gname[64];
+static char gsrc[128];
+int test_extract(char ** name, int * lineno, char ** src)
+{
+    *name = gname;
+    *src = gsrc;
+    return vmp_resolve_addr(&dump_all_known_symbols, gname, 64, lineno, gsrc, 128);
+}
+"""
     libs = [] #['unwind', 'unwind-x86_64']
     # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
     stack_ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=['src'],
@@ -69,4 +80,16 @@ class TestSymbolTable(object):
             if addr in lookup:
                 assert lookup[addr] == name
             lookup[addr] = name
+
+    def test_resolve_addr(self):
+        lib = self.lib
+        ffi = self.ffi
+        name = ffi.new("char**")
+        src = ffi.new("char**")
+        lineno = ffi.new("int*")
+        lib.test_extract(name, lineno, src)
+
+        assert ffi.string(name[0]) == b"dump_all_known_symbols"
+        assert ffi.string(src[0]).endswith(b"src/symboltable.c")
+        assert 20 <= lineno[0] <= 100
 
