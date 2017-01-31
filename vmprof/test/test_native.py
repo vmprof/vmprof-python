@@ -1,3 +1,4 @@
+import py
 import time
 import re
 import vmprof
@@ -7,6 +8,7 @@ from cffi import FFI
 
 sample = None
 
+@py.test.mark.skipif("sys.platform == 'win32'")
 class TestNative(object):
     def setup_class(cls):
         ffi = FFI()

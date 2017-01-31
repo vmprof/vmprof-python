@@ -311,6 +311,7 @@ def test_vmprof_show():
     pp = PrettyPrinter()
     pp.show(tmpfile.name)
 
+@py.test.mark.skipif("sys.platform == 'win32'")
 class TestNative(object):
     def setup_class(cls):
         ffi = FFI()
@@ -360,14 +361,23 @@ class TestNative(object):
         top = stats.get_top(stats.profiles)
         pp = PrettyPrinter()
         pp._print_tree(stats.get_tree())
+        def walk(parent):
+            if parent is None or len(parent.children) == 0:
+                return False
+
+            for child in parent.children.values():
+                if 'n:deflate:' in child.name:
+                    p = float(child.count) / parent.count
+                    assert p >= 0.3 # usually bigger than 0.4
+                    return True
+                else:
+                    found = walk(child)
+                    if found:
+                        return True
+
         parent = stats.get_tree()
-        for child in parent.children.values():
-            if 'n:deflate:' in child.name:
-                p = float(child.count) / parent.count
-                assert p >= 0.3 # usually bigger than 0.4
-                break
-        else:
-            assert False, "deflate was not logged while profiling"
+        assert walk(parent)
+
 
 if __name__ == '__main__':
     test_line_profiling()
