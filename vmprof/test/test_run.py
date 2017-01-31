@@ -5,12 +5,15 @@ import sys
 import tempfile
 import gzip
 import struct
-from datetime import datetime
 import pytz
-
-import six
-
+import os
+import sys
+import pytest
 import vmprof
+import six
+import vmprof
+from cffi import FFI
+from datetime import datetime
 from vmprof.show import PrettyPrinter
 from vmprof.reader import (gunzip, BufferTooSmallError, _read_header,
         FileObjWrapper, MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
@@ -53,7 +56,7 @@ foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
 bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
 
-GZIP = True
+GZIP = False
 
 def test_basic():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
@@ -307,6 +310,64 @@ def test_vmprof_show():
 
     pp = PrettyPrinter()
     pp.show(tmpfile.name)
+
+class TestNative(object):
+    def setup_class(cls):
+        ffi = FFI()
+        ffi.cdef("""
+        void native_gzipgzipgzip();
+        """)
+        source = """
+        #include "zlib.h"
+        unsigned char input[100];
+        unsigned char output[100];
+        void native_gzipgzipgzip() {
+            z_stream defstream;
+            defstream.zalloc = Z_NULL;
+            defstream.zfree = Z_NULL;
+            defstream.opaque = Z_NULL;
+            defstream.next_in = input; // input char array
+            defstream.next_out = output; // output char array
+
+            deflateInit(&defstream, Z_DEFAULT_COMPRESSION);
+            int i = 0;
+            while (i < 10000) {
+                defstream.avail_in = 100;
+                defstream.avail_out = 100;
+                deflate(&defstream, Z_FINISH);
+                i++;
+            }
+            deflateEnd(&defstream);
+        }
+        """
+        libs = []
+        # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
+        ffi.set_source("vmprof.test._test_native_gzip", source, include_dirs=['src'],
+                       define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
+                       extra_compile_args=['-g', '-O0'])
+
+        ffi.compile(verbose=True)
+        from vmprof.test import _test_native_gzip as clib
+        cls.lib = clib.lib
+        cls.ffi = clib.ffi
+
+    def test_gzip_call(self):
+        p = vmprof.Profiler()
+        with p.measure(native=True):
+            for i in range(1000):
+                self.lib.native_gzipgzipgzip();
+        stats = p.get_stats()
+        top = stats.get_top(stats.profiles)
+        pp = PrettyPrinter()
+        pp._print_tree(stats.get_tree())
+        parent = stats.get_tree()
+        for child in parent.children.values():
+            if 'n:deflate:' in child.name:
+                p = float(child.count) / parent.count
+                assert p >= 0.3 # usually bigger than 0.4
+                break
+        else:
+            assert False, "deflate was not logged while profiling"
 
 if __name__ == '__main__':
     test_line_profiling()

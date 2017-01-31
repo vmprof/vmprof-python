@@ -119,13 +119,16 @@ static void segfault_handler(int arg)
     longjmp(restore_point, SIGSEGV);
 }
 
-void _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate)
+int _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate)
 {
     int depth;
     struct prof_stacktrace_s *st = (struct prof_stacktrace_s *)p->data;
     st->marker = MARKER_STACKTRACE;
     st->count = 1;
     depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1);
+    if (depth == 0) {
+        return 0;
+    }
     //st->stack[0] = GetPC((ucontext_t*)ucontext);
     // we gonna need that for pypy
     st->depth = depth;
@@ -137,6 +140,7 @@ void _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate)
     p->data_size = (depth * sizeof(void *) +
                     sizeof(struct prof_stacktrace_s) -
                     offsetof(struct prof_stacktrace_s, marker));
+    return 1;
 }
 
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
@@ -178,8 +182,12 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
         if (p == NULL) {
             /* ignore this signal: there are no free buffers right now */
         } else {
-            _vmprof_sample_stack(p, tstate);
-            commit_buffer(fd, p);
+            int commit = _vmprof_sample_stack(p, tstate);
+            if (commit) {
+                commit_buffer(fd, p);
+            } else {
+                cancel_buffer(p);
+            }
         }
 
         errno = saved_errno;
