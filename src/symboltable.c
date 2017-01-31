@@ -1,6 +1,7 @@
 #include "symboltable.h"
 
 #define _GNU_SOURCE
+
 #include <stdio.h>
 #include "_vmprof.h"
 #include <dlfcn.h>
@@ -361,6 +362,8 @@ static int iter_shared_objects(struct dl_phdr_info *info, size_t size, void *dat
 void dump_all_known_symbols(int fd) {
     (void)dl_iterate_phdr(iter_shared_objects, (void*)&fd);
 }
+void lookup_vmprof_debug_info(const char * name, char * srcfile, int srcfile_len, int * lineno) {
+}
 #else
 // other platforms than linux & mac os x
 void dump_all_known_symbols(int fd) {
@@ -376,8 +379,10 @@ int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno,
         return 1;
     }
 
-    (void)strncpy(name, info.dli_sname, name_len-1);
-    name[name_len-1] = 0;
+    if (info.dli_sname != NULL) {
+        (void)strncpy(name, info.dli_sname, name_len-1);
+        name[name_len-1] = 0;
+    }
 
     lookup_vmprof_debug_info(name, srcfile, srcfile_len, lineno);
 

@@ -17,6 +17,7 @@ from vmprof.stats import Stats
 from vmprof.profiler import Profiler, read_profile
 
 
+PY3  = sys.version_info[0] >= 3
 IS_PYPY = '__pypy__' in sys.builtin_module_names
 
 # it's not a good idea to use a "round" default sampling period, else we risk
@@ -97,7 +98,10 @@ def dump_native_symbols(fileno):
             duplicates.add(addr)
             if addr & 0x1:
                 name, lineno, srcfile = _vmprof.resolve_addr(addr)
-                str = b"n:%s:%d:%s" % (name, lineno, srcfile)
+
+                str = "n:%s:%d:%s" % (name, lineno, srcfile)
+                if PY3:
+                    str = str.encode()
                 out = [MARKER_NATIVE_SYMBOLS, struct.pack("l", addr),
                        struct.pack("l", len(str)),
                        str]

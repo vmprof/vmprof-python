@@ -132,17 +132,20 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
 
     PyFrameObject * top_most_frame = frame;
     int depth = 0;
+    char last_vmprof_eval;
     while (depth < max_depth) {
         unw_get_proc_info(&cursor, &pip);
 
         unw_word_t rip;
-        if (unw_get_reg(&cursor, UNW_REG_IP, &rip) < 0) {
+        if (unw_get_reg(&cursor, UNW_REG_IP, &rip) < 0 || rip == 0) {
             break;
         }
 
-        func_addr = pip.start_ip;
+        // NOTE one linux the start_ip is really not correct, but it seems to work for
+        // this shared library (where vmprof_eval is contained). dladdr (sometimes)
+        // yields the wrong function name. rip is logged instead
 
-        if ((void*)func_addr == (void*)vmprof_eval) {
+        if ((void*)pip.start_ip == (void*)vmprof_eval) {
             // yes we found one stack entry of the python frames!
             unw_word_t rbx = 0;
             if (unw_get_reg(&cursor, UNW_X86_64_RBX, &rbx) < 0) {
@@ -160,18 +163,30 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
                 }
                 top_most_frame = _write_python_stack_entry(top_most_frame, result, &depth);
             }
-        } else if (vmp_ignore_ip((ptr_t)func_addr)) {
+            last_vmprof_eval = 1;
+#if CPYTHON_HAS_FRAME_EVALUATION
+        } else if ((void*)pip.start_ip == (void*)_PyEval_EvalFrameDefault) {
+#else
+        } else if ((void*)pip.start_ip == (void*)PyEval_EvalFrameEx) {
+#endif
+            if (!last_vmprof_eval) {
+                top_most_frame = _write_python_stack_entry(top_most_frame, result, &depth);
+            }
+            last_vmprof_eval = 0;
+        } else if (vmp_ignore_ip((ptr_t)rip)) {
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
             //printf("ignoring %s\n", info.dli_sname);
+            last_vmprof_eval = 0;
         } else {
             // mark native routines with the first bit set,
             // this is possible because compiler align to 8 bytes.
             // TODO need to check if this is possible on other 
             // compiler than e.g. gcc/clang too?
             //
-            depth = _write_native_stack((void*)(func_addr | 0x1), result, depth);
+            depth = _write_native_stack((void*)(rip | 0x1), result, depth);
+            last_vmprof_eval = 0;
         }
 
         int err = unw_step(&cursor);

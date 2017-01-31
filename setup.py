@@ -12,7 +12,7 @@ else:
     elif sys.platform == 'darwin':
         libraries = []
         extra_compile_args = ['-Wno-unused']
-    elif sys.platform == 'linux2':
+    elif sys.platform.startswith('linux'):
         libraries = ['dl','unwind']
         extra_compile_args = ['-Wno-unused']
         if sys.maxsize == 2**63-1:
