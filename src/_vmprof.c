@@ -156,6 +156,20 @@ static void init_cpyprof(int native)
     vmp_native_enable();
 }
 
+void dump_native_symbols(int fileno)
+{
+    PyObject * mod = NULL;
+
+    mod = PyImport_ImportModuleNoBlock("vmprof");
+    if (mod == NULL)
+        goto error;
+
+    PyObject_CallMethod(mod, "dump_native_symbols", "(l)", fileno);
+
+error:
+    Py_XDECREF(mod);
+}
+
 static void disable_cpyprof(void)
 {
     vmp_native_disable();
@@ -168,6 +182,7 @@ static void disable_cpyprof(void)
         exit(-1);
     }
 #endif
+    dump_native_symbols(vmp_profile_fileno());
 }
 
 
@@ -226,8 +241,8 @@ disable_vmprof(PyObject *module, PyObject *noarg)
     }
     is_enabled = 0;
     vmprof_ignore_signals(1);
-    disable_cpyprof();
     emit_all_code_objects();
+    disable_cpyprof();
 
     if (vmprof_disable() < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
@@ -301,19 +316,38 @@ error:
 static PyObject *
 resolve_addr(PyObject *module, PyObject *args) {
     long long addr;
+    PyObject * o_name = NULL;
+    PyObject * o_lineno = NULL;
+    PyObject * o_srcfile = NULL;
 
     if (!PyArg_ParseTuple(args, "L", &addr)) {
         return NULL;
     }
-    Dl_info info;
-    if (dladdr((const void*)addr, &info) == 0) {
-        Py_INCREF(Py_None);
-        return Py_None;
+    char name[128];
+    name[0] = '\x00';
+    int lineno = 0;
+    char srcfile[256];
+    srcfile[0] = '-';
+    srcfile[1] = '\x00';
+    if (vmp_resolve_addr((void*)addr, name, 128, &lineno, srcfile, 256) != 0) {
+        goto error;
     }
 
-    PyObject * str = PyStr_NEW(info.dli_sname);
-    Py_INCREF(str);
-    return str;
+    o_name = PyStr_NEW(name);
+    if (o_name == NULL) goto error;
+    o_lineno = PyLong_NEW(lineno);
+    if (o_lineno == NULL) goto error;
+    o_srcfile = PyStr_NEW(srcfile);
+    if (o_srcfile == NULL) goto error;
+    //
+    return PyTuple_Pack(3, o_name, o_lineno, o_srcfile);
+error:
+    Py_XDECREF(o_name);
+    Py_XDECREF(o_lineno);
+    Py_XDECREF(o_srcfile);
+
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 static PyMethodDef VMProfMethods[] = {
