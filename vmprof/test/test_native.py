@@ -65,4 +65,4 @@ class TestNative(object):
 
         assert re.match(r'.*sample_stack_now .*g .*f', ' '.join(names))
         assert re.match(r'.*sample_stack_now .*g .*native_callback_g .*f', ' '.join(names))
-        import pdb; pdb.set_trace()
+        print(names)
