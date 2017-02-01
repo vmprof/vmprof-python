@@ -36,6 +36,7 @@ __attribute__((disable_tail_calls)) // for clang
 PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
 {
     register PyFrameObject * callee_saved asm("rbx");
+
     asm volatile(
         "movq %1, %0\t\n"
         : "=r" (callee_saved)

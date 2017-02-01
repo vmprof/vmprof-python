@@ -7,6 +7,7 @@ if IS_PYPY:
     ext_modules = [] # built-in
 else:
     extra_compile_args = []
+    extra_source_files = []
     if sys.platform == 'win32':
         libraries = []
     elif sys.platform == 'darwin':
@@ -19,10 +20,21 @@ else:
             libraries.append('unwind-x86_64')
         else:
             libraries.append('unwind-x86')
+        extra_source_files = [
+           'src/libbacktrace/backtrace.c',
+           'src/libbacktrace/state.c',
+           'src/libbacktrace/elf.c',
+           'src/libbacktrace/dwarf.c',
+           'src/libbacktrace/fileline.c',
+           'src/libbacktrace/mmap.c',
+           'src/libbacktrace/mmapio.c',
+           'src/libbacktrace/posix.c',
+           'src/libbacktrace/sort.c',
+        ]
     else:
         raise NotImplementedError("platform '%s' is not supported!" % sys.platform)
     extra_compile_args.append('-I src/')
-    extra_compile_args.append('-std=c99')
+    extra_compile_args.append('-I src/libbacktrace')
     ext_modules = [Extension('_vmprof',
                            sources=[
                                'src/libudis86/decode.c',
@@ -34,7 +46,7 @@ else:
                                'src/machine.c',
                                'src/symboltable.c',
                                'src/compat.c',
-                               ],
+                               ] + extra_source_files,
                            depends=[
                                'src/vmprof_main.h',
                                'src/vmprof_main_32.h',

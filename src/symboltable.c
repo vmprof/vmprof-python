@@ -31,12 +31,14 @@ void _write_address_and_name(int fd, uint64_t e, const char * sym, int linenumbe
 #ifdef _PY_TEST
     Dl_info info;
     if (dladdr(addr, &info) == 0) {
-        LOG("failed at %p, name %s\n", addr, sym);
+        LOG("failed at %p, name %s reason: %s\n", addr, sym, dlerror());
     } else {
-        if (strcmp(sym+1, info.dli_sname) != 0) {
-            LOG("failed name match! at %p, name %s != %s\n", addr, sym, info.dli_sname);
+        if (info.dli_sname == NULL || strcmp(sym+1, info.dli_sname) != 0) {
+            //LOG("failed name match! at %p, name %s != %s, %s\n", addr, sym, info.dli_sname, dlerror());
         }
-        LOG(" -> %s\n", info.dli_sname);
+        if (info.dli_sname != NULL) {
+            LOG(" -> %s\n", info.dli_sname);
+        }
     }
 #endif
     //printf("sym %llx %s\n", e+1, sym);
@@ -466,7 +468,7 @@ static int _dump_symbols2(ElfW(Addr) base, stab_t * table, int fd) {
                 continue;
             }
             char * name = table->strtab + sym->st_name;
-            if (strlen(name) <= 0) {
+            if (name == NULL || strlen(name) <= 0) {
                 continue;
             }
             uint64_t addr = base + rela->r_offset;
@@ -503,6 +505,11 @@ static int iter_shared_objects(struct dl_phdr_info *info, size_t size, void *dat
 void dump_all_known_symbols(int fd) {
     (void)dl_iterate_phdr(iter_shared_objects, (void*)&fd);
 }
+
+void lookup_vmprof_debug_info(const char * name, const void * h,
+                              char * srcfile, int srcfile_len, int * lineno) {
+    // TODO
+}
 #else
 // other platforms than linux & mac os x
 void dump_all_known_symbols(int fd) {
@@ -510,21 +517,67 @@ void dump_all_known_symbols(int fd) {
 }
 #endif
 
-int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno,
-                      char * srcfile, int srcfile_len)
+#ifdef __unix__
+#include "libbacktrace/backtrace.h"
+void backtrace_error_cb(void *data, const char *msg, int errnum)
 {
+}
+
+// a struct that helps to copy over data for the callbacks
+typedef struct addr_info {
+    char * name;
+    int name_len;
+    char * srcfile;
+    int srcfile_len;
+    int * lineno;
+} addr_info_t;
+
+int backtrace_full_cb(void *data, uintptr_t pc, const char *filename,
+                      int lineno, const char *function)
+{
+    addr_info_t * info = (addr_info_t*)data;
+    if (function != NULL) {
+        // found the symbol name
+        (void)strncpy(info->name, function, info->name_len);
+    }
+    if (filename != NULL) {
+        (void)strncpy(info->srcfile, filename, info->srcfile_len);
+    }
+    *info->lineno = lineno;
+}
+#endif
+
+struct backtrace_state * bstate = NULL;
+int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno,
+                     char * srcfile, int srcfile_len)
+{
+#ifdef __APPLE__
     Dl_info info;
     if (dladdr((const void*)addr, &info) == 0) {
         return 1;
     }
-
     if (info.dli_sname != NULL) {
         (void)strncpy(name, info.dli_sname, name_len-1);
         name[name_len-1] = 0;
     }
-
     LOG("looking for %s\n", name);
     lookup_vmprof_debug_info(name, info.dli_fbase, srcfile, srcfile_len, lineno);
+#elif defined(__unix__)
+    if (bstate == NULL) {
+        bstate = backtrace_create_state (NULL, 1, backtrace_error_cb, NULL);
+    }
+    addr_info_t info = { .name = name, .name_len = name_len,
+                         .srcfile = srcfile, .srcfile_len = srcfile_len,
+                         .lineno = lineno
+                       };
+    if (backtrace_pcinfo(bstate, (uintptr_t)addr, backtrace_full_cb,
+                         backtrace_error_cb, (void*)&info)) {
+        // failed
+    }
+    //LOG("looking for %s\n", name);
+    //lookup_vmprof_debug_info(name, info.dli_fbase, srcfile, srcfile_len, lineno);
+#endif
+
 
     return 0;
 }

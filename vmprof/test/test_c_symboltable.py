@@ -21,6 +21,7 @@ class TestSymbolTable(object):
         with open("src/symboltable.c", "rb") as fd:
             source = fd.read().decode()
             source += """
+
             static char gname[64];
             static char gsrc[128];
             int test_extract(char ** name, int * lineno, char ** src)
@@ -35,7 +36,7 @@ class TestSymbolTable(object):
             # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
             stack_ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=['src'],
                                  define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
-                                 extra_compile_args=['-g', '-O0'])
+                                 extra_compile_args=[])
 
         stack_ffi.compile(verbose=True)
         from vmprof.test import _test_symboltable as clib
