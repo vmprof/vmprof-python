@@ -27,8 +27,12 @@ static volatile int is_enabled = 0;
 static destructor Original_code_dealloc = 0;
 PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
-//__attribute__((optimize("O1"))) // for gcc?
+#ifdef __gcc__
+__attribute__((optimize("O1"))) // for gcc?
+#endif
+#ifdef __clang__
 __attribute__((disable_tail_calls)) // for clang
+#endif
 PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
 {
     register PyFrameObject * callee_saved asm("rbx");

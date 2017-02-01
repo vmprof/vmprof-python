@@ -1,18 +1,21 @@
 #include "symboltable.h"
 
-#define _GNU_SOURCE
+#include "_vmprof.h"
+#include "machine.h"
 
 #include <stdio.h>
-#include "_vmprof.h"
-#include <dlfcn.h>
-#include "machine.h"
 #include <stdlib.h>
+
+#define _GNU_SOURCE 1
+#include <link.h>
+#include <dlfcn.h>
 
 #ifdef _PY_TEST
 #define LOG(...) printf(__VA_ARGS__)
 #else
 #define LOG(...)
 #endif
+
 
 
 static
