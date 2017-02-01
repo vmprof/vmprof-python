@@ -22,14 +22,12 @@ else:
     else:
         raise NotImplementedError("platform '%s' is not supported!" % sys.platform)
     extra_compile_args.append('-I src/')
+    extra_compile_args.append('-std=c99')
     ext_modules = [Extension('_vmprof',
                            sources=[
                                'src/libudis86/decode.c',
                                'src/libudis86/itab.c',
                                'src/libudis86/udis86.c',
-                               'src/libudis86/syn.c',
-                               'src/libudis86/syn-intel.c',
-                               'src/libudis86/syn-att.c',
                                'src/_vmprof.c',
                                'src/stack.c',
                                'src/trampoline.c',

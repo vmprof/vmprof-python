@@ -1,3 +1,4 @@
+import py
 import os
 import sys
 import pytest
@@ -7,33 +8,35 @@ from vmshare.binary import read_word, read_string
 from cffi import FFI
 from array import array
 
-stack_ffi = FFI()
-stack_ffi.cdef("""
-void dump_all_known_symbols(int fd);
-int test_extract(char ** name, int * lineno, char ** src);
-""")
-with open("src/symboltable.c", "rb") as fd:
-    source = fd.read().decode()
-    source += """
-static char gname[64];
-static char gsrc[128];
-int test_extract(char ** name, int * lineno, char ** src)
-{
-    *name = gname;
-    *src = gsrc;
-    return vmp_resolve_addr(&dump_all_known_symbols, gname, 64, lineno, gsrc, 128);
-}
-"""
-    libs = [] #['unwind', 'unwind-x86_64']
-    # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
-    stack_ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=['src'],
-                         define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
-                         extra_compile_args=['-g'])
-
 sample = None
 
+@py.test.mark.skipif("sys.platform == 'win32'")
 class TestSymbolTable(object):
     def setup_class(cls):
+        stack_ffi = FFI()
+        stack_ffi.cdef("""
+        void dump_all_known_symbols(int fd);
+        int test_extract(char ** name, int * lineno, char ** src);
+        """)
+        with open("src/symboltable.c", "rb") as fd:
+            source = fd.read().decode()
+            source += """
+            static char gname[64];
+            static char gsrc[128];
+            int test_extract(char ** name, int * lineno, char ** src)
+            {
+                *name = gname;
+                *src = gsrc;
+                return vmp_resolve_addr(&dump_all_known_symbols, gname, 64,
+                                        lineno, gsrc, 128);
+            }
+            """
+            libs = [] #['unwind', 'unwind-x86_64']
+            # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
+            stack_ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=['src'],
+                                 define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
+                                 extra_compile_args=['-g', '-O0'])
+
         stack_ffi.compile(verbose=True)
         from vmprof.test import _test_symboltable as clib
         cls.lib = clib.lib
@@ -90,6 +93,7 @@ class TestSymbolTable(object):
         lib.test_extract(name, lineno, src)
 
         assert ffi.string(name[0]) == b"dump_all_known_symbols"
-        assert ffi.string(src[0]).endswith(b"src/symboltable.c")
-        assert 20 <= lineno[0] <= 100
+        assert ffi.string(src[0]).endswith(b"vmprof/test/_test_symboltable.c")
+        # lines are not included in stab
+        # assert 20 <= lineno[0] <= 100
 

@@ -132,7 +132,7 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
 
     PyFrameObject * top_most_frame = frame;
     int depth = 0;
-    char last_vmprof_eval;
+    char next_vmprof_eval;
     while (depth < max_depth) {
         unw_get_proc_info(&cursor, &pip);
 
@@ -141,56 +141,55 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
             break;
         }
 
+#ifdef __APPLE__
+        func_addr = pip.start_ip;
+#else
         // NOTE one linux the start_ip is really not correct, but it seems to work for
         // this shared library (where vmprof_eval is contained). dladdr (sometimes)
         // yields the wrong function name. rip is logged instead
+        func_addr = rip;
+#endif
 
         if ((void*)pip.start_ip == (void*)vmprof_eval) {
             // yes we found one stack entry of the python frames!
             unw_word_t rbx = 0;
             if (unw_get_reg(&cursor, UNW_X86_64_RBX, &rbx) < 0) {
-                return 0; // TODO better error message
+                break;
             }
             if (rbx != (unw_word_t)top_most_frame) {
                 // uh we are screwed! the ip indicates we are have context
                 // to a PyEval_EvalFrameEx function, but when we tried to retrieve
                 // the stack located py frame it has a different address than the
                 // current top_most_frame
-                break;
+                return 0;
             } else {
                 if (top_most_frame == NULL) {
                     break;
                 }
                 top_most_frame = _write_python_stack_entry(top_most_frame, result, &depth);
             }
-            last_vmprof_eval = 1;
+            next_vmprof_eval = 0;
 #if CPYTHON_HAS_FRAME_EVALUATION
         } else if ((void*)pip.start_ip == (void*)_PyEval_EvalFrameDefault) {
 #else
         } else if ((void*)pip.start_ip == (void*)PyEval_EvalFrameEx) {
 #endif
-            if (!last_vmprof_eval) {
-                top_most_frame = _write_python_stack_entry(top_most_frame, result, &depth);
-            }
-            last_vmprof_eval = 0;
-        } else if (vmp_ignore_ip((ptr_t)rip)) {
+            next_vmprof_eval = 1;
+        } else if (vmp_ignore_ip((ptr_t)func_addr)) {
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
             //printf("ignoring %s\n", info.dli_sname);
-            last_vmprof_eval = 0;
         } else {
             // mark native routines with the first bit set,
             // this is possible because compiler align to 8 bytes.
-            // TODO need to check if this is possible on other 
-            // compiler than e.g. gcc/clang too?
             //
-            depth = _write_native_stack((void*)(rip | 0x1), result, depth);
-            last_vmprof_eval = 0;
+            depth = _write_native_stack((void*)(func_addr | 0x1), result, depth);
         }
 
         int err = unw_step(&cursor);
         if (err <= 0) {
+            // on mac this breaks on Py_Main?
             break;
         }
     }
@@ -199,8 +198,9 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
         return depth;
     }
     // Whenever the trampoline is inserted, there might be a view python
-    // stack levels that do not have the trampoline! consume them here!
-    return vmp_walk_and_record_python_stack_only(top_most_frame, result, max_depth, depth);
+    // stack levels that do not have the trampoline!
+    // they should not be consumed, because the let native symbols flow forward.
+    return depth; //vmp_walk_and_record_python_stack_only(top_most_frame, result, max_depth, depth);
 #else
     return vmp_walk_and_record_python_stack_only(frame, result, max_depth, 0);
 #endif

@@ -96,7 +96,7 @@ def dump_native_symbols(fileno):
             if addr in duplicates:
                 continue
             duplicates.add(addr)
-            if addr & 0x1:
+            if addr & 0x1 and addr > 0:
                 name, lineno, srcfile = _vmprof.resolve_addr(addr)
 
                 str = "n:%s:%d:%s" % (name, lineno, srcfile)
