@@ -37,7 +37,7 @@ Technical Design
 
 Native sampling utilizes ``libunwind`` in the signal handler to unwind the stack.
 
-To find the corresponding ``PyFrameObject`` during stack unwinding vmprof inserts a trampoline on CPython (called ``vmprof_eval``) and inserts it just before ``PyEval_EvalFrameEx``. It is a callee trampoline saving the ``PyFrameObject`` in the callee saved register ``%rbx``. On Python 3.6+ the frame evaluation `PEP 523`_ is utilized as trampoline.
+To find the corresponding ``PyFrameObject`` during stack unwinding vmprof inserts a trampoline on CPython (called ``vmprof_eval``) and places it just before ``PyEval_EvalFrameEx``. It is a callee trampoline saving the ``PyFrameObject`` in the callee saved register ``%rbx``. On Python 3.6+ the frame evaluation `PEP 523`_ is utilized as trampoline.
 
 .. _`PEP 523`: https://www.python.org/dev/peps/pep-0523/
 
