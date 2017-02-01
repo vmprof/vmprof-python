@@ -98,6 +98,8 @@ def dump_native_symbols(fileno):
             duplicates.add(addr)
             if addr & 0x1 and addr > 0:
                 name, lineno, srcfile = _vmprof.resolve_addr(addr)
+                if name == "" and srcfile == '-':
+                    name = "<native symbol 0x%x>" % addr
 
                 str = "n:%s:%d:%s" % (name, lineno, srcfile)
                 if PY3:

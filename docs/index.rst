@@ -20,6 +20,7 @@ The following provides more information about CPU profiles and JIT Compiler Logs
    :maxdepth: 2
 
    vmprof
+   faq
    development
    native
    format

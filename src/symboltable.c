@@ -233,8 +233,8 @@ int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno, char 
         return 1;
     }
 
+    // nothing found, try with dladdr
     if (info.name[0] == 0) {
-        // nothing found, try with dladdr
         Dl_info dlinfo;
         if (dladdr((const void*)addr, &dlinfo) == 0) {
             return 1;
