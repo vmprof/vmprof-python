@@ -28,10 +28,9 @@ static destructor Original_code_dealloc = 0;
 PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
 #ifdef __gcc__
-__attribute__((optimize("O1"))) // for gcc?
-#endif
-#ifdef __clang__
-__attribute__((disable_tail_calls)) // for clang
+__attribute__((optimize("O1")))
+#elif defined(__clang__)
+__attribute__((disable_tail_calls))
 #endif
 PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
 {
@@ -140,7 +139,7 @@ static void cpyprof_code_dealloc(PyObject *co)
 
 static void init_cpyprof(int native)
 {
-    // skip this if native shoul not be enabled
+    // skip this if native should not be enabled
     if (!native) {
         vmp_native_disable();
         return;

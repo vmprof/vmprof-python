@@ -6,7 +6,7 @@ from array import array
 
 sample = None
 
-@pytest.mark.skipif("sys.platform not in ('darwin','linux')")
+@pytest.mark.skipif("sys.platform not in ('darwin','linux2')")
 class TestStack(object):
     def setup_class(cls):
         stack_ffi = FFI()
@@ -23,12 +23,12 @@ class TestStack(object):
         with open("src/stack.c", "rb") as fd:
             source = fd.read().decode()
             libs = [] #['unwind', 'unwind-x86_64']
-            if sys.platform == 'linux':
+            if sys.platform.startswith('linux'):
                 libs = ['unwind', 'unwind-x86_64']
             # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
             stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
-                                 define_macros=[('_CFFI_USE_EMBEDDING',1)], libraries=libs,
-                                 extra_compile_args=['-g'])
+                                 define_macros=[('_CFFI_USE_EMBEDDING',1), ('PY_TEST',1)],
+                                 libraries=libs, extra_compile_args=['-g'])
 
         stack_ffi.compile(verbose=True)
         from vmprof.test import _test_stack as clib

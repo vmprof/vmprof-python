@@ -29,6 +29,11 @@
 #include <dlfcn.h>
 #endif
 
+#ifdef PY_TEST
+// for testing only!
+PyObject* vmprof_eval(PyFrameObject *f, int throwflag) { return NULL; }
+#endif
+
 static int vmp_native_traces_enabled = 0;
 static ptr_t *vmp_ranges = NULL;
 static ssize_t vmp_range_count = 0;
@@ -132,7 +137,6 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
 
     PyFrameObject * top_most_frame = frame;
     int depth = 0;
-    char next_vmprof_eval;
     while (depth < max_depth) {
         unw_get_proc_info(&cursor, &pip);
 
@@ -147,7 +151,7 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
         // NOTE one linux the start_ip is really not correct, but it seems to work for
         // this shared library (where vmprof_eval is contained). dladdr (sometimes)
         // yields the wrong function name. rip is logged instead
-        func_addr = rip;
+        func_addr = pip.start_ip;
 #endif
 
         if ((void*)pip.start_ip == (void*)vmprof_eval) {
@@ -155,6 +159,9 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
             unw_word_t rbx = 0;
             if (unw_get_reg(&cursor, UNW_X86_64_RBX, &rbx) < 0) {
                 break;
+            }
+            if (top_most_frame == NULL) {
+                top_most_frame = (PyFrameObject*)rbx;
             }
             if (rbx != (unw_word_t)top_most_frame) {
                 // uh we are screwed! the ip indicates we are have context
@@ -168,13 +175,6 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
                 }
                 top_most_frame = _write_python_stack_entry(top_most_frame, result, &depth);
             }
-            next_vmprof_eval = 0;
-#if CPYTHON_HAS_FRAME_EVALUATION
-        } else if ((void*)pip.start_ip == (void*)_PyEval_EvalFrameDefault) {
-#else
-        } else if ((void*)pip.start_ip == (void*)PyEval_EvalFrameEx) {
-#endif
-            next_vmprof_eval = 1;
         } else if (vmp_ignore_ip((ptr_t)func_addr)) {
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of

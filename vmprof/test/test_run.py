@@ -342,6 +342,8 @@ class TestNative(object):
         }
         """
         libs = []
+        if sys.platform.startswith('linux'):
+            libs.append('z')
         # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
         ffi.set_source("vmprof.test._test_native_gzip", source, include_dirs=['src'],
                        define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
@@ -366,7 +368,7 @@ class TestNative(object):
                 return False
 
             for child in parent.children.values():
-                if 'n:deflate:' in child.name:
+                if 'n:native_gzipgzipgzip:' in child.name:
                     p = float(child.count) / parent.count
                     assert p >= 0.3 # usually bigger than 0.4
                     return True

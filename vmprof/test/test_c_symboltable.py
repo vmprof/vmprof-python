@@ -20,29 +20,46 @@ class TestSymbolTable(object):
         """)
         with open("src/symboltable.c", "rb") as fd:
             source = fd.read().decode()
-            source += """
+        source += """
 
-            static char gname[64];
-            static char gsrc[128];
-            int test_extract(char ** name, int * lineno, char ** src)
-            {
-                *name = gname;
-                *src = gsrc;
-                return vmp_resolve_addr(&dump_all_known_symbols, gname, 64,
-                                        lineno, gsrc, 128);
-            }
-            """
-            libs = [] #['unwind', 'unwind-x86_64']
-            # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
-            stack_ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=['src'],
-                                 define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
-                                 extra_compile_args=[])
+        static char gname[64];
+        static char gsrc[128];
+        int test_extract(char ** name, int * lineno, char ** src)
+        {
+            *name = gname;
+            *src = gsrc;
+            return vmp_resolve_addr(&vmp_resolve_addr, gname, 64,
+                                    lineno, gsrc, 128);
+        }
+        """
+        libs = [] #['unwind', 'unwind-x86_64']
+        includes = ['src']
+        if sys.platform.startswith('linux'):
+            for src in ["src/libbacktrace/state.c",
+                        "src/libbacktrace/backtrace.c",
+                        "src/libbacktrace/fileline.c",
+                        "src/libbacktrace/posix.c",
+                        "src/libbacktrace/mmap.c",
+                        "src/libbacktrace/mmapio.c",
+                        "src/libbacktrace/elf.c",
+                        "src/libbacktrace/dwarf.c",
+                        "src/libbacktrace/sort.c",
+                       ]:
+                with open(src, "rb") as fd:
+                    source += fd.read().decode()
+            includes.append('src/libbacktrace')
+
+        # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
+        stack_ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=includes,
+                             define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
+                             extra_compile_args=[])
 
         stack_ffi.compile(verbose=True)
         from vmprof.test import _test_symboltable as clib
         cls.lib = clib.lib
         cls.ffi = clib.ffi
 
+    @py.test.mark.skip("deprecated")
     def test_dump_all_known_symbols(self, tmpdir):
         lib = self.lib
         f1 = tmpdir.join("symbols")
@@ -61,7 +78,7 @@ class TestSymbolTable(object):
                 if fd.tell() >= length:
                     break
         assert len(addrs) >= 100 # usually we have many many more!!
-        symbols_to_be_found = ['dump_all_known_symbols']
+        symbols_to_be_found = ['vmp_resolve_addr']
         duplicates = []
         names = set()
         for addr, name in addrs:
@@ -90,11 +107,20 @@ class TestSymbolTable(object):
         ffi = self.ffi
         name = ffi.new("char**")
         src = ffi.new("char**")
-        lineno = ffi.new("int*")
-        lib.test_extract(name, lineno, src)
+        _lineno = ffi.new("int*")
+        lib.test_extract(name, _lineno, src)
 
-        assert ffi.string(name[0]) == b"dump_all_known_symbols"
+        assert ffi.string(name[0]) == b"vmp_resolve_addr"
         assert ffi.string(src[0]).endswith(b"vmprof/test/_test_symboltable.c")
         # lines are not included in stab
-        # assert 20 <= lineno[0] <= 100
+        if sys.platform.startswith('linux'):
+            with open("vmprof/test/_test_symboltable.c", "rb") as fd:
+                lineno = 1
+                for line in fd.readlines():
+                    if "int vmp_resolve_addr(void * addr," in line:
+                        if _lineno[0] == lineno:
+                            break
+                    lineno += 1
+                else:
+                    assert False, "could not match line number"
 
