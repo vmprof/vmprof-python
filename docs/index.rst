@@ -20,10 +20,11 @@ The following provides more information about CPU profiles and JIT Compiler Logs
    :maxdepth: 2
 
    vmprof
+   development
+   native
+   format
    jitlog
    query
-   development
-   format
 
 .. _`CPython`: http://python.org
 .. _`PyPy`: http://pypy.org
