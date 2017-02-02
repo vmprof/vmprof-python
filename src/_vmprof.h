@@ -3,7 +3,13 @@
 #include <Python.h>
 #include <frameobject.h>
 
+#ifdef VMPROF_WINDOWS
+#include "msiinttypes/inttypes.h"
+#include "msiinttypes/stdint.h"
+#else
 #include <inttypes.h>
+#include <stdint.h>
+#endif
 
 /**
  * This whole setup is very strange. There was just one C file called
@@ -41,7 +47,9 @@ typedef uint64_t ptr_t;
 
 PyObject* vmprof_eval(PyFrameObject *f, int throwflag);
 
-#define VMP_SUPPORTS_NATIVE_PROFILING (defined(__unix__) || defined(__APPLE__))
+#ifdef VMPROF_UNIX
+#define VMP_SUPPORTS_NATIVE_PROFILING
+#endif
 
 #define MARKER_STACKTRACE '\x01'
 #define MARKER_VIRTUAL_IP '\x02'
@@ -64,3 +72,4 @@ PyObject* vmprof_eval(PyFrameObject *f, int throwflag);
 #define PROFILE_LINES  '\x02'
 #define PROFILE_NATIVE '\x04'
 
+int vmp_write_all(const char *buf, size_t bufsize);

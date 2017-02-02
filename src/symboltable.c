@@ -6,8 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef VMPROF_LINUX
 #define _GNU_SOURCE 1
 #include <link.h>
+#endif
 #include <dlfcn.h>
 
 #ifdef _PY_TEST

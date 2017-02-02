@@ -2,15 +2,11 @@
 
 #include "windows.h"
 #include "compat.h"
+#include "stack.h"
 
 HANDLE write_mutex;
 
-int prepare_concurrent_bufs(void)
-{
-    if (!(write_mutex = CreateMutex(NULL, FALSE, NULL)))
-        return -1;
-    return 0;
-}
+int prepare_concurrent_bufs(void);
 
 #include "vmprof_common.h"
 #include <tlhelp32.h>
@@ -21,42 +17,21 @@ int prepare_concurrent_bufs(void)
 volatile int thread_started = 0;
 volatile int enabled = 0;
 
-static int _write_all(const char *buf, size_t bufsize)
-{
-    int res;
-    int fd;
-
-    res = WaitForSingleObject(write_mutex, INFINITE);
-    fd = vmp_profile_fileno();
-
-    if (fd == -1) {
-        ReleaseMutex(write_mutex);
-        return -1;
-    }
-    while (bufsize > 0) {
-        ssize_t count = write(fd, buf, bufsize);
-        if (count <= 0) {
-            ReleaseMutex(write_mutex);
-            return -1;   /* failed */
-        }
-        buf += count;
-        bufsize -= count;
-    }
-    ReleaseMutex(write_mutex);
-    return 0;
-}
+int vmp_write_all(const char *buf, size_t bufsize);
 
 RPY_EXTERN
 int vmprof_register_virtual_function(char *code_name, long code_uid,
                                      int auto_retry)
 {
     char buf[2048];
-    int namelen = strnlen(code_name, 1023);
+    long namelen;
+
+    namelen = (long)strnlen(code_name, 1023);
     buf[0] = MARKER_VIRTUAL_IP;
     *(long*)(buf + 1) = code_uid;
     *(long*)(buf + 1 + sizeof(long)) = namelen;
     memcpy(buf + 1 + 2 * sizeof(long), code_name, namelen);
-    _write_all(buf, namelen + 2 * sizeof(long) + 1);
+    vmp_write_all(buf, namelen + 2 * sizeof(long) + 1);
     return 0;
 }
 
@@ -72,8 +47,8 @@ int vmprof_snapshot_thread(DWORD thread_id, PyThreadState *tstate, prof_stacktra
     if(result == 0xffffffff)
         return -1; // possible, e.g. attached debugger or thread alread suspended
     // find the correct thread
-    depth = read_trace_from_cpy_frame(tstate->frame, stack->stack,
-        MAX_STACK_DEPTH);
+    depth = vmp_walk_and_record_stack(tstate->frame, stack->stack,
+                                      MAX_STACK_DEPTH, 0);
     stack->depth = depth;
     stack->stack[depth++] = (void*)thread_id;
     stack->count = 1;
@@ -111,7 +86,7 @@ long __stdcall vmprof_mainloop(void *arg)
             continue;
         depth = vmprof_snapshot_thread(tstate->thread_id, tstate, stack);
         if (depth > 0) {
-            _write_all((char*)stack + offsetof(prof_stacktrace_s, marker),
+            vmp_write_all((char*)stack + offsetof(prof_stacktrace_s, marker),
                        depth * sizeof(void *) +
                        sizeof(struct prof_stacktrace_s) -
                        offsetof(struct prof_stacktrace_s, marker));
@@ -138,7 +113,7 @@ int vmprof_disable(void)
     char marker = MARKER_TRAILER;
 
     enabled = 0;
-    if (_write_all(&marker, 1) < 0)
+    if (vmp_write_all(&marker, 1) < 0)
         return -1;
     vmp_set_profile_fileno(-1);
     return 0;

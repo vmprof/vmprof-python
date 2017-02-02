@@ -7,20 +7,34 @@ if IS_PYPY:
     ext_modules = [] # built-in
 else:
     extra_compile_args = []
-    extra_source_files = []
+    extra_source_files = [
+       'src/libudis86/decode.c',
+       'src/libudis86/itab.c',
+       'src/libudis86/udis86.c',
+       'src/trampoline.c',
+       'src/symboltable.c',
+    ]
     if sys.platform == 'win32':
+        extra_source_files = [
+            'src/vmprof_main_win32.c',
+        ] # remove the native source files
         libraries = []
+        extra_compile_args = ['-DVMPROF_WINDOWS=1']
     elif sys.platform == 'darwin':
         libraries = []
         extra_compile_args = ['-Wno-unused']
+        extra_compile_args += ['-DVMPROF_APPLE=1']
+        extra_compile_args += ['-DVMPROF_UNIX=1']
     elif sys.platform.startswith('linux'):
         libraries = ['dl','unwind']
         extra_compile_args = ['-Wno-unused']
+        extra_compile_args += ['-DVMPROF_LINUX=1']
+        extra_compile_args += ['-DVMPROF_UNIX=1']
         if sys.maxsize == 2**63-1:
             libraries.append('unwind-x86_64')
         else:
             libraries.append('unwind-x86')
-        extra_source_files = [
+        extra_source_files += [
            'src/libbacktrace/backtrace.c',
            'src/libbacktrace/state.c',
            'src/libbacktrace/elf.c',
@@ -37,15 +51,10 @@ else:
     extra_compile_args.append('-I src/libbacktrace')
     ext_modules = [Extension('_vmprof',
                            sources=[
-                               'src/libudis86/decode.c',
-                               'src/libudis86/itab.c',
-                               'src/libudis86/udis86.c',
                                'src/_vmprof.c',
-                               'src/stack.c',
-                               'src/trampoline.c',
                                'src/machine.c',
-                               'src/symboltable.c',
                                'src/compat.c',
+                               'src/stack.c',
                                ] + extra_source_files,
                            depends=[
                                'src/vmprof_main.h',

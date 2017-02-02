@@ -12,7 +12,7 @@
 #include "_vmprof.h"
 #include "compat.h"
 
-#if VMP_SUPPORTS_NATIVE_PROFILING
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
 #include <libunwind.h>
 #endif
 
@@ -48,6 +48,12 @@ int vmp_profiles_python_lines(void) {
 
 static PyFrameObject * _write_python_stack_entry(PyFrameObject * frame, void ** result, int * depth)
 {
+    int len;
+    int addr;
+    int j;
+    long line;
+    char *lnotab;
+
     if (vmp_profiles_python_lines()) {
         // In the line profiling mode we save a line number for every frame.
         // Actual line number isn't stored in the frame directly (f_lineno
@@ -58,15 +64,15 @@ static PyFrameObject * _write_python_stack_entry(PyFrameObject * frame, void ** 
 
         // NOTE: the profiling overhead can be reduced by storing co_lnotab in the dump and
         // moving this computation to the reader instead of doing it here.
-        char *lnotab = PyStr_AS_STRING(frame->f_code->co_lnotab);
+        lnotab = PyStr_AS_STRING(frame->f_code->co_lnotab);
 
         if (lnotab != NULL) {
-            long line = (long)frame->f_lineno;
-            int addr = 0;
+            line = (long)frame->f_lineno;
+            addr = 0;
 
-            int len = PyStr_GET_SIZE(frame->f_code->co_lnotab);
+            len = (int)PyStr_GET_SIZE(frame->f_code->co_lnotab);
 
-            for (int j = 0; j < len; j += 2) {
+            for (j = 0; j < len; j += 2) {
                 addr += lnotab[j];
                 if (addr > frame->f_lasti) {
                     break;
@@ -95,7 +101,7 @@ int vmp_walk_and_record_python_stack_only(PyFrameObject *frame, void ** result,
     return depth;
 }
 
-#if VMP_SUPPORTS_NATIVE_PROFILING
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
 int _write_native_stack(void* addr, void ** result, int depth) {
     if (vmp_profiles_python_lines()) {
         // even if we do not log a python stack frame,
@@ -110,7 +116,7 @@ int _write_native_stack(void* addr, void ** result, int depth) {
 int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
                                      int max_depth, int native_skip) {
     // called in signal handler
-#if VMP_SUPPORTS_NATIVE_PROFILING
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
     intptr_t func_addr;
     unw_cursor_t cursor;
     unw_context_t uc;
@@ -207,13 +213,14 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
 }
 
 int vmp_native_enabled(void) {
-#if VMP_SUPPORTS_NATIVE_PROFILING
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
     return vmp_native_traces_enabled;
 #else
     return 0;
 #endif
 }
 
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
 int _ignore_symbols_from_path(const char * name) {
     // which symbols should not be considered while walking
     // the native stack?
@@ -457,3 +464,4 @@ void vmp_set_ignore_symbols(ptr_t * symbols, int count) {
     vmp_ranges = symbols;
     vmp_range_count = count;
 }
+#endif
