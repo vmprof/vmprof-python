@@ -117,7 +117,7 @@ class TestSymbolTable(object):
             with open("vmprof/test/_test_symboltable.c", "rb") as fd:
                 lineno = 1
                 for line in fd.readlines():
-                    if "int vmp_resolve_addr(void * addr," in line:
+                    if "int vmp_resolve_addr(void * addr," in line.decode():
                         if _lineno[0] == lineno:
                             break
                     lineno += 1
