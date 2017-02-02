@@ -27,7 +27,8 @@ class TestStack(object):
                 libs = ['unwind', 'unwind-x86_64']
             # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
             stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
-                                 define_macros=[('_CFFI_USE_EMBEDDING',1), ('PY_TEST',1)],
+                                 define_macros=[('_CFFI_USE_EMBEDDING',1), ('PY_TEST',1),
+                                                ('VMP_SUPPORTS_NATIVE_PROFILING',1)],
                                  libraries=libs, extra_compile_args=['-g'])
 
         stack_ffi.compile(verbose=True)
