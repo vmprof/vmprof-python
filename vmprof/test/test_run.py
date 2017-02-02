@@ -21,7 +21,7 @@ from vmprof.reader import (gunzip, BufferTooSmallError, _read_header,
         VERSION_THREAD_ID, WORD_SIZE, ReaderStatus,
         read_time_and_zone, MARKER_TIME_N_ZONE, assert_error,
         MARKER_META, MARKER_NATIVE_SYMBOLS)
-from vmshare.binary import read_string, read_word
+from vmshare.binary import read_string, read_word, read_addr
 from vmprof.stats import Stats
 
 if sys.version_info.major == 3:
@@ -99,11 +99,11 @@ def test_start_end_time():
     stats = prof.get_stats()
     s = stats.start_time
     e = stats.end_time
-    assert before_profile < s and s < after_profile
-    assert s < e
-    assert e < after_profile and s < after_profile
-    assert before_profile < after_profile
-    assert before_profile < e
+    assert before_profile <= s and s <= after_profile
+    assert s <= e
+    assert e <= after_profile and s <= after_profile
+    assert before_profile <= after_profile
+    assert before_profile <= e
 
 
 def test_nested_call():
@@ -244,17 +244,17 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         trace = read_trace(fileobj, depth, status.version, status.profile_lines)
 
         if status.version >= VERSION_THREAD_ID:
-            thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
+            thread_id = read_addr(fileobj)
         else:
             thread_id = 0
         if status.profile_memory:
-            mem_in_kb, = struct.unpack('l', fileobj.read(WORD_SIZE))
+            mem_in_kb = read_addr(fileobj)
         else:
             mem_in_kb = 0
         trace.reverse()
         status.profiles.append((trace, 1, thread_id, mem_in_kb))
     elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
-        unique_id = read_word(fileobj)
+        unique_id = read_addr(fileobj)
         name = read_string(fileobj)
         if PY3K:
             name = name.decode()

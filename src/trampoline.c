@@ -1,5 +1,7 @@
 #include "trampoline.h"
 
+#include "machine.h"
+
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
@@ -13,7 +15,6 @@
 #if __APPLE__
 #include <mach-o/dyld.h>
 #endif
-#include "machine.h"
 
 #define PAGE_ALIGNED(a,size) (void*)(((uintptr_t)a) & ~(size - 1)) 
 
@@ -97,7 +98,7 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
 
     // 1) copy the instructions that should be redone in the trampoline
     while (bytes < needed_bytes) {
-        int res = vmp_machine_code_instr_length(ptr);
+        unsigned int res = vmp_machine_code_instr_length(ptr);
         if (res == 0) {
             return 1;
         }
@@ -167,7 +168,7 @@ int vmp_patch_callee_trampoline(void * callee_addr, void * vmprof_eval, void ** 
     }
     // create a new page and set it all of it writable
     char * page = (char*)mmap(NULL, pagesize, PROT_READ|PROT_WRITE|PROT_EXEC,
-                              MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+                              MAP_ANON | MAP_PRIVATE, 0, 0);
     if (page == NULL) {
         return -1;
     }

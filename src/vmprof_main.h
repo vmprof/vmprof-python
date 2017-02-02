@@ -339,11 +339,11 @@ int vmprof_disable(void)
 }
 
 RPY_EXTERN
-int vmprof_register_virtual_function(char *code_name, long code_uid,
+int vmprof_register_virtual_function(char *code_name, intptr_t code_uid,
                                      int auto_retry)
 {
     long namelen = strnlen(code_name, 1023);
-    long blocklen = 1 + 2 * sizeof(long) + namelen;
+    long blocklen = 1 + sizeof(intptr_t) + sizeof(long) + namelen;
     struct profbuf_s *p;
     char *t;
 
@@ -385,7 +385,7 @@ int vmprof_register_virtual_function(char *code_name, long code_uid,
     p->data_size += blocklen;
     assert(p->data_size <= SINGLE_BUF_SIZE);
     *t++ = MARKER_VIRTUAL_IP;
-    memcpy(t, &code_uid, sizeof(long)); t += sizeof(long);
+    memcpy(t, &code_uid, sizeof(intptr_t)); t += sizeof(intptr_t);
     memcpy(t, &namelen, sizeof(long)); t += sizeof(long);
     memcpy(t, code_name, namelen);
 

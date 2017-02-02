@@ -1,7 +1,7 @@
 #include "machine.h"
 
+#include "_vmprof.h"
 #include <stdio.h>
-#include <inttypes.h>
 
 int vmp_machine_bits(void)
 {
@@ -27,8 +27,8 @@ const char * vmp_machine_os_name(void)
 #endif
 }
 
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
 #include "libudis86/udis86.h"
-
 unsigned int vmp_machine_code_instr_length(char* pc)
 {
     struct ud u;
@@ -37,3 +37,4 @@ unsigned int vmp_machine_code_instr_length(char* pc)
     ud_set_mode(&u, vmp_machine_bits());
     return ud_decode(&u);
 }
+#endif

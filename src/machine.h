@@ -15,4 +15,6 @@ const char * vmp_machine_os_name(void);
  *
  * Returns 0 on failure.
  */
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
 unsigned int vmp_machine_code_instr_length(char* pc);
+#endif

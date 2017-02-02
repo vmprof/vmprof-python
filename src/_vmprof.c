@@ -8,13 +8,12 @@ module _vmprof
 #include <Python.h>
 #include <frameobject.h>
 #include <signal.h>
-// sadly that does not work for python < 3#include "clinic/_vmprof.c.h"
 
 #include "_vmprof.h"
 
 static volatile int is_enabled = 0;
 
-#if defined(__unix__) || defined(__APPLE__)
+#if VMPROF_UNIX
 #include "trampoline.h"
 #include "machine.h"
 #include "symboltable.h"
@@ -27,6 +26,7 @@ static volatile int is_enabled = 0;
 static destructor Original_code_dealloc = 0;
 PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
+#ifdef VMPROF_UNIX
 #ifdef __gcc__
 __attribute__((optimize("O1")))
 #elif defined(__clang__)
@@ -42,6 +42,7 @@ PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
         : "r" (f) );
     return _default_eval_loop(f, throwflag);
 }
+#endif
 
 static int emit_code_object(PyCodeObject *co)
 {
@@ -137,6 +138,7 @@ static void cpyprof_code_dealloc(PyObject *co)
     Original_code_dealloc(co);
 }
 
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
 static void init_cpyprof(int native)
 {
     // skip this if native should not be enabled
@@ -159,6 +161,7 @@ static void init_cpyprof(int native)
 #endif
     vmp_native_enable();
 }
+#endif
 
 void dump_native_symbols(int fileno)
 {
@@ -174,6 +177,7 @@ error:
     Py_XDECREF(mod);
 }
 
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
 static void disable_cpyprof(void)
 {
     vmp_native_disable();
@@ -188,6 +192,7 @@ static void disable_cpyprof(void)
 #endif
     dump_native_symbols(vmp_profile_fileno());
 }
+#endif
 
 
 static PyObject *enable_vmprof(PyObject* self, PyObject *args)
@@ -212,7 +217,9 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 
     vmp_profile_lines(lines);
 
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
     init_cpyprof(native);
+#endif
 
     if (!Original_code_dealloc) {
         Original_code_dealloc = PyCode_Type.tp_dealloc;
@@ -246,7 +253,9 @@ disable_vmprof(PyObject *module, PyObject *noarg)
     is_enabled = 0;
     vmprof_ignore_signals(1);
     emit_all_code_objects();
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
     disable_cpyprof();
+#endif
 
     if (vmprof_disable() < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
@@ -277,20 +286,22 @@ static PyObject *
 sample_stack_now(PyObject *module, PyObject *args)
 {
     PyThreadState * tstate = NULL;
+    PyObject * list;
+    int i;
+    int entry_count;
+    void ** m;
+    void * routine_ip;
 
     // stop any signal to occur
     vmprof_ignore_signals(1);
 
-    PyObject * list;
-    int i;
-    int entry_count;
     list = PyList_New(0);
     if (list == NULL) {
         goto error;
     }
 
     tstate = PyGILState_GetThisThreadState();
-    void ** m = (void**)malloc(SINGLE_BUF_SIZE);
+    m = (void**)malloc(SINGLE_BUF_SIZE);
     if (m == NULL) {
         PyErr_SetString(PyExc_MemoryError, "could not allocate buffer for stack trace");
         vmprof_ignore_signals(0);
@@ -299,8 +310,8 @@ sample_stack_now(PyObject *module, PyObject *args)
     entry_count = vmp_walk_and_record_stack(tstate->frame, m, MAX_STACK_DEPTH-1, 0);
 
     for (i = 0; i < entry_count; i++) {
-        void * routine_ip = m[i];
-        PyList_Append(list, PyLong_NEW((intptr_t)routine_ip));
+        routine_ip = m[i];
+        PyList_Append(list, PyLong_NEW((long)routine_ip));
     }
 
     free(m);
@@ -317,20 +328,21 @@ error:
     return Py_None;
 }
 
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
 static PyObject *
 resolve_addr(PyObject *module, PyObject *args) {
     long long addr;
     PyObject * o_name = NULL;
     PyObject * o_lineno = NULL;
     PyObject * o_srcfile = NULL;
+    char name[128];
+    int lineno = 0;
+    char srcfile[256];
 
     if (!PyArg_ParseTuple(args, "L", &addr)) {
         return NULL;
     }
-    char name[128];
     name[0] = '\x00';
-    int lineno = 0;
-    char srcfile[256];
     srcfile[0] = '-';
     srcfile[1] = '\x00';
     if (vmp_resolve_addr((void*)addr, name, 128, &lineno, srcfile, 256) != 0) {
@@ -353,6 +365,7 @@ error:
     Py_INCREF(Py_None);
     return Py_None;
 }
+#endif
 
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
@@ -360,7 +373,9 @@ static PyMethodDef VMProfMethods[] = {
     {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
      "Write eagerly all the IDs of code objects"},
     {"sample_stack_now", sample_stack_now, METH_NOARGS, "Sample the stack now"},
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
     {"resolve_addr", resolve_addr, METH_VARARGS, "Return the name of the addr"},
+#endif
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

@@ -2,13 +2,16 @@
 
 #include <Python.h>
 #include <stddef.h>
-#include <sys/time.h>
 #include <time.h>
 
 #include "_vmprof.h"
 #include "machine.h"
 #include "compat.h"
+
+#ifndef VMPROF_WINDOWS
+#include <sys/time.h>
 #include "vmprof_mt.h"
+#endif
 
 #define MAX_FUNC_NAME 1024
 
@@ -23,19 +26,42 @@ static long profile_interval_usec = 0;
 
 static int opened_profile(const char *interp_name, int memory, int lines, int native);
 
-#if defined(__unix__) || defined(__APPLE__)
+#ifdef VMPROF_UNIX
 static struct profbuf_s *volatile current_codes;
 #endif
 
 #define MAX_STACK_DEPTH   \
     ((SINGLE_BUF_SIZE - sizeof(struct prof_stacktrace_s)) / sizeof(void *))
 
+/*
+ * NOTE SHOULD NOT BE DONE THIS WAY. Here is an example why:
+ * assume the following struct content:
+ * struct ... {
+ *    char padding[sizeof(long) - 1];
+ *    char marker;
+ *    long count, depth;
+ *    void *stack[];
+ * }
+ *
+ * Here a table of the offsets on a 64 bit machine:
+ * field  | GCC | VSC (windows)
+ * ---------------------------
+ * marker |   7 |   3
+ * count  |   8 |   4
+ * depth  |  16 |   8
+ * stack  |  24 |   16 (VSC adds 4 padding byte hurray!)
+ *
+ * This means that win32 worked by chance (because sizeof(void*)
+ * is 4, but fails on win32
+ */
 typedef struct prof_stacktrace_s {
     char padding[sizeof(long) - 1];
     char marker;
     long count, depth;
     void *stack[];
 } prof_stacktrace_s;
+
+#define SIZEOF_PROF_STACKTRACE sizeof(long)+sizeof(long)+sizeof(char)
 
 RPY_EXTERN
 char *vmprof_init(int fd, double interval, int memory, int lines, const char *interp_name, int native)
@@ -46,7 +72,7 @@ char *vmprof_init(int fd, double interval, int memory, int lines, const char *in
 
     if (prepare_concurrent_bufs() < 0)
         return "out of memory";
-#if defined(__unix__) || defined(__APPLE__)
+#if VMPROF_UNIX
     current_codes = NULL;
 #else
     if (memory) {
@@ -68,6 +94,7 @@ char *vmprof_init(int fd, double interval, int memory, int lines, const char *in
 static int opened_profile(const char *interp_name, int memory, int lines, int native)
 {
     int success;
+    int bits;
     struct {
         long hdr[5];
         char interp_name[259];
@@ -85,7 +112,7 @@ static int opened_profile(const char *interp_name, int memory, int lines, int na
     header.interp_name[2] = VERSION_TIMESTAMP;
     header.interp_name[3] = memory*PROFILE_MEMORY + lines*PROFILE_LINES + \
                             native*PROFILE_NATIVE;
-    header.interp_name[4] = namelen;
+    header.interp_name[4] = (char)namelen;
 
     memcpy(&header.interp_name[5], interp_name, namelen);
     success = vmp_write_all((char*)&header, 5 * sizeof(long) + 5 + namelen);
@@ -98,7 +125,7 @@ static int opened_profile(const char *interp_name, int memory, int lines, int na
 
     /* write some more meta information */
     vmp_write_meta("os", vmp_machine_os_name());
-    int bits = vmp_machine_bits();
+    bits = vmp_machine_bits();
     if (bits == 64) {
         vmp_write_meta("bits", "64");
     } else if (bits == 32) {
