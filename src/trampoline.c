@@ -168,7 +168,7 @@ int vmp_patch_callee_trampoline(void * callee_addr, void * vmprof_eval, void ** 
     }
     // create a new page and set it all of it writable
     char * page = (char*)mmap(NULL, pagesize, PROT_READ|PROT_WRITE|PROT_EXEC,
-                              MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+                              MAP_ANON | MAP_PRIVATE, 0, 0);
     if (page == NULL) {
         return -1;
     }
