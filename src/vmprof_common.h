@@ -40,6 +40,8 @@ typedef struct prof_stacktrace_s {
     void *stack[];
 } prof_stacktrace_s;
 
+#define SIZEOF_PROF_STACKTRACE sizeof(long)+sizeof(long)+sizeof(char)
+
 RPY_EXTERN
 char *vmprof_init(int fd, double interval, int memory, int lines, const char *interp_name, int native)
 {

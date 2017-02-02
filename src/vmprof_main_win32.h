@@ -73,7 +73,7 @@ long __stdcall vmprof_mainloop(void *arg)
 {   
     prof_stacktrace_s *stack = (prof_stacktrace_s*)malloc(SINGLE_BUF_SIZE);
     HANDLE hThreadSnap = INVALID_HANDLE_VALUE; 
-    int depth;
+    int depth, size;
     PyThreadState *tstate;
 
     while (1) {
@@ -86,10 +86,8 @@ long __stdcall vmprof_mainloop(void *arg)
             continue;
         depth = vmprof_snapshot_thread(tstate->thread_id, tstate, stack);
         if (depth > 0) {
-            vmp_write_all((char*)stack + offsetof(prof_stacktrace_s, marker),
-                       depth * sizeof(void *) +
-                       sizeof(struct prof_stacktrace_s) -
-                       offsetof(struct prof_stacktrace_s, marker));
+            size = depth * sizeof(void *) + SIZEOF_PROF_STACKTRACE;
+            vmp_write_all((char*)stack + offsetof(prof_stacktrace_s, marker), size);
         }
     }
 }
@@ -111,10 +109,9 @@ RPY_EXTERN
 int vmprof_disable(void)
 {
     char marker = MARKER_TRAILER;
+    (void)vmp_write_time_now(MARKER_TRAILER);
 
     enabled = 0;
-    if (vmp_write_all(&marker, 1) < 0)
-        return -1;
     vmp_set_profile_fileno(-1);
     return 0;
 }

@@ -343,7 +343,7 @@ int vmprof_register_virtual_function(char *code_name, intptr_t code_uid,
                                      int auto_retry)
 {
     long namelen = strnlen(code_name, 1023);
-    long blocklen = 1 + 2 * sizeof(long) + namelen;
+    long blocklen = 1 + sizeof(intptr_t) + sizeof(long) + namelen;
     struct profbuf_s *p;
     char *t;
 

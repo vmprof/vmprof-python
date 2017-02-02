@@ -68,14 +68,14 @@ def read_le_u64(fileobj):
     return int(struct.unpack('<Q', fileobj.read(8))[0])
 
 def read_s64(fileobj):
-    return int(struct.unpack('!q', fileobj.read(8))[0])
+    return int(struct.unpack('q', fileobj.read(8))[0])
 
 def read_le_s64(fileobj):
     return int(struct.unpack('<q', fileobj.read(8))[0])
 
 def read_timeval(fileobj):
-    tv_sec = read_le_s64(fileobj)
-    tv_usec = read_le_s64(fileobj)
+    tv_sec = read_s64(fileobj)
+    tv_usec = read_s64(fileobj)
     return tv_sec * 10**6 + tv_usec
 
 def read_timezone(fileobj):

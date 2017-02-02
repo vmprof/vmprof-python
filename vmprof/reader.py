@@ -11,7 +11,7 @@ import datetime
 
 from vmshare.binary import (read_word, read_string,
         read_addresses, read_timeval, read_timezone,
-        read_addr)
+        read_addr, ADDR_SIZE)
 
 PY3  = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')
@@ -205,7 +205,7 @@ def read_prof(fileobj, virtual_ips_only=False):
             depth = read_word(fileobj)
             assert depth <= 2**16, 'stack strace depth too high'
             if virtual_ips_only:
-                fileobj.read(WORD_SIZE * depth)
+                fileobj.read(ADDR_SIZE * depth)
                 trace = []
             else:
                 trace = read_trace(fileobj, depth, version, profile_lines)

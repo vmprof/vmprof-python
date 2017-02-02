@@ -235,7 +235,6 @@ def read_prof_bit_by_bit(fileobj):
 def read_one_marker(fileobj, status, buffer_so_far=None):
     fileobj = FileObjWrapper(fileobj, buffer_so_far)
     marker = fileobj.read(1)
-    print("reading marker %x -> %d" % (ord(marker), fileobj._fileobj.tell()))
     if marker == MARKER_STACKTRACE:
         count = read_word(fileobj)
         # for now
@@ -255,7 +254,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
         trace.reverse()
         status.profiles.append((trace, 1, thread_id, mem_in_kb))
     elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
-        unique_id = read_word(fileobj)
+        unique_id = read_addr(fileobj)
         name = read_string(fileobj)
         if PY3K:
             name = name.decode()
