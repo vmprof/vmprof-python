@@ -3,12 +3,13 @@ import struct
 import array
 import pytz
 
-if sys.maxsize == 2**63 - 1:
-    WORD_SIZE = struct.calcsize('Q')
-    UNPACK_CHAR = 'q'
+WORD_SIZE = struct.calcsize('L')
+if sys.maxsize == 2**63-1:
+    ADDR_SIZE = 8
+    ADDR_CHAR = 'q'
 else:
-    WORD_SIZE = struct.calcsize('L')
-    UNPACK_CHAR = 'l'
+    ADDR_SIZE = 4
+    ADDR_CHAR = 'l'
 
 PY3 = sys.version_info[0] >= 3
 
@@ -19,14 +20,18 @@ def read_word(fileobj):
     r = int(struct.unpack('l', b)[0])
     return r
 
-def read_words(fileobj, nwords):
-    """Read `nwords` longs from `fileobj`."""
-    r = array.array('l')
-    b = fileobj.read(WORD_SIZE * nwords)
+def read_addr(fileobj):
+    return struct.unpack(ADDR_CHAR, fileobj.read(ADDR_SIZE))[0]
+
+def read_addresses(fileobj, count):
+    """Read `addresses` longs from `fileobj`."""
     if PY3:
+        r = array.array(ADDR_CHAR)
+        b = fileobj.read(ADDR_SIZE * count)
         r.frombytes(b)
     else:
-        r.fromstring(b)
+        r = [struct.unpack(ADDR_CHAR, fileobj.read(ADDR_SIZE))[0] \
+             for i in range(count)]
     return r
 
 def read_byte(fileobj):

@@ -20,7 +20,7 @@ volatile int enabled = 0;
 int vmp_write_all(const char *buf, size_t bufsize);
 
 RPY_EXTERN
-int vmprof_register_virtual_function(char *code_name, long code_uid,
+int vmprof_register_virtual_function(char *code_name, intptr_t code_uid,
                                      int auto_retry)
 {
     char buf[2048];
@@ -28,10 +28,10 @@ int vmprof_register_virtual_function(char *code_name, long code_uid,
 
     namelen = (long)strnlen(code_name, 1023);
     buf[0] = MARKER_VIRTUAL_IP;
-    *(long*)(buf + 1) = code_uid;
-    *(long*)(buf + 1 + sizeof(long)) = namelen;
-    memcpy(buf + 1 + 2 * sizeof(long), code_name, namelen);
-    vmp_write_all(buf, namelen + 2 * sizeof(long) + 1);
+    *(intptr_t*)(buf + 1) = code_uid;
+    *(long*)(buf + 1 + sizeof(intptr_t)) = namelen;
+    memcpy(buf + 1 + sizeof(intptr_t) + sizeof(long), code_name, namelen);
+    vmp_write_all(buf, 1 + sizeof(intptr_t) + sizeof(long) + namelen);
     return 0;
 }
 

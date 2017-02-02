@@ -9,7 +9,9 @@ import io
 import gzip
 import datetime
 
-from vmshare.binary import read_word, read_string, read_words, read_timeval, read_timezone
+from vmshare.binary import (read_word, read_string,
+        read_addresses, read_timeval, read_timezone,
+        read_addr)
 
 PY3  = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')
@@ -18,12 +20,12 @@ def read_trace(fileobj, depth, version, profile_lines=False):
     if version == VERSION_TAG:
         assert depth & 1 == 0
         depth = depth // 2
-        kinds_and_pcs = read_words(fileobj, depth * 2)
+        kinds_and_pcs = read_addresses(fileobj, depth * 2)
         # kinds_and_pcs is a list of [kind1, pc1, kind2, pc2, ...]
         return [wrap_kind(kinds_and_pcs[i], kinds_and_pcs[i+1])
                 for i in xrange(0, len(kinds_and_pcs), 2)]
     else:
-        trace = read_words(fileobj, depth)
+        trace = read_addresses(fileobj, depth)
 
         if profile_lines:
             for i in xrange(0, len(trace), 2):
@@ -208,11 +210,11 @@ def read_prof(fileobj, virtual_ips_only=False):
             else:
                 trace = read_trace(fileobj, depth, version, profile_lines)
             if version >= VERSION_THREAD_ID:
-                thread_id, = struct.unpack('l', fileobj.read(WORD_SIZE))
+                thread_id = read_addr(fileobj)
             else:
                 thread_id = 0
             if profile_memory:
-                mem_in_kb, = struct.unpack('l', fileobj.read(WORD_SIZE))
+                mem_in_kb = read_addr(fileobj)
             else:
                 mem_in_kb = 0
             trace.reverse()
@@ -225,7 +227,7 @@ def read_prof(fileobj, virtual_ips_only=False):
             if PY3:
                 interp_name = interp_name.decode()
         elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
-            unique_id = read_word(fileobj)
+            unique_id = read_addr(fileobj)
             name = read_string(fileobj)
             #if unique_id & 0x1:
             #    import pdb; pdb.set_trace()

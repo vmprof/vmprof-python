@@ -41,7 +41,7 @@ typedef uint64_t ptr_t;
      process for code objects and emit all the ones that we can
      find (which we hope is very close to 100% of them).
 */
-#define CODE_ADDR_TO_UID(co)  (((unsigned long)(co)))
+#define CODE_ADDR_TO_UID(co)  (((intptr_t)(co)))
 
 #define CPYTHON_HAS_FRAME_EVALUATION PY_VERSION_HEX >= 0x30600B0
 
