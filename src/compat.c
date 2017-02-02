@@ -126,6 +126,7 @@ int vmp_write_time_now(int marker) {
 
     // time zone not implemented on windows
     memset(((char*)buffer)+__SIZE-8, 0, 8);
+    (void)memcpy(((char*)buffer)+__SIZE-8, "UTC", 3);
 
     buffer[0] = marker;
     (void)memcpy(buffer+1, &buf, sizeof(struct timezone_buf));

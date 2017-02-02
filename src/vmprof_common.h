@@ -33,6 +33,27 @@ static struct profbuf_s *volatile current_codes;
 #define MAX_STACK_DEPTH   \
     ((SINGLE_BUF_SIZE - sizeof(struct prof_stacktrace_s)) / sizeof(void *))
 
+/*
+ * NOTE SHOULD NOT BE DONE THIS WAY. Here is an example why:
+ * assume the following struct content:
+ * struct ... {
+ *    char padding[sizeof(long) - 1];
+ *    char marker;
+ *    long count, depth;
+ *    void *stack[];
+ * }
+ *
+ * Here a table of the offsets on a 64 bit machine:
+ * field  | GCC | VSC (windows)
+ * ---------------------------
+ * marker |   7 |   3
+ * count  |   8 |   4
+ * depth  |  16 |   8
+ * stack  |  24 |   16 (VSC adds 4 padding byte hurray!)
+ *
+ * This means that win32 worked by chance (because sizeof(void*)
+ * is 4, but fails on win32
+ */
 typedef struct prof_stacktrace_s {
     char padding[sizeof(long) - 1];
     char marker;

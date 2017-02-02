@@ -99,11 +99,11 @@ def test_start_end_time():
     stats = prof.get_stats()
     s = stats.start_time
     e = stats.end_time
-    assert before_profile < s and s < after_profile
-    assert s < e
-    assert e < after_profile and s < after_profile
-    assert before_profile < after_profile
-    assert before_profile < e
+    assert before_profile <= s and s <= after_profile
+    assert s <= e
+    assert e <= after_profile and s <= after_profile
+    assert before_profile <= after_profile
+    assert before_profile <= e
 
 
 def test_nested_call():

@@ -73,7 +73,7 @@ long __stdcall vmprof_mainloop(void *arg)
 {   
     prof_stacktrace_s *stack = (prof_stacktrace_s*)malloc(SINGLE_BUF_SIZE);
     HANDLE hThreadSnap = INVALID_HANDLE_VALUE; 
-    int depth, size;
+    int depth;
     PyThreadState *tstate;
 
     while (1) {
@@ -86,8 +86,10 @@ long __stdcall vmprof_mainloop(void *arg)
             continue;
         depth = vmprof_snapshot_thread(tstate->thread_id, tstate, stack);
         if (depth > 0) {
-            size = depth * sizeof(void *) + SIZEOF_PROF_STACKTRACE;
-            vmp_write_all((char*)stack + offsetof(prof_stacktrace_s, marker), size);
+            // see note in vmprof_common.h on the prof_stacktrace_s struct why
+            // there are two vmpr_write_all calls
+            vmp_write_all((char*)stack + offsetof(prof_stacktrace_s, marker), SIZEOF_PROF_STACKTRACE);
+            vmp_write_all((char*)stack->stack, depth * sizeof(void*));
         }
     }
 }
