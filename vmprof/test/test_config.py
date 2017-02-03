@@ -41,6 +41,7 @@ web-url = example.com
     assert args.period == 5.0
     assert args.web is False
     assert args.web_url == "example.com"
+    assert args.no_native == False
 
 
 def test_parser_without_section():
@@ -50,6 +51,7 @@ def test_parser_without_section():
 period = 0.1
 web-url=example.com
 enable-nonvirtual = False
+no-native = True
     """)
 
     args = cli.parse_args([
@@ -58,3 +60,4 @@ enable-nonvirtual = False
     ])
 
     assert test_file == args.config.name
+    assert args.no_native == True

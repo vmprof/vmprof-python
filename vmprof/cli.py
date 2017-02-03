@@ -58,6 +58,12 @@ def build_argparser():
         action='store_true',
         help='Upload the jitlog to remote server (defaults to vmprof.com)',
     )
+    parser.add_argument(
+        '--no-native', '-n',
+        default=False,
+        action='store_true',
+        help='Disable native profiling for this run'
+    )
     output_mode_args = parser.add_mutually_exclusive_group()
     output_mode_args.add_argument(
         '--web',
@@ -83,7 +89,8 @@ def parse_args(argv):
             ('web', str),
             ('web-auth', str),
             ('web-url', str),
-            ('output', str)
+            ('output', str),
+            ('no-native', bool),
         ]
 
         ini_parser = IniParser(args.config)
