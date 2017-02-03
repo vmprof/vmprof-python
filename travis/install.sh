@@ -16,10 +16,6 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
 
     python -m virtualenv ~/.venv
     source ~/.venv/bin/activate
-else
-    if [[ -n "TRAVIS_TAG" && "$BUILD_LINUX_WHEEL" == "1" ]]; then
-        docker pull $DOCKER_IMAGE;
-    fi
 fi
 
 pip install .

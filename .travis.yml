@@ -11,23 +11,13 @@ env:
 matrix:
   include:
     - python: 2.7
+      services:
+        - docker
       env:
-        - UPLOAD_SDIST=1
+        - BUILD_LINUX_WHEEL=1 UPLOAD_SDIST=1
     - python: 3.4
-    - python: 3.5.1
-    - python: 3.5.2
     - python: 3.5
-      sudo: required
-      services:
-      - docker
-      env:
-        - DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64 BUILD_LINUX_WHEEL=1
-    - python: 3.5
-      sudo: required
-      services:
-      - docker
-      env:
-        - DOCKER_IMAGE=quay.io/pypa/manylinux1_i686 BUILD_LINUX_WHEEL=1 PRE_CMD=linux32
+    - python: 3.6
     - os: osx
       language: generic
       osx_image: xcode6.4 # 6.4 is OS X 10.10.x
@@ -66,9 +56,6 @@ install:
 
 script:
   - bash ./travis/script.sh
-
-after_success:
-  - if [[ -n "TRAVIS_TAG" ]]; then bash travis/upload-artifact.sh; fi
 
 notifications:
   irc:
