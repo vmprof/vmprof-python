@@ -80,16 +80,15 @@ int _jmp_to(char * a, uintptr_t addr) {
     return 12;
 #elif defined(X86_32)
     // mov <addr>, %edx
-    a[0] = 0x8b;
-    a[1] = 0x15;
-    a[2] = addr & 0xff;
-    a[3] = (addr >> 8) & 0xff;
-    a[4] = (addr >> 16) & 0xff;
-    a[5] = (addr >> 24) & 0xff;
+    a[0] = 0xba;
+    a[1] = addr & 0xff;
+    a[2] = (addr >> 8) & 0xff;
+    a[3] = (addr >> 16) & 0xff;
+    a[4] = (addr >> 24) & 0xff;
     // jmp %edx
-    a[6] = 0xff;
-    a[7] = 0xe2;
-    return 8;
+    a[5] = 0xff;
+    a[6] = 0xe2;
+    return 7;
 #endif
     return 0;
 }
