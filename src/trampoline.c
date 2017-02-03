@@ -101,8 +101,12 @@ int patch_relative_call(void * base, char * rel_call, char *rel_call_end, int by
 
     char * r = rel_call+1;
 
-    int off = r[0] | (r[1] << 8) | (r[2] << 16) | (r[3] << 24);
-    intptr_t addr = (intptr_t)base + off;
+    int off = r[0] |
+              ((r[1] << 8) & 0xff) |
+              ((r[2] << 16) & 0xff) |
+              ((r[3] << 24) & 0xff);
+    // instruction pointer is just after the whole instruction
+    intptr_t addr = (intptr_t)base + 5 + off;
 
     rel_call[0] = 0xb8;
     rel_call[1] = addr & 0xff;
@@ -141,9 +145,9 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
             return 1;
         }
 #ifdef X86_32
-        if (ptr[0] == 0xe8) {
+        if (ptr[0] == '\xe8') {
             // occur on 32bit linux
-            relative_call_at_pos = bytes-res;
+            relative_call_at_pos = bytes;
         }
 #endif
         bytes += res;
