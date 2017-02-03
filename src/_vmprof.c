@@ -27,17 +27,29 @@ static destructor Original_code_dealloc = 0;
 PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
 #ifdef VMPROF_UNIX
-#ifdef __GNUC__
+#ifdef __clang__
 __attribute__((optimize("O1")))
-#elif defined(__clang__)
+#elif defined(__GNUC__)
 __attribute__((disable_tail_calls))
 #endif
 PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
 {
+#ifdef X86_64
     register PyFrameObject * callee_saved asm("rbx");
+#elif defined(X86_32)
+    register PyFrameObject * callee_saved asm("ebx");
+#else
+#    error "platform not supported"
+#endif
 
     asm volatile(
+#ifdef X86_64
         "movq %1, %0\t\n"
+#elif defined(X86_32)
+        "mov %1, %0\t\n"
+#else
+#    error "platform not supported"
+#endif
         : "=r" (callee_saved)
         : "r" (f) );
     return _default_eval_loop(f, throwflag);
