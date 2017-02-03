@@ -30,6 +30,10 @@ def show_stats(filename, output_mode, args):
 def main():
     args = vmprof.cli.parse_args(sys.argv[1:])
 
+    # None means default on this platform
+    native = None
+    if args.no_native:
+        native = False
     if args.web:
         output_mode = OUTPUT_WEB
     elif args.output:
@@ -45,7 +49,8 @@ def main():
         prof_name = prof_file.name
 
 
-    vmprof.enable(prof_file.fileno(), args.period, args.mem, args.lines)
+    vmprof.enable(prof_file.fileno(), args.period, args.mem,
+                  args.lines, native=native)
     if args.jitlog and _jitlog:
         fd = os.open(prof_name + '.jit', os.O_WRONLY | os.O_TRUNC | os.O_CREAT)
         _jitlog.enable(fd)
