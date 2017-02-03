@@ -93,6 +93,28 @@ int _jmp_to(char * a, uintptr_t addr) {
     return 0;
 }
 
+int patch_relative_call(void * base, char * rel_call, char *rel_call_end, int bytes_after) {
+    if (bytes_after != 0) {
+        return 0;
+    }
+
+    char * r = rel_call+1;
+
+    int off = r[0] | (r[1] << 8) | (r[2] << 16) | (r[3] << 24);
+    void * addr = base + off;
+
+    rel_call[0] = 0xb8;
+    rel_call[1] = addr & 0xff;
+    rel_call[2] = (addr >> 8) & 0xff;
+    rel_call[3] = (addr >> 16) & 0xff;
+    rel_call[4] = (addr >> 24) & 0xff;
+    // jmp %edx
+    rel_call[5] = 0xff;
+    rel_call[6] = 0xd0;
+
+    return 2;
+}
+
 // a hilarious typo, tramp -> trump :)
 int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval) {
 
@@ -106,6 +128,9 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
 #endif
     int bytes = 0;
     char * ptr = eval;
+#ifdef X86_32
+    int relative_call_at_pos = -1;
+#endif
 
     // 1) copy the instructions that should be redone in the trampoline
     while (bytes < needed_bytes) {
@@ -113,6 +138,12 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
         if (res == 0) {
             return 1;
         }
+#ifdef X86_32
+        if (ptr[0] == 0xe8) {
+            // occur on 32bit linux
+            relative_call_at_pos = bytes-res;
+        }
+#endif
         bytes += res;
         ptr += res;
     }
@@ -121,6 +152,13 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
     // 2) initiate the first few instructions of the eval loop
     {
         (void)memcpy(trump, eval, bytes);
+#ifdef X86_32
+        if (relative_call_at_pos != -1) {
+            int off = patch_relative_call(eval+relative_call_at_pos, trump+relative_call_at_pos,
+                                          trump+relative_call_at_pos+5, bytes-relative_call_at_pos);
+            bytes += off;
+        }
+#endif
         _jmp_to(trump+bytes, (uintptr_t)eval+bytes);
     }
 
