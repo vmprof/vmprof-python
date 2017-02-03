@@ -161,7 +161,7 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
 #ifdef X86_32
         if (relative_call_at_pos != -1) {
             int off = patch_relative_call(eval+relative_call_at_pos, trump+relative_call_at_pos,
-                                          trump+relative_call_at_pos+5, bytes-relative_call_at_pos);
+                                          trump+relative_call_at_pos+5, bytes-relative_call_at_pos-5);
             bytes += off;
         }
 #endif
