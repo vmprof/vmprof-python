@@ -13,6 +13,7 @@
 #include "compat.h"
 
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
+#define UNW_LOCAL_ONLY
 #include <libunwind.h>
 #endif
 
@@ -146,19 +147,16 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
     while (depth < max_depth) {
         unw_get_proc_info(&cursor, &pip);
 
-        unw_word_t rip;
-        if (unw_get_reg(&cursor, UNW_REG_IP, &rip) < 0 || rip == 0) {
-            break;
-        }
+        func_addr = pip.start_ip;
+        //if (func_addr == 0) {
+        //    unw_word_t rip = 0;
+        //    if (unw_get_reg(&cursor, UNW_REG_IP, &rip) < 0) {
+        //        printf("failed failed failed\n");
+        //    }
+        //    func_addr = rip;
+        //    printf("func_addr is 0, now %p\n", rip);
+        //}
 
-#ifdef __APPLE__
-        func_addr = pip.start_ip;
-#else
-        // NOTE one linux the start_ip is really not correct, but it seems to work for
-        // this shared library (where vmprof_eval is contained). dladdr (sometimes)
-        // yields the wrong function name. rip is logged instead
-        func_addr = pip.start_ip;
-#endif
 
         if ((void*)pip.start_ip == (void*)vmprof_eval) {
             // yes we found one stack entry of the python frames!

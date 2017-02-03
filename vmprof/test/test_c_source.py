@@ -5,8 +5,7 @@ from cffi import FFI
 from array import array
 
 sample = None
-
-@pytest.mark.skipif("sys.platform not in ('darwin','linux2')")
+@pytest.mark.skipif("sys.platform == 'win32'")
 class TestStack(object):
     def setup_class(cls):
         stack_ffi = FFI()

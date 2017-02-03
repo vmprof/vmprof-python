@@ -238,9 +238,8 @@ int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno, char 
     // nothing found, try with dladdr
     if (info.name[0] == 0) {
         Dl_info dlinfo;
-        if (dladdr((const void*)addr, &dlinfo) == 0) {
-            return 1;
-        }
+        dlinfo.dli_sname = NULL;
+        (void)dladdr((const void*)addr, &dlinfo);
         if (dlinfo.dli_sname != NULL) {
             (void)strncpy(info.name, dlinfo.dli_sname, info.name_len-1);
             name[name_len-1] = 0;

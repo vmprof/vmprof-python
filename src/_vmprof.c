@@ -27,7 +27,7 @@ static destructor Original_code_dealloc = 0;
 PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
 #ifdef VMPROF_UNIX
-#ifdef __gcc__
+#ifdef __GNUC__
 __attribute__((optimize("O1")))
 #elif defined(__clang__)
 __attribute__((disable_tail_calls))
