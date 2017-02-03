@@ -183,7 +183,7 @@ static void disable_cpyprof(void)
     vmp_native_disable();
 #if CPYTHON_HAS_FRAME_EVALUATION
     PyThreadState *tstate = PyThreadState_GET();
-    tstate->interp->eval_frame = NULL;
+    tstate->interp->eval_frame = _PyEval_EvalFrameDefault;
 #else
     if (vmp_unpatch_callee_trampoline(PyEval_EvalFrameEx) > 0) {
         fprintf(stderr, "FATAL: could not remove trampoline\n");

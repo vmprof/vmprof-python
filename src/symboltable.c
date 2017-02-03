@@ -219,7 +219,6 @@ int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno, char 
         (void)strncpy(name, info.dli_sname, name_len-1);
         name[name_len-1] = 0;
     }
-    LOG("looking for %s\n", name);
     lookup_vmprof_debug_info(name, info.dli_fbase, srcfile, srcfile_len, lineno);
 #elif defined(__unix__)
     if (bstate == NULL) {
