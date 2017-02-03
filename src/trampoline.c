@@ -102,9 +102,9 @@ int patch_relative_call(void * base, char * rel_call, char *rel_call_end, int by
     char * r = rel_call+1;
 
     int off = r[0] |
-              ((r[1] << 8) & 0xff) |
-              ((r[2] << 16) & 0xff) |
-              ((r[3] << 24) & 0xff);
+              ((r[1] & 0xff) << 8) |
+              ((r[2] & 0xff) << 16) |
+              ((r[3] & 0xff) << 24);
     // instruction pointer is just after the whole instruction
     intptr_t addr = (intptr_t)base + 5 + off;
 
