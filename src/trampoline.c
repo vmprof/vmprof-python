@@ -93,6 +93,7 @@ int _jmp_to(char * a, uintptr_t addr) {
     return 0;
 }
 
+#ifdef X86_32
 int patch_relative_call(void * base, char * rel_call, char *rel_call_end, int bytes_after) {
     if (bytes_after != 0) {
         return 0;
@@ -101,7 +102,7 @@ int patch_relative_call(void * base, char * rel_call, char *rel_call_end, int by
     char * r = rel_call+1;
 
     int off = r[0] | (r[1] << 8) | (r[2] << 16) | (r[3] << 24);
-    void * addr = base + off;
+    intptr_t addr = (intptr_t)base + off;
 
     rel_call[0] = 0xb8;
     rel_call[1] = addr & 0xff;
@@ -114,6 +115,7 @@ int patch_relative_call(void * base, char * rel_call, char *rel_call_end, int by
 
     return 2;
 }
+#endif
 
 // a hilarious typo, tramp -> trump :)
 int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval) {
