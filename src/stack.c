@@ -18,7 +18,7 @@
 #  ifdef X86_64
 #    define REG_RBX UNW_X86_64_RBX
 #  elif defined(X86_32)
-#    define REG_RBX UNW_X86_EBX
+#    define REG_RBX UNW_X86_EDI
 #  endif
 #endif
 

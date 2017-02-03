@@ -28,16 +28,16 @@ PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
 #ifdef VMPROF_UNIX
 #ifdef __clang__
-__attribute__((optimize("O1")))
-#elif defined(__GNUC__)
 __attribute__((disable_tail_calls))
+#elif defined(__GNUC__)
+__attribute__((optimize("O1")))
 #endif
 PyObject* vmprof_eval(PyFrameObject *f, int throwflag)
 {
 #ifdef X86_64
     register PyFrameObject * callee_saved asm("rbx");
 #elif defined(X86_32)
-    register PyFrameObject * callee_saved asm("ebx");
+    register PyFrameObject * callee_saved asm("edi");
 #else
 #    error "platform not supported"
 #endif
