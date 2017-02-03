@@ -15,6 +15,11 @@
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
+#  ifdef X86_64
+#    define REG_RBX UNW_X86_64_RBX
+#  elif defined(X86_32)
+#    define REG_RBX UNW_X86_EBX
+#  endif
 #endif
 
 #ifdef __APPLE__
@@ -161,7 +166,7 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
         if ((void*)pip.start_ip == (void*)vmprof_eval) {
             // yes we found one stack entry of the python frames!
             unw_word_t rbx = 0;
-            if (unw_get_reg(&cursor, UNW_X86_64_RBX, &rbx) < 0) {
+            if (unw_get_reg(&cursor, REG_RBX, &rbx) < 0) {
                 break;
             }
             if (top_most_frame == NULL) {
