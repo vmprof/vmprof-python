@@ -26,8 +26,6 @@
 #define ROUTINE_IS_PYTHON(RIP) ((unsigned long long)RIP & 0x1) == 0
 #define ROUTINE_IS_C(RIP) ((unsigned long long)RIP & 0x1) == 1
 
-typedef uint64_t ptr_t;
-
 /* This returns the address of the code object
    as the identifier.  The mapping from identifiers to string
    representations of the code object is done elsewhere, namely:

@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <stddef.h>
 
-#include "_vmprof.h"
+#include "vmprof.h"
 #include "compat.h"
 
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
@@ -32,11 +32,11 @@
 
 #ifdef PY_TEST
 // for testing only!
-PyObject* vmprof_eval(PyFrameObject *f, int throwflag) { return NULL; }
+PY_EVAL_RETURN_T * vmprof_eval(PY_STACK_FRAME_T *f, int throwflag) { return NULL; }
 #endif
 
 static int vmp_native_traces_enabled = 0;
-static ptr_t *vmp_ranges = NULL;
+static intptr_t *vmp_ranges = NULL;
 static ssize_t vmp_range_count = 0;
 static int _vmp_profiles_lines = 0;
 
@@ -93,7 +93,7 @@ static PyFrameObject * _write_python_stack_entry(PyFrameObject * frame, void ** 
     return frame->f_back;
 }
 
-int vmp_walk_and_record_python_stack_only(PyFrameObject *frame, void ** result,
+int vmp_walk_and_record_python_stack_only(PY_STACK_FRAME_T *frame, void ** result,
                                      int max_depth, int depth)
 {
     while (depth < max_depth && frame) {
@@ -114,7 +114,7 @@ int _write_native_stack(void* addr, void ** result, int depth) {
 }
 #endif
 
-int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
+int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
                                      int max_depth, int native_skip) {
     // called in signal handler
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
@@ -179,7 +179,7 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
                 }
                 top_most_frame = _write_python_stack_entry(top_most_frame, result, &depth);
             }
-        } else if (vmp_ignore_ip((ptr_t)func_addr)) {
+        } else if (vmp_ignore_ip((intptr_t)func_addr)) {
             // this is an instruction pointer that should be ignored,
             // (that is any function name in the mapping range of
             //  cpython, but of course not extenstions in site-packages))
@@ -239,22 +239,22 @@ int _reset_vmp_ranges(void) {
     int max_count = 10;
     vmp_range_count = 0;
     if (vmp_ranges != NULL) { free(vmp_ranges); }
-    vmp_ranges = malloc(max_count * sizeof(ptr_t));
+    vmp_ranges = malloc(max_count * sizeof(intptr_t));
     return max_count;
 }
 
 
-int _resize_ranges(ptr_t ** cursor, int max_count) {
+int _resize_ranges(intptr_t ** cursor, int max_count) {
     ptrdiff_t diff = (*cursor - vmp_ranges);
     if (diff + 2 > max_count) {
         max_count *= 2;
-        vmp_ranges = realloc(vmp_ranges, max_count*sizeof(ptr_t));
+        vmp_ranges = realloc(vmp_ranges, max_count*sizeof(intptr_t));
         *cursor = vmp_ranges + diff;
     }
     return max_count;
 }
 
-ptr_t * _add_to_range(ptr_t * cursor, ptr_t start, ptr_t end) {
+intptr_t * _add_to_range(intptr_t * cursor, intptr_t start, intptr_t end) {
     if (cursor[0] == start) {
         // the last range is extended, this reduces the entry count
         // which makes the querying faster
@@ -286,7 +286,7 @@ int vmp_read_vmaps(const char * fname) {
     char *start_hex = NULL, *end_hex = NULL;
     size_t n = 0;
     ssize_t size;
-    ptr_t start, end;
+    intptr_t start, end;
 
     // assumptions to be verified:
     // 1) /proc/self/maps is ordered ascending by start address
@@ -296,7 +296,7 @@ int vmp_read_vmaps(const char * fname) {
     //    candidates
 
     int max_count = _reset_vmp_ranges();
-    ptr_t * cursor = vmp_ranges;
+    intptr_t * cursor = vmp_ranges;
     cursor[0] = -1;
     while ((size = getline(&line, &n, fd)) >= 0) {
         assert(line != NULL);
@@ -347,7 +347,7 @@ int vmp_read_vmaps(const char * fname) {
 
     addr = 0;
     int max_count = _reset_vmp_ranges();
-    ptr_t * cursor = vmp_ranges;
+    intptr_t * cursor = vmp_ranges;
     cursor[0] = -1;
 
     do {
@@ -405,7 +405,7 @@ void vmp_native_disable(void) {
     vmp_range_count = 0;
 }
 
-int vmp_ignore_ip(ptr_t ip) {
+int vmp_ignore_ip(intptr_t ip) {
     int i = vmp_binary_search_ranges(ip, vmp_ranges, vmp_range_count);
     if (i == -1) {
         return 0;
@@ -413,15 +413,15 @@ int vmp_ignore_ip(ptr_t ip) {
 
     assert((i & 1) == 0 && "returned index MUST be even");
 
-    ptr_t v = vmp_ranges[i];
-    ptr_t v2 = vmp_ranges[i+1];
+    intptr_t v = vmp_ranges[i];
+    intptr_t v2 = vmp_ranges[i+1];
     return v <= ip && ip <= v2;
 }
 
-int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count) {
-    ptr_t * r = l + count;
-    ptr_t * ol = l;
-    ptr_t * or = r-1;
+int vmp_binary_search_ranges(intptr_t ip, intptr_t * l, int count) {
+    intptr_t * r = l + count;
+    intptr_t * ol = l;
+    intptr_t * or = r-1;
     while (1) {
         ptrdiff_t i = (r-l)/2;
         if (i == 0) {
@@ -440,7 +440,7 @@ int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count) {
                 return i;
             }
         }
-        ptr_t * m = l + i;
+        intptr_t * m = l + i;
         if (ip < *m) {
             r = m;
         } else {
@@ -454,11 +454,11 @@ int vmp_ignore_symbol_count(void) {
     return vmp_range_count;
 }
 
-ptr_t * vmp_ignore_symbols(void) {
+intptr_t * vmp_ignore_symbols(void) {
     return vmp_ranges;
 }
 
-void vmp_set_ignore_symbols(ptr_t * symbols, int count) {
+void vmp_set_ignore_symbols(intptr_t * symbols, int count) {
     vmp_ranges = symbols;
     vmp_range_count = count;
 }

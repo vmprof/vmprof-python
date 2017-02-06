@@ -33,6 +33,8 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
+#include "vmprof.h"
+
 #include "stack.h"
 #include "vmprof_getpc.h"
 #include "vmprof_mt.h"
@@ -87,6 +89,7 @@ static char atfork_hook_installed = 0;
  * *************************************************************
  */
 
+#ifndef RPYTHON_VMPROF
 static int get_stack_trace(PyThreadState * current, void** result, int max_depth)
 {
     PyFrameObject *frame;
@@ -104,8 +107,7 @@ static int get_stack_trace(PyThreadState * current, void** result, int max_depth
     return vmp_walk_and_record_stack(frame, result, max_depth, 3);
 #endif
 }
-
-
+#endif
 
 /* *************************************************************
  * the signal handler

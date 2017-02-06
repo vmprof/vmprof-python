@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Python.h>
+INCLUDE_MODULE_HEADER
 
 #if PY_MAJOR_VERSION >= 3
     #define PyStr_AS_STRING PyBytes_AS_STRING

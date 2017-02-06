@@ -1,12 +1,15 @@
 #pragma once
 
-#include <Python.h>
-#include <stddef.h>
-#include <time.h>
-
-#include "_vmprof.h"
+#ifdef RPYTHON_VMPROF
+#  include "rvmprof.h"
+#else
+#  include "_vmprof.h"
+#endif
 #include "machine.h"
 #include "compat.h"
+
+#include <stddef.h>
+#include <time.h>
 
 #ifndef VMPROF_WINDOWS
 #include <sys/time.h>
