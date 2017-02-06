@@ -129,14 +129,13 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
     int needed_bytes = 12;
 #elif defined(X86_32)
     int needed_bytes = 8;
+    int relative_call_at_pos = -1;
+    int off;
 #else
 #   error "platform not supported"
 #endif
     int bytes = 0;
     char * ptr = eval;
-#ifdef X86_32
-    int relative_call_at_pos = -1;
-#endif
 
     // 1) copy the instructions that should be redone in the trampoline
     while (bytes < needed_bytes) {
@@ -160,12 +159,11 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
         (void)memcpy(trump, eval, bytes);
 #ifdef X86_32
         if (relative_call_at_pos != -1) {
-            int off = patch_relative_call(eval+relative_call_at_pos, trump+relative_call_at_pos,
+            off = patch_relative_call(eval+relative_call_at_pos, trump+relative_call_at_pos,
                                           trump+relative_call_at_pos+5, bytes-relative_call_at_pos-5);
-            bytes += off;
         }
 #endif
-        _jmp_to(trump+bytes, (uintptr_t)eval+bytes);
+        _jmp_to(trump+bytes+off, (uintptr_t)eval+bytes);
     }
 
     // 3) overwrite the first few bytes of callee to jump to tramp
