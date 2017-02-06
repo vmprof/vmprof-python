@@ -1,8 +1,9 @@
 #include "trampoline.h"
 
 #include "machine.h"
+#include "_vmprof.h"
 
-#define _GNU_SOURCE
+#define _GNU_SOURCE 1
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,17 +60,11 @@ static char * g_trampoline = NULL;
 // the machine code size copied over from the callee
 static int g_trampoline_length;
 
-void _jmp_to(char * a, uintptr_t addr, int call) {
-
-    // TODO 32-bit
-
+int _jmp_to(char * a, uintptr_t addr) {
+#ifdef X86_64
     // moveabsq <addr>, <reg>
     a[0] = 0x48; // REX.W
-    if (call) {
-        a[1] = 0xb8; // %rax
-    } else {
-        a[1] = 0xba; // %rdx
-    }
+    a[1] = 0xba; // %rdx
     a[2] = addr & 0xff;
     a[3] = (addr >> 8) & 0xff;
     a[4] = (addr >> 16) & 0xff;
@@ -79,21 +74,67 @@ void _jmp_to(char * a, uintptr_t addr, int call) {
     a[8] = (addr >> 48) & 0xff;
     a[9] = (addr >> 56) & 0xff;
 
-    if (call) {
-        a[10] = 0xff;
-        a[11] = 0xd0;
-    } else {
-        a[10] = 0xff;
-        a[11] = 0xe2;
-    }
+    // jmp %edx
+    a[10] = 0xff;
+    a[11] = 0xe2;
+    return 12;
+#elif defined(X86_32)
+    // mov <addr>, %edx
+    a[0] = 0xba;
+    a[1] = addr & 0xff;
+    a[2] = (addr >> 8) & 0xff;
+    a[3] = (addr >> 16) & 0xff;
+    a[4] = (addr >> 24) & 0xff;
+    // jmp %edx
+    a[5] = 0xff;
+    a[6] = 0xe2;
+    return 7;
+#endif
+    return 0;
 }
+
+#ifdef X86_32
+int patch_relative_call(void * base, char * rel_call, char *rel_call_end, int bytes_after) {
+    if (bytes_after != 0) {
+        return 0;
+    }
+
+    char * r = rel_call+1;
+
+    int off = r[0] |
+              ((r[1] & 0xff) << 8) |
+              ((r[2] & 0xff) << 16) |
+              ((r[3] & 0xff) << 24);
+    // instruction pointer is just after the whole instruction
+    intptr_t addr = (intptr_t)base + 5 + off;
+
+    rel_call[0] = 0xb8;
+    rel_call[1] = addr & 0xff;
+    rel_call[2] = (addr >> 8) & 0xff;
+    rel_call[3] = (addr >> 16) & 0xff;
+    rel_call[4] = (addr >> 24) & 0xff;
+    // jmp %edx
+    rel_call[5] = 0xff;
+    rel_call[6] = 0xd0;
+
+    return 2;
+}
+#endif
 
 // a hilarious typo, tramp -> trump :)
 int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval) {
 
     char * trump_first_byte = trump;
+#ifdef X86_64
     int needed_bytes = 12;
+#elif defined(X86_32)
+    int needed_bytes = 8;
+    int relative_call_at_pos = -1;
+#else
+#   error "platform not supported"
+#endif
     int bytes = 0;
+    int off = 0;
     char * ptr = eval;
 
     // 1) copy the instructions that should be redone in the trampoline
@@ -102,6 +143,12 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
         if (res == 0) {
             return 1;
         }
+#ifdef X86_32
+        if (ptr[0] == '\xe8') {
+            // occur on 32bit linux
+            relative_call_at_pos = bytes;
+        }
+#endif
         bytes += res;
         ptr += res;
     }
@@ -110,40 +157,18 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
     // 2) initiate the first few instructions of the eval loop
     {
         (void)memcpy(trump, eval, bytes);
-        _jmp_to(trump+bytes, (uintptr_t)eval+bytes, 0);
-        //char * wptr = trump;
-        //*wptr++ = 0x55;
-
-        //*wptr++ = 0x48;
-        //*wptr++ = 0x89;
-        //*wptr++ = 0xe5;
-
-        //*wptr++ = 0x53;
-        //*wptr++ = 0x53;
-
-        //*wptr++ = 0x48;
-        //*wptr++ = 0x89;
-        //*wptr++ = 0xfb;
-
-        //char * trampcall = wptr;
-        //wptr += 12;
-
-        //// pop 
-        //*wptr++ = 0x5b;
-        //*wptr++ = 0x5b;
-        //*wptr++ = 0x5d;
-        //*wptr++ = 0xc3;
-
-        //_jmp_to(trampcall, (uintptr_t)wptr, 1);
-
-        //(void)memcpy(wptr, eval, bytes);
-        //wptr += bytes;
-        //_jmp_to(wptr, (uintptr_t)eval+bytes, 0);
+#ifdef X86_32
+        if (relative_call_at_pos != -1) {
+            off = patch_relative_call(eval+relative_call_at_pos, trump+relative_call_at_pos,
+                                          trump+relative_call_at_pos+5, bytes-relative_call_at_pos-5);
+        }
+#endif
+        _jmp_to(trump+bytes+off, (uintptr_t)eval+bytes);
     }
 
     // 3) overwrite the first few bytes of callee to jump to tramp
     // callee must call back 
-    _jmp_to(eval, (uintptr_t)vmprof_eval, 0);
+    _jmp_to(eval, (uintptr_t)vmprof_eval);
 
     return 0;
 }

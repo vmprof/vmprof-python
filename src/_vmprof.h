@@ -49,6 +49,12 @@ PyObject* vmprof_eval(PyFrameObject *f, int throwflag);
 #define VMP_SUPPORTS_NATIVE_PROFILING
 #endif
 
+#ifdef __x86_64__
+#define X86_64
+#elif defined(__i386__)
+#define X86_32
+#endif
+
 #define MARKER_STACKTRACE '\x01'
 #define MARKER_VIRTUAL_IP '\x02'
 #define MARKER_TRAILER '\x03'

@@ -25,6 +25,10 @@ else:
         extra_compile_args = ['-Wno-unused']
         extra_compile_args += ['-DVMPROF_APPLE=1']
         extra_compile_args += ['-DVMPROF_UNIX=1']
+        # overwrite the optimization level, if it is not optimized enough,
+        # it might use the regiter rbx...
+        extra_compile_args += ['-g']
+        extra_compile_args += ['-O2']
     elif sys.platform.startswith('linux'):
         libraries = ['dl','unwind']
         extra_compile_args = ['-Wno-unused']
@@ -74,7 +78,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.4.0.dev9",
+    version="0.4.0.dev10",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
