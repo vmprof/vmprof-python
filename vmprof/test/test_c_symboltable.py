@@ -15,7 +15,7 @@ class TestSymbolTable(object):
     def setup_class(cls):
         stack_ffi = FFI()
         stack_ffi.cdef("""
-        void dump_all_known_symbols(int fd);
+        //void dump_all_known_symbols(int fd);
         int test_extract(char ** name, int * lineno, char ** src);
         """)
         with open("src/symboltable.c", "rb") as fd:

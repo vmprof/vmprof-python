@@ -3,7 +3,7 @@
 #include "machine.h"
 #include "_vmprof.h"
 
-#define _GNU_SOURCE
+#define _GNU_SOURCE 1
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,11 +130,11 @@ int _redirect_trampoline_and_back(char * eval, char * trump, char * vmprof_eval)
 #elif defined(X86_32)
     int needed_bytes = 8;
     int relative_call_at_pos = -1;
-    int off;
 #else
 #   error "platform not supported"
 #endif
     int bytes = 0;
+    int off = 0;
     char * ptr = eval;
 
     // 1) copy the instructions that should be redone in the trampoline
