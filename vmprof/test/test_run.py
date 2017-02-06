@@ -367,6 +367,9 @@ class TestNative(object):
             if parent is None or len(parent.children) == 0:
                 return False
 
+            if 'n:native_gzipgzipgzip:' in parent.name:
+                return True
+
             for child in parent.children.values():
                 if 'n:native_gzipgzipgzip:' in child.name:
                     p = float(child.count) / parent.count

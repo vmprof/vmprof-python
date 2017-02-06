@@ -169,9 +169,6 @@ int vmp_walk_and_record_stack(PyFrameObject *frame, void ** result,
             if (unw_get_reg(&cursor, REG_RBX, &rbx) < 0) {
                 break;
             }
-            if (top_most_frame == NULL) {
-                top_most_frame = (PyFrameObject*)rbx;
-            }
             if (rbx != (unw_word_t)top_most_frame) {
                 // uh we are screwed! the ip indicates we are have context
                 // to a PyEval_EvalFrameEx function, but when we tried to retrieve
