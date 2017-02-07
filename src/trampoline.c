@@ -1,7 +1,7 @@
 #include "trampoline.h"
 
+#include "vmprof.h"
 #include "machine.h"
-#include "_vmprof.h"
 
 #define _GNU_SOURCE 1
 #include <string.h>

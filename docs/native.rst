@@ -7,6 +7,9 @@ a different language like C) on Mac OS X and Linux. See below for a technical ov
 By default this feature is enabled. To disable native profiling add ``--no-native``
 as a command line switch.
 
+**NOTE** be sure to provide debugging symbols for your native functions, otherwise
+you will not see the symbol name of your e.g. C program.
+
 In Program Activation
 ---------------------
 

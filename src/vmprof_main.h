@@ -93,7 +93,8 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 {
     PY_STACK_FRAME_T * frame;
 #ifdef RPYTHON_VMPROF
-    frame = get_vmprof_stack();
+    // do nothing here, 
+    frame = (PY_STACK_FRAME_T*)current;
 #else
     if (!current) {
         return 0;
@@ -133,7 +134,7 @@ int _vmprof_sample_stack(struct profbuf_s *p, PY_THREAD_STATE_T * tstate, uconte
     st->marker = MARKER_STACKTRACE;
     st->count = 1;
 #ifdef RPYTHON_VMPROF
-    depth = get_stack_trace(NULL, st->stack, MAX_STACK_DEPTH-1, (intptr_t)GetPC(uc));
+    depth = get_stack_trace(get_vmprof_stack(), st->stack, MAX_STACK_DEPTH-1, (intptr_t)GetPC(uc));
 #else
     depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1, (intptr_t)NULL);
 #endif
