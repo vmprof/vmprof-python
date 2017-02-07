@@ -220,7 +220,7 @@ int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno, char 
         name[name_len-1] = 0;
     }
     lookup_vmprof_debug_info(name, info.dli_fbase, srcfile, srcfile_len, lineno);
-#elif defined(VMPROF_LINUX)
+#elif defined(__unix__)
     if (bstate == NULL) {
         bstate = backtrace_create_state (NULL, 1, backtrace_error_cb, NULL);
     }

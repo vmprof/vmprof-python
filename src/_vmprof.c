@@ -12,6 +12,8 @@ module _vmprof
 #include "_vmprof.h"
 
 static volatile int is_enabled = 0;
+static destructor Original_code_dealloc = 0;
+static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
 #if VMPROF_UNIX
 #include "trampoline.h"
@@ -22,9 +24,6 @@ static volatile int is_enabled = 0;
 #include "vmprof_main_win32.h"
 #endif
 #include "vmp_stack.h"
-
-static destructor Original_code_dealloc = 0;
-PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
 #ifdef VMPROF_UNIX
 #ifdef __clang__

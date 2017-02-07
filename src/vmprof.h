@@ -43,7 +43,7 @@
 #define FRAME_CODE(f) f->
 PY_EVAL_RETURN_T * vmprof_eval(PY_STACK_FRAME_T *f, int throwflag);
 #else
-#define RPY_EXTERN static
+#define RPY_EXTERN
 // for cpython
 #include "_vmprof.h"
 #include <Python.h>

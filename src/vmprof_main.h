@@ -264,14 +264,18 @@ static int remove_sigprof_timer(void) {
 static void atfork_disable_timer(void) {
     if (profile_interval_usec > 0) {
         remove_sigprof_timer();
+#ifndef RPYTHON_VMPROF
         is_enabled = 0;
+#endif
     }
 }
 
 static void atfork_enable_timer(void) {
     if (profile_interval_usec > 0) {
         install_sigprof_timer();
+#ifndef RPYTHON_VMPROF
         is_enabled = 1;
+#endif
     }
 }
 
@@ -314,7 +318,7 @@ void init_cpyprof(int native)
     PyThreadState *tstate = PyThreadState_GET();
     tstate->interp->eval_frame = vmprof_eval;
     _default_eval_loop = _PyEval_EvalFrameDefault;
-#if defined(RPYTHON_VMPROF)
+#elif defined(RPYTHON_VMPROF)
     // TODO nothing?
 #else
     if (vmp_patch_callee_trampoline(PyEval_EvalFrameEx,
@@ -327,10 +331,8 @@ void init_cpyprof(int native)
 #endif
     vmp_native_enable();
 }
-#endif
 
-#ifdef VMP_SUPPORTS_NATIVE_PROFILING
-void disable_cpyprof(void)
+static void disable_cpyprof(void)
 {
     vmp_native_disable();
 #if CPYTHON_HAS_FRAME_EVALUATION

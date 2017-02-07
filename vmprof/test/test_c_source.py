@@ -19,7 +19,7 @@ class TestStack(object):
         int vmp_read_vmaps(const char * fname);
         void vmp_native_disable();
         """)
-        with open("src/stack.c", "rb") as fd:
+        with open("src/vmp_stack.c", "rb") as fd:
             source = fd.read().decode()
             libs = [] #['unwind', 'unwind-x86_64']
             if sys.platform.startswith('linux'):
