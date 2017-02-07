@@ -4,7 +4,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
-INCLUDE_MODULE_HEADER
+#include "vmprof.h"
 
 /* The idea is that we have MAX_NUM_BUFFERS available, all of size
    SINGLE_BUF_SIZE.  Threads and signal handlers can ask to reserve a

@@ -58,7 +58,7 @@ else:
                                'src/_vmprof.c',
                                'src/machine.c',
                                'src/compat.c',
-                               'src/stack.c',
+                               'src/vmp_stack.c',
                                ] + extra_source_files,
                            depends=[
                                'src/vmprof_main.h',

@@ -1,10 +1,6 @@
 #pragma once
 
-#ifdef RPYTHON_VMPROF
-#  include "rvmprof.h"
-#else
-#  include "_vmprof.h"
-#endif
+#include "vmprof.h"
 #include "machine.h"
 #include "compat.h"
 
@@ -17,12 +13,6 @@
 #endif
 
 #define MAX_FUNC_NAME 1024
-
-
-#define RPY_EXTERN static
-#define VMPROF_ADDR_OF_TRAMPOLINE(x)  ((x) == &cpyprof_PyEval_EvalFrameEx)
-#define CPYTHON_GET_CUSTOM_OFFSET
-static void *tramp_start, *tramp_end;
 
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
@@ -67,7 +57,8 @@ typedef struct prof_stacktrace_s {
 #define SIZEOF_PROF_STACKTRACE sizeof(long)+sizeof(long)+sizeof(char)
 
 RPY_EXTERN
-char *vmprof_init(int fd, double interval, int memory, int lines, const char *interp_name, int native)
+char *vmprof_init(int fd, double interval, int memory,
+                  int lines, const char *interp_name, int native)
 {
     if (interval < 1e-6 || interval >= 1.0)
         return "bad value for 'interval'";
@@ -150,3 +141,37 @@ void *volatile _PyThreadState_Current;
 #  define _Py_atomic_load_relaxed(pp)  (*(pp))
 #endif
 
+#ifdef RPYTHON_VMPROF
+#ifndef RPYTHON_LL2CTYPES
+static PY_STACK_FRAME_T *get_vmprof_stack(void)
+{
+    struct pypy_threadlocal_s *tl;
+    _OP_THREADLOCALREF_ADDR_SIGHANDLER(tl);
+    if (tl == NULL)
+        return NULL;
+    else
+        return tl->vmprof_tl_stack;
+}
+#else
+static PY_STACK_FRAME_T *get_vmprof_stack(void)
+{
+    return 0;
+}
+#endif
+
+RPY_EXTERN
+intptr_t vmprof_get_traceback(void *stack, void *ucontext,
+                              intptr_t *result_p, intptr_t result_length)
+{
+    int n;
+#ifdef _WIN32
+    intptr_t pc = 0;   /* XXX implement me */
+#else
+    intptr_t pc = ucontext ? (intptr_t)GetPC((ucontext_t *)ucontext) : 0;
+#endif
+    if (stack == NULL)
+        stack = get_vmprof_stack();
+    n = get_stack_trace(stack, result_p, result_length - 2, pc);
+    return (intptr_t)n;
+}
+#endif

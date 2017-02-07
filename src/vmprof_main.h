@@ -35,7 +35,7 @@
 
 #include "vmprof.h"
 
-#include "stack.h"
+#include "vmp_stack.h"
 #include "vmprof_getpc.h"
 #include "vmprof_mt.h"
 #include "vmprof_common.h"
@@ -89,25 +89,27 @@ static char atfork_hook_installed = 0;
  * *************************************************************
  */
 
-#ifndef RPYTHON_VMPROF
-static int get_stack_trace(PyThreadState * current, void** result, int max_depth)
+int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, intptr_t pc)
 {
-    PyFrameObject *frame;
+    PY_STACK_FRAME_T * frame;
+#ifdef RPYTHON_VMPROF
+    frame = get_vmprof_stack();
+#else
     if (!current) {
         return 0;
     }
     frame = current->frame;
+#endif
     // skip over
     // _sigtramp
     // sigprof_handler
     // vmp_walk_and_record_stack
 #ifdef __unix__
-    return vmp_walk_and_record_stack(frame, result, max_depth, 4);
+    return vmp_walk_and_record_stack(frame, result, max_depth, 4, pc);
 #else
-    return vmp_walk_and_record_stack(frame, result, max_depth, 3);
+    return vmp_walk_and_record_stack(frame, result, max_depth, 3, pc);
 #endif
 }
-#endif
 
 /* *************************************************************
  * the signal handler
@@ -124,18 +126,20 @@ static void segfault_handler(int arg)
     longjmp(restore_point, SIGSEGV);
 }
 
-int _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate)
+int _vmprof_sample_stack(struct profbuf_s *p, PY_THREAD_STATE_T * tstate, ucontext_t * uc)
 {
     int depth;
     struct prof_stacktrace_s *st = (struct prof_stacktrace_s *)p->data;
     st->marker = MARKER_STACKTRACE;
     st->count = 1;
-    depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1);
+#ifdef RPYTHON_VMPROF
+    depth = get_stack_trace(NULL, st->stack, MAX_STACK_DEPTH-1, (intptr_t)GetPC(uc));
+#else
+    depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1, (intptr_t)NULL);
+#endif
     if (depth == 0) {
         return 0;
     }
-    //st->stack[0] = GetPC((ucontext_t*)ucontext);
-    // we gonna need that for pypy
     st->depth = depth;
     st->stack[depth++] = tstate;
     long rss = get_current_proc_rss();
@@ -150,8 +154,10 @@ int _vmprof_sample_stack(struct profbuf_s *p, PyThreadState *tstate)
 
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
-    PyThreadState * tstate = NULL;
+    int commit;
+    PY_THREAD_STATE_T * tstate = NULL;
     void (*prevhandler)(int);
+#ifndef RPYTHON_VMPROF
     // TERRIBLE HACK AHEAD
     // on OS X, the thread local storage is sometimes uninitialized
     // when the signal handler runs - it means it's impossible to read errno
@@ -172,10 +178,12 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     } else {
         signal(SIGSEGV, prevhandler);
         __sync_lock_release(&spinlock);
-        return;    
+        return;
     }
     signal(SIGSEGV, prevhandler);
     __sync_lock_release(&spinlock);
+#endif
+
     long val = __sync_fetch_and_add(&signal_handler_value, 2L);
 
     if ((val & 1) == 0) {
@@ -187,7 +195,11 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
         if (p == NULL) {
             /* ignore this signal: there are no free buffers right now */
         } else {
-            int commit = _vmprof_sample_stack(p, tstate);
+#ifdef RPYTHON_VMPORF
+            commit = _vmprof_sample_stack(p, NULL, (ucontext_t*)ucontext);
+#else
+            commit = _vmprof_sample_stack(p, tstate, (ucontext_t*)ucontext);
+#endif
             if (commit) {
                 commit_buffer(fd, p);
             } else {
@@ -290,9 +302,58 @@ static int install_pthread_atfork_hooks(void) {
     return 0;
 }
 
-RPY_EXTERN
-int vmprof_enable(int memory)
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
+void init_cpyprof(int native)
 {
+    // skip this if native should not be enabled
+    if (!native) {
+        vmp_native_disable();
+        return;
+    }
+#if CPYTHON_HAS_FRAME_EVALUATION
+    PyThreadState *tstate = PyThreadState_GET();
+    tstate->interp->eval_frame = vmprof_eval;
+    _default_eval_loop = _PyEval_EvalFrameDefault;
+#if defined(RPYTHON_VMPROF)
+    // TODO nothing?
+#else
+    if (vmp_patch_callee_trampoline(PyEval_EvalFrameEx,
+                vmprof_eval, (void*)&_default_eval_loop) == 0) {
+    } else {
+        fprintf(stderr, "FATAL: could not insert trampline, try with --no-native\n");
+        // TODO dump the first few bytes and tell them to create an issue!
+        exit(-1);
+    }
+#endif
+    vmp_native_enable();
+}
+#endif
+
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
+void disable_cpyprof(void)
+{
+    vmp_native_disable();
+#if CPYTHON_HAS_FRAME_EVALUATION
+    PyThreadState *tstate = PyThreadState_GET();
+    tstate->interp->eval_frame = _PyEval_EvalFrameDefault;
+#elif defined(RPYTHON_VMPROF)
+    // TODO nothing?
+#else
+    if (vmp_unpatch_callee_trampoline(PyEval_EvalFrameEx) > 0) {
+        fprintf(stderr, "FATAL: could not remove trampoline\n");
+        exit(-1);
+    }
+#endif
+    dump_native_symbols(vmp_profile_fileno());
+}
+#endif
+
+RPY_EXTERN
+int vmprof_enable(int memory, int native)
+{
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
+    init_cpyprof(native);
+#endif
     assert(vmp_profile_fileno() >= 0);
     assert(prepare_interval_usec > 0);
     profile_interval_usec = prepare_interval_usec;
@@ -314,7 +375,7 @@ int vmprof_enable(int memory)
 }
 
 
-static int close_profile(void)
+int close_profile(void)
 {
     (void)vmp_write_time_now(MARKER_TRAILER);
 
@@ -329,6 +390,9 @@ int vmprof_disable(void)
 {
     vmprof_ignore_signals(1);
     profile_interval_usec = 0;
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
+    disable_cpyprof();
+#endif
 
     if (remove_sigprof_timer() == -1)
         return -1;

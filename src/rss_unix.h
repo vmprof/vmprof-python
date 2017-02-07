@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 /* On normal Unices we can get RSS from '/proc/<pid>/status'. */
 static int proc_file = -1;
 

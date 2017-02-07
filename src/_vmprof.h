@@ -1,7 +1,6 @@
 #pragma once
 
-#include <Python.h>
-#include <frameobject.h>
+#include "vmprof.h"
 
 #ifdef VMPROF_WINDOWS
 #include "msiinttypes/inttypes.h"
@@ -9,6 +8,7 @@
 #else
 #include <inttypes.h>
 #include <stdint.h>
+#include <stddef.h>
 #endif
 
 /**
@@ -42,38 +42,5 @@
 #define CODE_ADDR_TO_UID(co)  (((intptr_t)(co)))
 
 #define CPYTHON_HAS_FRAME_EVALUATION PY_VERSION_HEX >= 0x30600B0
-
-PyObject* vmprof_eval(PyFrameObject *f, int throwflag);
-
-#ifdef VMPROF_UNIX
-#define VMP_SUPPORTS_NATIVE_PROFILING
-#endif
-
-#ifdef __x86_64__
-#define X86_64
-#elif defined(__i386__)
-#define X86_32
-#endif
-
-#define MARKER_STACKTRACE '\x01'
-#define MARKER_VIRTUAL_IP '\x02'
-#define MARKER_TRAILER '\x03'
-#define MARKER_INTERP_NAME '\x04'   /* deprecated */
-#define MARKER_HEADER '\x05'
-#define MARKER_TIME_N_ZONE '\x06'
-#define MARKER_META '\x07'
-#define MARKER_NATIVE_SYMBOLS '\x08'
-
-#define VERSION_BASE '\x00'
-#define VERSION_THREAD_ID '\x01'
-#define VERSION_TAG '\x02'
-#define VERSION_MEMORY '\x03'
-#define VERSION_MODE_AWARE '\x04'
-#define VERSION_DURATION '\x05'
-#define VERSION_TIMESTAMP '\x06'
-
-#define PROFILE_MEMORY '\x01'
-#define PROFILE_LINES  '\x02'
-#define PROFILE_NATIVE '\x04'
 
 int vmp_write_all(const char *buf, size_t bufsize);
