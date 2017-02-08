@@ -63,10 +63,6 @@ def gunzip(fileobj):
         fileobj = io.BufferedReader(gzip.GzipFile(fileobj=fileobj))
     return fileobj
 
-class BufferTooSmallError(Exception):
-    def get_buf(self):
-        return b"".join(self.args[0])
-
 class ReaderStatus(object):
     def __init__(self, interp_name, period, version, previous_virtual_ips=None,
                  profile_memory=False, profile_lines=False):
@@ -88,31 +84,9 @@ def assert_error(condition, error="malformed file"):
     if not condition:
         raise FileReadError(error)
 
-# TODO remove this!!!
-def _read_header(fileobj, consume_mark=True):
+class LogReader(object):
     # NOTE be sure to carry along changes in src/symboltable.c for
     # native symbol resolution if something changes in this function
-    if consume_mark:
-        marker = fileobj.read(1)
-        assert_error(marker == MARKER_HEADER, "expected header")
-    version, = struct.unpack("!h", fileobj.read(2))
-
-    if version >= VERSION_MODE_AWARE:
-        mode = ord(fileobj.read(1))
-        profile_memory = (mode & PROFILE_MEMORY) != 0
-        profile_lines = (mode & PROFILE_LINES) != 0
-    else:
-        profile_memory = version == VERSION_MEMORY
-        profile_lines = False
-
-    lgt = ord(fileobj.read(1))
-    interp_name = fileobj.read(lgt)
-    if PY3:
-        interp_name = interp_name.decode()
-    return interp_name, version, profile_memory, profile_lines
-
-
-class LogReader(object):
     def __init__(self, fileobj, state):
         self.fileobj = fileobj
         self.state = state
@@ -122,20 +96,21 @@ class LogReader(object):
     def detect_file_sizes(self):
         self.fileobj.seek(0, os.SEEK_SET)
         firstbytes = self.read(8)
-        archsize = 4 if sys.maxint == 2**31-1 else 8
+        archsize = 4 if sys.maxsize == 2**31-1 else 8
         windows = sys.platform == 'win32'
+        three = '\x03' if not PY3 else 3
         # windows is special. word size on 64bit is 4 bytes
         if windows and archsize == 8:
             self.setup_once(word_size=4, addr_size=8)
-        elif firstbytes[4] == '\x03':
+        elif firstbytes[4] == three:
             self.setup_once(little_endian=True, word_size=4, addr_size=4)
-        elif firstbytes[7] == '\x03':
+        elif firstbytes[7] == three:
             self.setup_once(little_endian=False, word_size=4, addr_size=4)
         else:
             firstbytes = self.read(8)
-            if firstbytes[0] == '\x03':
+            if firstbytes[0] == three:
                 self.setup_once(little_endian=True, word_size=8, addr_size=8)
-            elif firstbytes[7] == '\x03':
+            elif firstbytes[7] == three:
                 self.setup_once(little_endian=False, word_size=8, addr_size=8)
             else:
                 raise NotImplementedError("could not determine word and addr size")
@@ -202,8 +177,6 @@ class LogReader(object):
         return bytes
 
     def read_trace(self, depth):
-        # NOTE be sure to carry along changes in src/symboltable.c for
-        # native symbol resolution if something changes in this function
         if self.state.profile_rpython:
             assert depth & 1 == 0
             depth = depth // 2
@@ -262,7 +235,7 @@ class LogReader(object):
             marker = fileobj.read(1)
             if marker == MARKER_HEADER:
                 assert not s.version, "multiple headers"
-                self.read_header(fileobj, consume_mark=False)
+                self.read_header()
             elif marker == MARKER_META:
                 key = self.read_string()
                 value = self.read_string()
@@ -271,10 +244,10 @@ class LogReader(object):
             elif marker == MARKER_TIME_N_ZONE:
                 s.start_time = self.read_time_and_zone()
             elif marker == MARKER_STACKTRACE:
-                count = read_word(fileobj)
+                count = self.read_word()
                 # for now
                 assert count == 1
-                depth = read_word(fileobj)
+                depth = self.read_word()
                 assert depth <= 2**16, 'stack strace depth too high'
                 trace = self.read_trace(depth)
                 thread_id = 0
@@ -293,7 +266,7 @@ class LogReader(object):
                 #if not virtual_ips_only:
                 #    symmap = read_ranges(fileobj.read())
                 if s.version >= VERSION_DURATION:
-                    s.end_time = read_time_and_zone(fileobj)
+                    s.end_time = self.read_time_and_zone()
                 break
             else:
                 assert not marker, (fileobj.tell(), repr(marker))
@@ -319,12 +292,10 @@ class LogReaderState(ReaderState):
         self.period = 0
 
 def read_prof(fileobj, virtual_ips_only=False):
-    # NOTE be sure to carry along changes in src/symboltable.c for
-    # native symbol resolution if something changes in this function
     fileobj = gunzip(fileobj)
 
     state = LogReaderState()
-    reader = LogReader(fileobj)
+    reader = LogReader(fileobj, state)
     reader.read_all()
 
     if virtual_ips_only:

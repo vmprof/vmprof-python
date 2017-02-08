@@ -10,14 +10,17 @@ import six
 from cffi import FFI
 from datetime import datetime
 from vmprof.show import PrettyPrinter
-from vmprof.reader import (gunzip, BufferTooSmallError, _read_header,
-        MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
-        MARKER_TRAILER, FileReadError, read_trace,
-        VERSION_THREAD_ID, WORD_SIZE, ReaderStatus,
-        read_time_and_zone, MARKER_TIME_N_ZONE, assert_error,
+from vmprof.profiler import read_profile
+from vmprof.reader import (gunzip, MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
+        MARKER_TRAILER, FileReadError, VERSION_THREAD_ID,
+        MARKER_TIME_N_ZONE, assert_error,
         MARKER_META, MARKER_NATIVE_SYMBOLS)
 from vmshare.binary import read_string, read_word, read_addr
 from vmprof.stats import Stats
+
+class BufferTooSmallError(Exception):
+    def get_buf(self):
+        return b"".join(self.args[0])
 
 class FileObjWrapper(object):
     def __init__(self, fileobj, buffer_so_far=None):
@@ -96,10 +99,8 @@ def test_read_bit_by_bit():
     function_foo()
     vmprof.disable()
     tmpfile.close()
-    with open(tmpfile.name, 'rb') as f:
-        period, profiles, virtual_symbols, interp_name = read_prof_bit_by_bit(f)
-        stats = Stats(profiles, virtual_symbols, interp_name)
-        stats.get_tree()
+    stats = read_profile(tmpfile.name)
+    stats.get_tree()
 
 def test_enable_disable():
     prof = vmprof.Profiler()
@@ -214,7 +215,7 @@ def test_memory_measurment():
     with prof.measure(memory=True):
         function_bar()
 
-    s = prof.get_stats()
+    prof.get_stats()
 
 if GZIP:
     def test_gzip_problem():
@@ -315,10 +316,8 @@ def test_line_profiling():
         for v in six.itervalues(tree.children):
                 walk(v)
 
-    with open(tmpfile.name, 'rb') as f:
-        period, profiles, virtual_symbols, interp_name = read_prof_bit_by_bit(f)
-        stats = Stats(profiles, virtual_symbols, interp_name)
-        walk(stats.get_tree())
+    stats = read_profile(tmpfile.name)
+    walk(stats.get_tree())
 
 def test_vmprof_show():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)

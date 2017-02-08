@@ -242,7 +242,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
         int err = unw_step(&cursor);
         if (err <= 0) {
             // on mac this breaks on Py_Main?
-            return 0;
+            break;
         }
     }
 

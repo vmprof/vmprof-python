@@ -103,7 +103,7 @@ class Stats(object):
     def get_tree(self):
         # fine the first non-empty profile
 
-        top = Node(0x0, "<entry>", len(self.profiles))
+        top = self.get_top(self.profiles)
         addr = None
         for profile in self.profiles:
             last_addr = top.addr
