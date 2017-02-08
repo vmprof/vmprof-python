@@ -130,11 +130,15 @@ int vmp_walk_and_record_python_stack_only(PY_STACK_FRAME_T *frame, void ** resul
 
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
 int _write_native_stack(void* addr, void ** result, int depth) {
+#ifdef RPYTHON_VMPROF
+    result[depth++] = (void*)VMPROF_NATIVE_TAG;
+#else
     if (vmp_profiles_python_lines()) {
         // even if we do not log a python stack frame,
         // we must keep the profile readable
         result[depth++] = 0;
     }
+#endif
     result[depth++] = addr;
     return depth;
 }
@@ -197,6 +201,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
 
         if ((void*)pip.start_ip == (void*)VMPROF_EVAL()) {
             // yes we found one stack entry of the python frames!
+#ifndef RPYTHON_VMPROF
             unw_word_t rbx = 0;
             if (unw_get_reg(&cursor, REG_RBX, &rbx) < 0) {
                 break;
@@ -208,6 +213,9 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
                 // current top_most_frame
                 return 0;
             } else {
+#else
+            {
+#endif
                 if (top_most_frame == NULL) {
                     break;
                 }
@@ -256,15 +264,25 @@ int vmp_native_enabled(void) {
 int _ignore_symbols_from_path(const char * name) {
     // which symbols should not be considered while walking
     // the native stack?
+#ifdef RPYTHON_VMPROF
+    if (strstr(name, "libpypy-c.so") != NULL
+        || strstr(name, "pypy-c") != NULL
+        || strstr(name, "pypy") != NULL) {
+        printf("ignoring %s\n", name);
+        return 1;
+    }
+#else
+    // cpython
     if (strstr(name, "python") != NULL &&
-#ifdef __unix__
+#  ifdef __unix__
         strstr(name, ".so\n") == NULL
-#elif defined(__APPLE__)
+#  elif defined(__APPLE__)
         strstr(name, ".so") == NULL
-#endif
+#  endif
        ) {
         return 1;
     }
+#endif
     return 0;
 }
 
@@ -440,6 +458,9 @@ void vmp_native_disable(void) {
 }
 
 int vmp_ignore_ip(intptr_t ip) {
+    if (vmp_range_count == 0) {
+        return 0;
+    }
     int i = vmp_binary_search_ranges(ip, vmp_ranges, vmp_range_count);
     if (i == -1) {
         return 0;

@@ -17,6 +17,8 @@ PY3  = sys.version_info[0] >= 3
 WORD_SIZE = struct.calcsize('L')
 
 def read_trace(fileobj, depth, version, profile_lines=False):
+    # NOTE be sure to carry along changes in src/symboltable.c for
+    # native symbol resolution if something changes in this function
     if version == VERSION_TAG:
         assert depth & 1 == 0
         depth = depth // 2
@@ -137,6 +139,8 @@ def assert_error(condition, error="malformed file"):
         raise FileReadError(error)
 
 def _read_header(fileobj, consume_mark=True):
+    # NOTE be sure to carry along changes in src/symboltable.c for
+    # native symbol resolution if something changes in this function
     if consume_mark:
         marker = fileobj.read(1)
         assert_error(marker == MARKER_HEADER, "expected header")
@@ -163,6 +167,8 @@ def read_time_and_zone(fileobj):
     )
 
 def read_prof(fileobj, virtual_ips_only=False):
+    # NOTE be sure to carry along changes in src/symboltable.c for
+    # native symbol resolution if something changes in this function
     fileobj = gunzip(fileobj)
 
     assert read_word(fileobj) == 0 # header count

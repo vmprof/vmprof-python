@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unistd.h>
+
 // common defines
 #define MARKER_STACKTRACE '\x01'
 #define MARKER_VIRTUAL_IP '\x02'
@@ -41,7 +43,12 @@
 #define PY_THREAD_STATE_T void
 #define FRAME_STEP(f) f->next
 #define FRAME_CODE(f) f->
-#define VMPROF_EVAL() vmprof_get_eval()
+// Is there is a way to tell the compiler
+// that this prototype can have ANY return value. Just removing
+// the return type will default to int
+typedef long Signed;
+RPY_EXTERN Signed __vmprof_eval_vmprof();
+#define VMPROF_EVAL() __vmprof_eval_vmprof
 #else
 #define RPY_EXTERN
 // for cpython
