@@ -98,8 +98,6 @@ static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, vo
     result[*depth] = (void*)CODE_ADDR_TO_UID(FRAME_CODE(frame));
     *depth = *depth + 1;
 #else
-    //result[*depth] = (void*)CODE_ADDR_TO_UID(FRAME_CODE(frame));
-    //*depth = *depth + 1;
 
     if (frame->kind == VMPROF_CODE_TAG) {
         int n = *depth;
@@ -107,12 +105,7 @@ static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, vo
         result[n++] = (void*)frame->value;
         *depth = n;
     }
-#ifdef PYPY_JIT_CODEMAP
-    else if (frame->kind == VMPROF_JITTED_TAG) {
-        intptr_t pc = ((intptr_t*)(frame->value - sizeof(intptr_t)))[0];
-        n = vmprof_write_header_for_jit_addr(result, n, pc, max_depth);
-    }
-#endif
+
 
 #endif
 
@@ -147,16 +140,6 @@ int _write_native_stack(void* addr, void ** result, int depth) {
 int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
                               int max_depth, int native_skip, intptr_t pc) {
 
-//#ifdef PYPY_JIT_CODEMAP
-//    intptr_t codemap_addr;
-//    if (pypy_find_codemap_at_addr((intptr_t)pc, &codemap_addr)) {
-//        // the bottom part is jitted, means we can fill up the first part
-//        // from the JIT
-//        depth = vmprof_write_header_for_jit_addr(result, depth, pc, max_depth);
-//        frame = FRAME_STEP(frame); // skip the first item as it contains garbage
-//    }
-//#endif
-
     // called in signal handler
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
     intptr_t func_addr;
@@ -183,12 +166,22 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
         native_skip--;
     }
 
+    //printf("stack trace:\n");
     int depth = 0;
     PY_STACK_FRAME_T * top_most_frame = frame;
     while (depth < max_depth) {
         unw_get_proc_info(&cursor, &pip);
 
         func_addr = pip.start_ip;
+
+        //{
+        //    char name[64];
+        //    unw_word_t x;
+        //    unw_get_proc_name(&cursor, name, 64, &x);
+        //    printf("  %s %p\n", name, func_addr);
+        //}
+
+
         //if (func_addr == 0) {
         //    unw_word_t rip = 0;
         //    if (unw_get_reg(&cursor, UNW_REG_IP, &rip) < 0) {
@@ -230,13 +223,26 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
             // mark native routines with the first bit set,
             // this is possible because compiler align to 8 bytes.
             //
-            depth = _write_native_stack((void*)(func_addr | 0x1), result, depth);
+
+#ifdef PYPY_JIT_CODEMAP
+            if (func_addr == 0 && top_most_frame->kind == VMPROF_JITTED_TAG) {
+                intptr_t pc = ((intptr_t*)(frame->value - sizeof(intptr_t)))[0];
+                n = vmprof_write_header_for_jit_addr(result, n, pc, max_depth);
+                frame = FRAME_STEP(frame);
+            } else if (func_addr != 0) {
+                depth = _write_native_stack((void*)(func_addr | 0x1), result, depth);
+            }
+#else
+            if (func_addr != 0) {
+                depth = _write_native_stack((void*)(func_addr | 0x1), result, depth);
+            }
+#endif
         }
 
         int err = unw_step(&cursor);
         if (err <= 0) {
             // on mac this breaks on Py_Main?
-            break;
+            return 0;
         }
     }
 

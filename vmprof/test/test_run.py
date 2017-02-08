@@ -4,25 +4,44 @@ import py
 import sys
 import tempfile
 import gzip
-import struct
 import pytz
-import os
-import sys
-import pytest
 import vmprof
 import six
-import vmprof
 from cffi import FFI
 from datetime import datetime
 from vmprof.show import PrettyPrinter
 from vmprof.reader import (gunzip, BufferTooSmallError, _read_header,
-        FileObjWrapper, MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
+        MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
         MARKER_TRAILER, FileReadError, read_trace,
         VERSION_THREAD_ID, WORD_SIZE, ReaderStatus,
         read_time_and_zone, MARKER_TIME_N_ZONE, assert_error,
         MARKER_META, MARKER_NATIVE_SYMBOLS)
 from vmshare.binary import read_string, read_word, read_addr
 from vmprof.stats import Stats
+
+class FileObjWrapper(object):
+    def __init__(self, fileobj, buffer_so_far=None):
+        self._fileobj = fileobj
+        self._buf = []
+        self._buffer_so_far = buffer_so_far
+        self._buffer_pos = 0
+
+    def read(self, count):
+        if self._buffer_so_far is not None:
+            if self._buffer_pos + count >= len(self._buffer_so_far):
+                s = self._buffer_so_far[self._buffer_pos:]
+                s += self._fileobj.read(count - len(s))
+                self._buffer_so_far = None
+            else:
+                s = self._buffer_so_far[self._buffer_pos:self._buffer_pos + count]
+                self._buffer_pos += count
+        else:
+            s = self._fileobj.read(count)
+        self._buf.append(s)
+        if len(s) < count:
+            raise BufferTooSmallError(self._buf)
+        return s
+
 
 if sys.version_info.major == 3:
     xrange = range

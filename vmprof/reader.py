@@ -1,46 +1,20 @@
 from __future__ import print_function
-import re
 import os
 import struct
-import subprocess
+import array
 import sys
 from six.moves import xrange
 import io
 import gzip
 import datetime
 
-from vmshare.binary import (read_word, read_string,
-        read_addresses, read_timeval, read_timezone,
-        read_addr, ADDR_SIZE)
-
 PY3  = sys.version_info[0] >= 3
-WORD_SIZE = struct.calcsize('L')
-
-def read_trace(fileobj, depth, version, profile_lines=False):
-    # NOTE be sure to carry along changes in src/symboltable.c for
-    # native symbol resolution if something changes in this function
-    if version == VERSION_TAG:
-        assert depth & 1 == 0
-        depth = depth // 2
-        kinds_and_pcs = read_addresses(fileobj, depth * 2)
-        # kinds_and_pcs is a list of [kind1, pc1, kind2, pc2, ...]
-        return [wrap_kind(kinds_and_pcs[i], kinds_and_pcs[i+1])
-                for i in xrange(0, len(kinds_and_pcs), 2)]
-    else:
-        trace = read_addresses(fileobj, depth)
-
-        if profile_lines:
-            for i in xrange(0, len(trace), 2):
-                # In the line profiling mode even items in the trace are line numbers.
-                # Every line number corresponds to the following frame, represented by an address.
-                trace[i] = -trace[i]
-        return trace
 
 
 MARKER_STACKTRACE = b'\x01'
 MARKER_VIRTUAL_IP = b'\x02'
 MARKER_TRAILER = b'\x03'
-MARKER_INTERP_NAME = b'\x04'
+MARKER_INTERP_NAME = b'\x04' # do not use! deprecated
 MARKER_HEADER = b'\x05'
 MARKER_TIME_N_ZONE = b'\x06'
 MARKER_META = b'\x07'
@@ -57,6 +31,8 @@ VERSION_TIMESTAMP = 6
 
 PROFILE_MEMORY = 1
 PROFILE_LINES = 2
+PROFILE_NATIVE = 4
+PROFILE_RPYTHON = 8
 
 VMPROF_CODE_TAG = 1
 VMPROF_BLACKHOLE_TAG = 2
@@ -72,7 +48,6 @@ class AssemblerCode(int):
 class JittedCode(int):
     pass
 
-
 def wrap_kind(kind, pc):
     if kind == VMPROF_ASSEMBLER_TAG:
         return AssemblerCode(pc)
@@ -81,7 +56,6 @@ def wrap_kind(kind, pc):
     assert kind == VMPROF_CODE_TAG
     return pc
 
-
 def gunzip(fileobj):
     is_gzipped = fileobj.read(2) == b'\037\213'
     fileobj.seek(-2, os.SEEK_CUR)
@@ -89,33 +63,9 @@ def gunzip(fileobj):
         fileobj = io.BufferedReader(gzip.GzipFile(fileobj=fileobj))
     return fileobj
 
-
 class BufferTooSmallError(Exception):
     def get_buf(self):
         return b"".join(self.args[0])
-
-class FileObjWrapper(object):
-    def __init__(self, fileobj, buffer_so_far=None):
-        self._fileobj = fileobj
-        self._buf = []
-        self._buffer_so_far = buffer_so_far
-        self._buffer_pos = 0
-
-    def read(self, count):
-        if self._buffer_so_far is not None:
-            if self._buffer_pos + count >= len(self._buffer_so_far):
-                s = self._buffer_so_far[self._buffer_pos:]
-                s += self._fileobj.read(count - len(s))
-                self._buffer_so_far = None
-            else:
-                s = self._buffer_so_far[self._buffer_pos:self._buffer_pos + count]
-                self._buffer_pos += count
-        else:
-            s = self._fileobj.read(count)
-        self._buf.append(s)
-        if len(s) < count:
-            raise BufferTooSmallError(self._buf)
-        return s
 
 class ReaderStatus(object):
     def __init__(self, interp_name, period, version, previous_virtual_ips=None,
@@ -138,6 +88,7 @@ def assert_error(condition, error="malformed file"):
     if not condition:
         raise FileReadError(error)
 
+# TODO remove this!!!
 def _read_header(fileobj, consume_mark=True):
     # NOTE be sure to carry along changes in src/symboltable.c for
     # native symbol resolution if something changes in this function
@@ -160,96 +111,224 @@ def _read_header(fileobj, consume_mark=True):
         interp_name = interp_name.decode()
     return interp_name, version, profile_memory, profile_lines
 
-def read_time_and_zone(fileobj):
-    return datetime.datetime.fromtimestamp(
-        read_timeval(fileobj)/10.0**6,
-        read_timezone(fileobj)
-    )
+
+class LogReader(object):
+    def __init__(self, fileobj, state):
+        self.fileobj = fileobj
+        self.state = state
+        self.word_size = None
+        self.addr_size = None
+
+    def detect_file_sizes(self):
+        self.fileobj.seek(0, os.SEEK_SET)
+        firstbytes = self.read(8)
+        archsize = 4 if sys.maxint == 2**31-1 else 8
+        windows = sys.platform == 'win32'
+        # windows is special. word size on 64bit is 4 bytes
+        if windows and archsize == 8:
+            self.setup_once(word_size=4, addr_size=8)
+        elif firstbytes[4] == '\x03':
+            self.setup_once(little_endian=True, word_size=4, addr_size=4)
+        elif firstbytes[7] == '\x03':
+            self.setup_once(little_endian=False, word_size=4, addr_size=4)
+        else:
+            firstbytes = self.read(8)
+            if firstbytes[0] == '\x03':
+                self.setup_once(little_endian=True, word_size=8, addr_size=8)
+            elif firstbytes[7] == '\x03':
+                self.setup_once(little_endian=False, word_size=8, addr_size=8)
+            else:
+                raise NotImplementedError("could not determine word and addr size")
+
+        self.fileobj.seek(0, os.SEEK_SET)
+
+    def setup_once(self, little_endian, word_size, addr_size):
+        self.little_endian = little_endian
+        assert self.little_endian, "big endian profile are not supported"
+        self.word_size = word_size
+        self.addr_size = addr_size
+
+    def read_static_header(self):
+        assert self.read_word() == 0 # header count
+        assert self.read_word() == 3 # header size
+        assert self.read_word() == 0
+        self.state.period = self.read_word()
+        assert self.read_word() == 0
+
+    def read_header(self):
+        s = self.state
+        fileobj = self.fileobj
+        s.version, = struct.unpack("!h", fileobj.read(2))
+
+        if s.version >= VERSION_MODE_AWARE:
+            mode = ord(fileobj.read(1))
+            s.profile_memory = (mode & PROFILE_MEMORY) != 0
+            s.profile_lines = (mode & PROFILE_LINES) != 0
+            s.profile_rpython = (mode & PROFILE_RPYTHON) != 0
+        else:
+            s.profile_memory = s.version == VERSION_MEMORY
+            s.profile_lines = False
+            s.profile_rpython = False
+
+        lgt = ord(fileobj.read(1))
+        s.interp_name = fileobj.read(lgt)
+        if PY3:
+            s.interp_name = s.interp_name.decode()
+
+    def read_addr(self):
+        if self.addr_size == 8:
+            return struct.unpack('<q', self.fileobj.read(8))[0]
+        elif self.addr_size == 4:
+            return struct.unpack('<l', self.fileobj.read(4))[0]
+        else:
+            raise NotImplementedError("did not implement size %d" % self.size)
+
+    def read_word(self):
+        if self.word_size == 8:
+            return struct.unpack('<q', self.fileobj.read(8))[0]
+        elif self.word_size == 4:
+            return struct.unpack('<l', self.fileobj.read(4))[0]
+        else:
+            raise NotImplementedError("did not implement size %d" % self.size)
+
+    def read(self, count):
+        return self.fileobj.read(count)
+
+    def read_string(self):
+        cnt = self.read_word()
+        bytes = self.read(cnt)
+        if PY3:
+            return bytes.decode('utf-8')
+        return bytes
+
+    def read_trace(self, depth):
+        # NOTE be sure to carry along changes in src/symboltable.c for
+        # native symbol resolution if something changes in this function
+        if self.state.profile_rpython:
+            assert depth & 1 == 0
+            depth = depth // 2
+            kinds_and_pcs = self.read_addresses(depth * 2)
+            # kinds_and_pcs is a list of [kind1, pc1, kind2, pc2, ...]
+            return [wrap_kind(kinds_and_pcs[i], kinds_and_pcs[i+1])
+                    for i in xrange(0, len(kinds_and_pcs), 2)]
+        else:
+            trace = self.read_addresses(depth)
+
+            if self.state.profile_lines:
+                for i in xrange(0, len(trace), 2):
+                    # In the line profiling mode even items in the trace are line numbers.
+                    # Every line number corresponds to the following frame, represented by an address.
+                    trace[i] = -trace[i]
+            return trace
+
+    def read_addresses(self, count):
+        if PY3:
+            c = 'q' if self.addr_size == 8 else 'l'
+            r = array.array(c)
+            b = self.read(self.addr_size * count)
+            r.frombytes(b)
+        else:
+            r = [self.read_addr() for i in range(count)]
+        return r
+
+    def read_s64(self):
+        return struct.unpack('q', self.fileobj.read(8))[0]
+
+    def read_time_and_zone(self):
+        return datetime.datetime.fromtimestamp(
+            self.read_timeval()/10.0**6, self.read_timezone())
+
+    def read_timeval(self):
+        tv_sec = self.read_s64()
+        tv_usec = self.read_s64()
+        return tv_sec * 10**6 + tv_usec
+
+    def read_timezone(self):
+        import pytz
+        timezone = self.read(8).strip(b'\x00')
+        timezone = timezone.decode('ascii')
+        if timezone:
+            return pytz.timezone(timezone)
+        return None
+
+    def read_all(self):
+        s = self.state
+        fileobj = self.fileobj
+
+        self.detect_file_sizes()
+        self.read_static_header()
+
+        while True:
+            marker = fileobj.read(1)
+            if marker == MARKER_HEADER:
+                assert not s.version, "multiple headers"
+                self.read_header(fileobj, consume_mark=False)
+            elif marker == MARKER_META:
+                key = self.read_string()
+                value = self.read_string()
+                assert not key in s.meta, "key duplication, %s already present" % (key,)
+                s.meta[key] = value
+            elif marker == MARKER_TIME_N_ZONE:
+                s.start_time = self.read_time_and_zone()
+            elif marker == MARKER_STACKTRACE:
+                count = read_word(fileobj)
+                # for now
+                assert count == 1
+                depth = read_word(fileobj)
+                assert depth <= 2**16, 'stack strace depth too high'
+                trace = self.read_trace(depth)
+                thread_id = 0
+                mem_in_kb = 0
+                if s.version >= VERSION_THREAD_ID:
+                    thread_id = self.read_addr()
+                if s.profile_memory:
+                    mem_in_kb = self.read_addr()
+                trace.reverse()
+                s.profiles.append((trace, 1, thread_id, mem_in_kb))
+            elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
+                unique_id = self.read_addr()
+                name = self.read_string()
+                s.virtual_ips.append((unique_id, name))
+            elif marker == MARKER_TRAILER:
+                #if not virtual_ips_only:
+                #    symmap = read_ranges(fileobj.read())
+                if s.version >= VERSION_DURATION:
+                    s.end_time = read_time_and_zone(fileobj)
+                break
+            else:
+                assert not marker, (fileobj.tell(), repr(marker))
+                break
+
+        s.virtual_ips.sort() # I think it's sorted, but who knows
+
+class ReaderState(object):
+    pass
+
+class LogReaderState(ReaderState):
+    def __init__(self):
+        self.virtual_ips = []
+        self.profiles = []
+        self.interp_name = None
+        self.start_time = None
+        self.end_time = None
+        self.version = 0
+        self.profile_memory = False
+        self.profile_lines = False
+        self.meta = {}
+        self.little_endian = True
+        self.period = 0
 
 def read_prof(fileobj, virtual_ips_only=False):
     # NOTE be sure to carry along changes in src/symboltable.c for
     # native symbol resolution if something changes in this function
     fileobj = gunzip(fileobj)
 
-    assert read_word(fileobj) == 0 # header count
-    assert read_word(fileobj) == 3 # header size
-    assert read_word(fileobj) == 0
-    period = read_word(fileobj)
-    assert read_word(fileobj) == 0
+    state = LogReaderState()
+    reader = LogReader(fileobj)
+    reader.read_all()
 
-    virtual_ips = []
-    profiles = []
-    interp_name = None
-    start_time = None
-    end_time = None
-    version = 0
-    profile_memory = False
-    profile_lines = False
-    meta = {}
-
-    while True:
-        marker = fileobj.read(1)
-        if marker == MARKER_HEADER:
-            assert not version, "multiple headers"
-            interp_name, version, profile_memory, profile_lines = \
-                    _read_header(fileobj, consume_mark=False)
-        elif marker == MARKER_META:
-            key = read_string(fileobj)
-            if PY3:
-                key = key.decode('utf-8')
-            value = read_string(fileobj)
-            if PY3:
-                value = value.decode('utf-8')
-            assert not key in meta, "key duplication, %s already present" % (key,)
-            meta[key] = value
-        elif marker == MARKER_TIME_N_ZONE:
-            start_time = read_time_and_zone(fileobj)
-        elif marker == MARKER_STACKTRACE:
-            count = read_word(fileobj)
-            # for now
-            assert count == 1
-            depth = read_word(fileobj)
-            assert depth <= 2**16, 'stack strace depth too high'
-            if virtual_ips_only:
-                fileobj.read(ADDR_SIZE * depth)
-                trace = []
-            else:
-                trace = read_trace(fileobj, depth, version, profile_lines)
-            if version >= VERSION_THREAD_ID:
-                thread_id = read_addr(fileobj)
-            else:
-                thread_id = 0
-            if profile_memory:
-                mem_in_kb = read_addr(fileobj)
-            else:
-                mem_in_kb = 0
-            trace.reverse()
-            profiles.append((trace, 1, thread_id, mem_in_kb))
-        elif marker == MARKER_INTERP_NAME:
-            assert not version, "multiple headers"
-            assert not interp_name, "Dual interpreter name header"
-            lgt = ord(fileobj.read(1))
-            interp_name = fileobj.read(lgt)
-            if PY3:
-                interp_name = interp_name.decode()
-        elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
-            unique_id = read_addr(fileobj)
-            name = read_string(fileobj)
-            #if unique_id & 0x1:
-            #    import pdb; pdb.set_trace()
-            if PY3:
-                name = name.decode()
-            virtual_ips.append((unique_id, name))
-        elif marker == MARKER_TRAILER:
-            #if not virtual_ips_only:
-            #    symmap = read_ranges(fileobj.read())
-            if version >= VERSION_DURATION:
-                end_time = read_time_and_zone(fileobj)
-            break
-        else:
-            assert not marker, (fileobj.tell(), repr(marker))
-            break
-    virtual_ips.sort() # I think it's sorted, but who knows
     if virtual_ips_only:
-        return virtual_ips
-    return period, profiles, virtual_ips, interp_name, meta, start_time, end_time
+        return state.virtual_ips
+    return state.period, state.profiles, state.virtual_ips, \
+           state.interp_name, state.meta, state.start_time, state.end_time
+

@@ -23,6 +23,7 @@
 #define PROFILE_MEMORY '\x01'
 #define PROFILE_LINES  '\x02'
 #define PROFILE_NATIVE '\x04'
+#define PROFILE_RPYTHON '\x08'
 
 #ifdef VMPROF_UNIX
 #define VMP_SUPPORTS_NATIVE_PROFILING

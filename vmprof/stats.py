@@ -103,12 +103,12 @@ class Stats(object):
     def get_tree(self):
         # fine the first non-empty profile
 
-        top = self.get_top(self.profiles)
+        top = Node(0x0, "<entry>", len(self.profiles))
         addr = None
         for profile in self.profiles:
             last_addr = top.addr
             cur = top
-            for i in range(1, len(profile[0])):
+            for i in range(0, len(profile[0])):
                 if isinstance(profile[0][i], AssemblerCode):
                     continue # just ignore it for now
                 addr = profile[0][i]
