@@ -12,7 +12,7 @@ from . import cli
 
 import _vmprof
 
-from vmprof.reader import read_prof
+from vmprof.reader import read_prof, MARKER_NATIVE_SYMBOLS
 from vmprof.stats import Stats
 from vmprof.profiler import Profiler, read_profile
 
@@ -28,22 +28,26 @@ IS_PYPY = '__pypy__' in sys.builtin_module_names
 # 1000Hz
 DEFAULT_PERIOD = 0.00099
 
-if not IS_PYPY:
-    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None):
-        if not isinstance(period, float):
-            raise ValueError("You need to pass a float as an argument")
-        gz_fileno = _gzip_start(fileno)
-        if os.name == "nt":
-            if native:
-                raise ValueError("native profiling is only supported on unix systems")
-            native = False
-        else:
-            # TODO native should be enabled by default?
-            if native is None:
-                native = True
-        _vmprof.enable(gz_fileno, period, memory, lines, native)
-else:
-    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, warn=True):
+def disable():
+    try:
+        _vmprof.disable()
+        _gzip_finish()
+    except IOError as e:
+        raise Exception("Error while writing profile: " + str(e))
+
+def _is_native_enabled(native):
+    if os.name == "nt":
+        if native:
+            raise ValueError("native profiling is only supported on Linux & Mac OS X")
+        native = False
+    else:
+        # TODO native should be enabled by default?
+        if native is None:
+            native = True
+    return native
+
+if IS_PYPY:
+    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, warn=True):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         if warn and sys.pypy_version_info[:3] < (4, 1, 0):
@@ -52,62 +56,68 @@ else:
             print("Memory profiling is currently unsupported for PyPy. Running without memory statistics.")
         if warn and lines:
             print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
+        native = _is_native_enabled(native)
         gz_fileno = _gzip_start(fileno)
-        _vmprof.enable(gz_fileno, period)
+        _vmprof.enable(gz_fileno, period, memory, lines, native)
+else:
+    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None):
+        if not isinstance(period, float):
+            raise ValueError("You need to pass a float as an argument")
+        gz_fileno = _gzip_start(fileno)
+        native = _is_native_enabled(native)
+        _vmprof.enable(gz_fileno, period, memory, lines, native)
 
-def disable():
-    try:
-        _vmprof.disable()
-        _gzip_finish()
-    except IOError as e:
-        raise Exception("Error while writing profile: " + str(e))
+    def dump_native_symbols(fileno):
+        # native symbols cannot be resolved in the signal handler.
+        # it would take far too long. Thus this method should be called
+        # just after the sampling finished and before the file descriptor
+        # is closed.
 
-def sample_stack_now():
-    """ Helper utility mostly for tests, this is considered
-        private API.
+        # called from C with the fileno that has been used for this profile
+        # duplicates are avoided if this function is only called once for a profile
+        fileobj = io.open(fileno, mode='rb', closefd=False)
+        fileobj.seek(0)
+        _, profiles, _, _, _, _, _ = read_prof(fileobj)
 
-        It will return a list of stack frames the python program currently
-        walked.
-    """
-    stackframes = _vmprof.sample_stack_now()
-    assert isinstance(stackframes, list)
-    return stackframes
+        duplicates = set()
+        fileobj = io.open(fileno, mode='ab', closefd=False)
 
-import gzip
-from vmprof.reader import read_prof, MARKER_NATIVE_SYMBOLS
-def dump_native_symbols(fileno):
-    # native symbols cannot be resolved in the signal handler.
-    # it would take far too long. Thus this method should be called
-    # just after the sampling finished and before the file descriptor
-    # is closed.
+        for profile in profiles:
+            addrs = profile[0]
+            for addr in addrs:
+                if addr in duplicates:
+                    continue
+                duplicates.add(addr)
+                if addr & 0x1 and addr > 1:
+                    name, lineno, srcfile = _vmprof.resolve_addr(addr)
+                    if name == "" and srcfile == '-':
+                        name = "<native symbol 0x%x>" % addr
 
-    # called from C with the fileno that has been used for this profile
-    # duplicates are avoided if this function is only called once for a profile
-    fileobj = io.open(fileno, mode='rb', closefd=False)
-    fileobj.seek(0)
-    _, profiles, _, _, _, _, _ = read_prof(fileobj)
+                    str = "n:%s:%d:%s" % (name, lineno, srcfile)
+                    if PY3:
+                        str = str.encode()
+                    out = [MARKER_NATIVE_SYMBOLS, struct.pack("l", addr),
+                           struct.pack("l", len(str)),
+                           str]
+                    fileobj.write(b''.join(out))
 
-    duplicates = set()
-    fileobj = io.open(fileno, mode='ab', closefd=False)
+    def sample_stack_now():
+        """ Helper utility mostly for tests, this is considered
+            private API.
 
-    for profile in profiles:
-        addrs = profile[0]
-        for addr in addrs:
-            if addr in duplicates:
-                continue
-            duplicates.add(addr)
-            if addr & 0x1 and addr > 1:
-                name, lineno, srcfile = _vmprof.resolve_addr(addr)
-                if name == "" and srcfile == '-':
-                    name = "<native symbol 0x%x>" % addr
+            It will return a list of stack frames the python program currently
+            walked.
+        """
+        stackframes = _vmprof.sample_stack_now()
+        assert isinstance(stackframes, list)
+        return stackframes
 
-                str = "n:%s:%d:%s" % (name, lineno, srcfile)
-                if PY3:
-                    str = str.encode()
-                out = [MARKER_NATIVE_SYMBOLS, struct.pack("l", addr),
-                       struct.pack("l", len(str)),
-                       str]
-                fileobj.write(b''.join(out))
+    def resolve_addr(addr):
+        """ Private API, returns the symbol name of the given address.
+            Only considers linking symbols found by dladdr.
+        """
+        return _vmprof.resolve_addr(addr)
+
 
 _gzip_proc = None
 
@@ -144,9 +154,3 @@ def _gzip_finish():
         assert returncode == 0, \
                "return code was non zero: %d" % returncode
         _gzip_proc = None
-
-def resolve_addr(addr):
-    """ Private API, returns the symbol name of the given address.
-        Only considers linking symbols found by dladdr.
-    """
-    return _vmprof.resolve_addr(addr)

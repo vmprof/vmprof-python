@@ -40,6 +40,7 @@ VMPROF_JITTED_TAG = 3
 VMPROF_JITTING_TAG = 4
 VMPROF_GC_TAG = 5
 VMPROF_ASSEMBLER_TAG = 6
+VMPROF_NATIVE_TAG = 7
 
 
 class AssemblerCode(int):
@@ -48,11 +49,16 @@ class AssemblerCode(int):
 class JittedCode(int):
     pass
 
+class NativeCode(int):
+    pass
+
 def wrap_kind(kind, pc):
     if kind == VMPROF_ASSEMBLER_TAG:
         return AssemblerCode(pc)
     elif kind == VMPROF_JITTED_TAG:
         return JittedCode(pc)
+    elif kind == VMPROF_NATIVE_TAG:
+        return NativeCode(pc)
     assert kind == VMPROF_CODE_TAG
     return pc
 

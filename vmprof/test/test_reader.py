@@ -1,9 +1,9 @@
 
 import struct, py
 from vmprof import reader
-from vmprof.reader import (FileReadError,
-    MARKER_HEADER, BufferTooSmallError, FileObjWrapper, ReaderStatus)
-from vmprof.test.test_run import read_one_marker, read_header
+from vmprof.reader import (FileReadError, MARKER_HEADER)
+from vmprof.test.test_run import (read_one_marker, read_header,
+        BufferTooSmallError, FileObjWrapper)
 
 class FileObj(object):
     def __init__(self, lst=None):
@@ -47,20 +47,4 @@ def test_fileobj_wrapper():
     assert fw.read(3) == b'123'
     assert fw.read(4) == b'4567'
     assert fw.read(2) == b'89'
-
-def test_read_header():
-    f = FileObj()
-    f.write(struct.pack("l", 13))
-    py.test.raises(FileReadError, read_header, f)
-    f = FileObj([0, 3, 0, 100, 0, MARKER_HEADER])
-    exc = py.test.raises(BufferTooSmallError, read_header, f)
-    f.write(struct.pack("!h", 13))
-    f.write(struct.pack("b", 3))
-    f.write(struct.pack("b", 9))
-    f.write(b"foointerp")
-    status = read_header(f, exc.value.get_buf())
-    assert status.version == 13
-    assert status.profile_lines == True
-    assert status.profile_memory == True
-    assert status.interp_name == "foointerp"
 
