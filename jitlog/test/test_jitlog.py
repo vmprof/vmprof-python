@@ -9,8 +9,7 @@ from jitlog.objects import (FlatOp, TraceForest, Trace,
         MergePoint, PointInTrace, iter_ranges)
 from vmshare.binary import (encode_str, encode_le_u64, encode_le_u32)
 from vmprof.test.test_reader import FileObj
-from vmprof.reader import FileObjWrapper
-import base64
+from vmprof.test.test_run import FileObjWrapper, BufferTooSmallError
 import vmprof
 
 PY3 = sys.version_info[0] >= 3
@@ -26,7 +25,7 @@ def construct_forest(fileobj, version=1, forest=None):
             trace = forest.last_trace
             read(ctx, trace, fileobj)
             forest.time_tick()
-    except vmprof.reader.BufferTooSmallError:
+    except BufferTooSmallError:
         pass
     return forest
 

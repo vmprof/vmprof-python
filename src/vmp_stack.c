@@ -54,7 +54,7 @@ int vmp_profiles_python_lines(void) {
     return _vmp_profiles_lines;
 }
 
-static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, void ** result, int * depth)
+static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, void ** result, int * depth, int max_depth)
 {
     int len;
     int addr;
@@ -105,6 +105,12 @@ static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, vo
         result[n++] = (void*)frame->value;
         *depth = n;
     }
+#ifdef PYPY_JIT_CODEMAP
+    else if (frame->kind == VMPROF_JITTED_TAG) {
+        intptr_t pc = ((intptr_t*)(frame->value - sizeof(intptr_t)))[0];
+        *depth = vmprof_write_header_for_jit_addr(result, *depth, pc, max_depth);
+    }
+#endif
 
 
 #endif
@@ -116,7 +122,7 @@ int vmp_walk_and_record_python_stack_only(PY_STACK_FRAME_T *frame, void ** resul
                                      int max_depth, int depth, intptr_t pc)
 {
     while (depth < max_depth && frame) {
-        frame = _write_python_stack_entry(frame, result, &depth);
+        frame = _write_python_stack_entry(frame, result, &depth, max_depth);
     }
     return depth;
 }
@@ -212,7 +218,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
             {
 #endif
                 if (top_most_frame != NULL) {
-                    top_most_frame = _write_python_stack_entry(top_most_frame, result, &depth);
+                    top_most_frame = _write_python_stack_entry(top_most_frame, result, &depth, max_depth);
                 } else {
                     // Signals can occur at the two places (1) and (2), that will
                     // have added a stack entry, but the function __vmprof_eval_vmprof
@@ -236,7 +242,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
             //
 #ifdef PYPY_JIT_CODEMAP
             if (func_addr == 0 && top_most_frame->kind == VMPROF_JITTED_TAG) {
-                intptr_t pc = ((intptr_t*)(frame->value - sizeof(intptr_t)))[0];
+                intptr_t pc = ((intptr_t*)(top_most_frame->value - sizeof(intptr_t)))[0];
                 depth = vmprof_write_header_for_jit_addr(result, depth, pc, max_depth);
                 frame = FRAME_STEP(frame);
             } else if (func_addr != 0x0) {
