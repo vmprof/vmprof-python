@@ -1,9 +1,6 @@
 import py
 import time
 import re
-import vmprof
-from vmprof.profiler import Profiler
-import _vmprof
 from cffi import FFI
 
 sample = None
@@ -28,6 +25,7 @@ class TestNative(object):
         cls.ffi = _test_native.ffi
 
     def test_simple_sample(self):
+        import vmprof
         global sample
         native_call = self.lib.native_callback_g
 
@@ -45,7 +43,7 @@ class TestNative(object):
 
         def f():
             native_call()
-        p = Profiler()
+        p = vmprof.profiler.Profiler()
         with p.measure(native=True):
             f()
 
