@@ -2,9 +2,6 @@ import py
 import os
 import sys
 import pytest
-import vmprof
-from vmprof.reader import MARKER_NATIVE_SYMBOLS
-from vmshare.binary import read_word, read_string
 from cffi import FFI
 from array import array
 
@@ -13,8 +10,8 @@ sample = None
 @py.test.mark.skipif("sys.platform == 'win32'")
 class TestSymbolTable(object):
     def setup_class(cls):
-        stack_ffi = FFI()
-        stack_ffi.cdef("""
+        ffi = FFI()
+        ffi.cdef("""
         //void dump_all_known_symbols(int fd);
         int test_extract(char ** name, int * lineno, char ** src);
         """)
@@ -50,11 +47,11 @@ class TestSymbolTable(object):
             includes.append('src/libbacktrace')
 
         # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
-        stack_ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=includes,
+        ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=includes,
                              define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
                              extra_compile_args=[])
 
-        stack_ffi.compile(verbose=True)
+        ffi.compile(verbose=True)
         from vmprof.test import _test_symboltable as clib
         cls.lib = clib.lib
         cls.ffi = clib.ffi
