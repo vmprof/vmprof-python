@@ -60,6 +60,7 @@ if IS_PYPY:
         gz_fileno = _gzip_start(fileno)
         _vmprof.enable(gz_fileno, period, memory, lines, native)
 else:
+    # CPYTHON
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
