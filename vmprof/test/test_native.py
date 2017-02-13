@@ -5,22 +5,22 @@ from cffi import FFI
 
 sample = None
 
+ffi = FFI()
+ffi.cdef("""
+extern "Python" static void g(void);
+void native_callback_g(void);
+""")
+ffi.set_source("vmprof.test._test_native", """
+static void g(void);
+__attribute__((noinline)) // clang, do not inline
+void native_callback_g(void) { g(); }
+""", extra_compile_args=['-g'])
+ffi.compile()
+
 @py.test.mark.skipif("sys.platform == 'win32'")
 class TestNative(object):
     def setup_class(cls):
-        ffi = FFI()
-        ffi.cdef("""
-        extern "Python" static void g(void);
-        void native_callback_g(void);
-        """)
-        ffi.set_source("vmprof.test._test_native", """
-        static void g(void);
-        __attribute__((noinline)) // clang, do not inline
-        void native_callback_g(void) { g(); }
-        """, extra_compile_args=['-g'])
-        ffi.compile()
         from vmprof.test import _test_native
-
         cls.lib = _test_native.lib
         cls.ffi = _test_native.ffi
 
