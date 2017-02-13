@@ -267,6 +267,8 @@ class LogReader(object):
             elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
                 unique_id = self.read_addr()
                 name = self.read_string()
+                if marker == MARKER_NATIVE_SYMBOLS:
+                    print(hex(unique_id), name)
                 s.virtual_ips.append((unique_id, name))
             elif marker == MARKER_TRAILER:
                 #if not virtual_ips_only:
