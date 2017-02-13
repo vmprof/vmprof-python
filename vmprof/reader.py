@@ -102,13 +102,8 @@ class LogReader(object):
     def detect_file_sizes(self):
         self.fileobj.seek(0, os.SEEK_SET)
         firstbytes = self.read(8)
-        archsize = 4 if sys.maxsize == 2**31-1 else 8
-        windows = sys.platform == 'win32'
         three = '\x03' if not PY3 else 3
-        # windows is special. word size on 64bit is 4 bytes
-        if windows and archsize == 8:
-            self.setup_once(word_size=4, addr_size=8)
-        elif firstbytes[4] == three:
+        if firstbytes[4] == three:
             self.setup_once(little_endian=True, word_size=4, addr_size=4)
         elif firstbytes[7] == three:
             self.setup_once(little_endian=False, word_size=4, addr_size=4)
@@ -120,6 +115,14 @@ class LogReader(object):
                 self.setup_once(little_endian=False, word_size=8, addr_size=8)
             else:
                 raise NotImplementedError("could not determine word and addr size")
+
+        # determine if it is windows 64 bit
+        if self.addr_size == 8:
+            # read further
+            self.read(3*8)
+            windows64 = self.read_word() == 1
+            if windows64:
+                self.setup_once(little_endian=True, word_size=4, addr_size=8)
 
         self.fileobj.seek(0, os.SEEK_SET)
 
@@ -134,7 +137,7 @@ class LogReader(object):
         assert self.read_word() == 3 # header size
         assert self.read_word() == 0
         self.state.period = self.read_word()
-        assert self.read_word() == 0
+        assert self.read_word() in (0, 1)
 
     def read_header(self):
         s = self.state
