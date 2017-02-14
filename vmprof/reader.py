@@ -122,9 +122,11 @@ class LogReader(object):
                 raise NotImplementedError("could not determine word and addr size")
 
         # determine if it is windows 64 bit
-        if self.addr_size == 8:
+        # even though it migt be a 64bit log, teh addr_size is now 4
+        if self.addr_size == 4:
             # read further
-            self.read(3*8)
+            self.fileobj.seek(0, os.SEEK_SET)
+            self.read(4*4)
             windows64 = self.read_word() == 1
             if windows64:
                 self.setup_once(little_endian=little, word_size=4, addr_size=8)

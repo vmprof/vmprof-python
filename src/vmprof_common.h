@@ -96,10 +96,9 @@ static int opened_profile(const char *interp_name, int memory, int proflines, in
     } header;
 
     const char * machine;
+    size_t namelen = strnlen(interp_name, 255);
 
     machine = vmp_machine_os_name();
-
-    size_t namelen = strnlen(interp_name, 255);
 
     header.hdr[0] = 0;
     header.hdr[1] = 3;

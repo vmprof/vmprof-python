@@ -48,7 +48,7 @@ int vmprof_snapshot_thread(DWORD thread_id, PyThreadState *tstate, prof_stacktra
         return -1; // possible, e.g. attached debugger or thread alread suspended
     // find the correct thread
     depth = vmp_walk_and_record_stack(tstate->frame, stack->stack,
-                                      MAX_STACK_DEPTH, 0);
+                                      MAX_STACK_DEPTH, 0, 0);
     stack->depth = depth;
     stack->stack[depth++] = (void*)thread_id;
     stack->count = 1;

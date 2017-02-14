@@ -1,21 +1,24 @@
 import py
 import time
 import re
+import sys
 from cffi import FFI
+
 
 sample = None
 
-ffi = FFI()
-ffi.cdef("""
-extern "Python" static void g(void);
-void native_callback_g(void);
-""")
-ffi.set_source("vmprof.test._test_native", """
-static void g(void);
-__attribute__((noinline)) // clang, do not inline
-void native_callback_g(void) { g(); }
-""", extra_compile_args=['-g'])
-ffi.compile()
+if sys.platform != 'win32':
+    ffi = FFI()
+    ffi.cdef("""
+    extern "Python" static void g(void);
+    void native_callback_g(void);
+    """)
+    ffi.set_source("vmprof.test._test_native", """
+    static void g(void);
+    __attribute__((noinline)) // clang, do not inline
+    void native_callback_g(void) { g(); }
+    """, extra_compile_args=['-g'])
+    ffi.compile()
 
 @py.test.mark.skipif("sys.platform == 'win32'")
 class TestNative(object):
