@@ -209,14 +209,13 @@ class LogReader(object):
             return trace
 
     def read_addresses(self, count):
-        if PY3:
-            c = 'q' if self.addr_size == 8 else 'l'
-            r = array.array(c)
-            b = self.read(self.addr_size * count)
-            r.frombytes(b)
-        else:
-            r = [self.read_addr() for i in range(count)]
-        return r
+        addrs = []
+        for i in range(count):
+            addr = self.read_addr()
+            if addr > 0 and addr & 1 == 1:
+                addrs.append(NativeCode(addr))
+            addrs.append(addr)
+        return addrs
 
     def read_s64(self):
         return struct.unpack('q', self.fileobj.read(8))[0]

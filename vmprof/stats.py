@@ -1,5 +1,5 @@
 import six
-from vmprof.reader import AssemblerCode, JittedCode
+from vmprof.reader import AssemblerCode, JittedCode, NativeCode
 
 class EmptyProfileFile(Exception):
     pass
@@ -124,6 +124,8 @@ class Stats(object):
                     cur = cur.add_child(addr, name)
             if isinstance(addr, JittedCode):
                 cur.meta['jit'] = cur.meta.get('jit', 0) + 1
+            if isinstance(addr, NativeCode):
+                cur.meta['native'] = cur.meta.get('native', 0) + 1
         # get the first "interesting" node, that is after vmprof and pypy
         # mess
 

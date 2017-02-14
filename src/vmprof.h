@@ -1,6 +1,8 @@
 #pragma once
 
+#ifdef VMPROF_UNIX
 #include <unistd.h>
+#endif
 
 // common defines
 #define MARKER_STACKTRACE '\x01'
