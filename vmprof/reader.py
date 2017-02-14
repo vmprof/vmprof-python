@@ -214,7 +214,8 @@ class LogReader(object):
             addr = self.read_addr()
             if addr > 0 and addr & 1 == 1:
                 addrs.append(NativeCode(addr))
-            addrs.append(addr)
+            else:
+                addrs.append(addr)
         return addrs
 
     def read_s64(self):
