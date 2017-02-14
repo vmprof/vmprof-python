@@ -5,53 +5,52 @@ import pytest
 from cffi import FFI
 from array import array
 
-sample = None
+ffi = FFI()
+ffi.cdef("""
+//void dump_all_known_symbols(int fd);
+int test_extract(char ** name, int * lineno, char ** src);
+""")
+with open("src/symboltable.c", "rb") as fd:
+    source = fd.read().decode()
+source += """
+
+static char gname[64];
+static char gsrc[128];
+int test_extract(char ** name, int * lineno, char ** src)
+{
+    *name = gname;
+    *src = gsrc;
+    return vmp_resolve_addr(&vmp_resolve_addr, gname, 64,
+                            lineno, gsrc, 128);
+}
+"""
+libs = [] #['unwind', 'unwind-x86_64']
+includes = ['src']
+if sys.platform.startswith('linux'):
+    for src in ["src/libbacktrace/state.c",
+                "src/libbacktrace/backtrace.c",
+                "src/libbacktrace/fileline.c",
+                "src/libbacktrace/posix.c",
+                "src/libbacktrace/mmap.c",
+                "src/libbacktrace/mmapio.c",
+                "src/libbacktrace/elf.c",
+                "src/libbacktrace/dwarf.c",
+                "src/libbacktrace/sort.c",
+               ]:
+        with open(src, "rb") as fd:
+            source += fd.read().decode()
+    includes.append('src/libbacktrace')
+
+# trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
+ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=includes,
+                     define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
+                     extra_compile_args=[])
+
+ffi.compile(verbose=True)
 
 @py.test.mark.skipif("sys.platform == 'win32'")
 class TestSymbolTable(object):
     def setup_class(cls):
-        ffi = FFI()
-        ffi.cdef("""
-        //void dump_all_known_symbols(int fd);
-        int test_extract(char ** name, int * lineno, char ** src);
-        """)
-        with open("src/symboltable.c", "rb") as fd:
-            source = fd.read().decode()
-        source += """
-
-        static char gname[64];
-        static char gsrc[128];
-        int test_extract(char ** name, int * lineno, char ** src)
-        {
-            *name = gname;
-            *src = gsrc;
-            return vmp_resolve_addr(&vmp_resolve_addr, gname, 64,
-                                    lineno, gsrc, 128);
-        }
-        """
-        libs = [] #['unwind', 'unwind-x86_64']
-        includes = ['src']
-        if sys.platform.startswith('linux'):
-            for src in ["src/libbacktrace/state.c",
-                        "src/libbacktrace/backtrace.c",
-                        "src/libbacktrace/fileline.c",
-                        "src/libbacktrace/posix.c",
-                        "src/libbacktrace/mmap.c",
-                        "src/libbacktrace/mmapio.c",
-                        "src/libbacktrace/elf.c",
-                        "src/libbacktrace/dwarf.c",
-                        "src/libbacktrace/sort.c",
-                       ]:
-                with open(src, "rb") as fd:
-                    source += fd.read().decode()
-            includes.append('src/libbacktrace')
-
-        # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
-        ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=includes,
-                             define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
-                             extra_compile_args=[])
-
-        ffi.compile(verbose=True)
         from vmprof.test import _test_symboltable as clib
         cls.lib = clib.lib
         cls.ffi = clib.ffi
