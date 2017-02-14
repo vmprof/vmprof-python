@@ -103,16 +103,21 @@ class LogReader(object):
         self.fileobj.seek(0, os.SEEK_SET)
         firstbytes = self.read(8)
         three = '\x03' if not PY3 else 3
+        little = None
         if firstbytes[4] == three:
-            self.setup_once(little_endian=True, word_size=4, addr_size=4)
+            little = True
+            self.setup_once(little_endian=little, word_size=4, addr_size=4)
         elif firstbytes[7] == three:
-            self.setup_once(little_endian=False, word_size=4, addr_size=4)
+            little = False
+            self.setup_once(little_endian=little, word_size=4, addr_size=4)
         else:
             firstbytes = self.read(8)
             if firstbytes[0] == three:
-                self.setup_once(little_endian=True, word_size=8, addr_size=8)
+                little = True
+                self.setup_once(little_endian=little, word_size=8, addr_size=8)
             elif firstbytes[7] == three:
-                self.setup_once(little_endian=False, word_size=8, addr_size=8)
+                little = False
+                self.setup_once(little_endian=little, word_size=8, addr_size=8)
             else:
                 raise NotImplementedError("could not determine word and addr size")
 
@@ -122,7 +127,7 @@ class LogReader(object):
             self.read(3*8)
             windows64 = self.read_word() == 1
             if windows64:
-                self.setup_once(little_endian=True, word_size=4, addr_size=8)
+                self.setup_once(little_endian=little, word_size=4, addr_size=8)
 
         self.fileobj.seek(0, os.SEEK_SET)
 
