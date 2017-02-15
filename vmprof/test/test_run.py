@@ -113,6 +113,11 @@ def test_enable_disable():
 def test_start_end_time():
     prof = vmprof.Profiler()
     before_profile = datetime.now(pytz.utc)
+    if sys.platform == 'win32':
+        # it seems that the windows implementation of vmp_write_time_now
+        # is borken, and cuts of some micro second precision.
+        import time
+        time.sleep(1)
     with prof.measure():
         function_foo()
     after_profile = datetime.now(pytz.utc)

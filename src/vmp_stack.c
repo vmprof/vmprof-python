@@ -59,7 +59,7 @@ static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, vo
     int len;
     int addr;
     int j;
-    long line;
+    uint64_t line;
     char *lnotab;
 
 #ifndef RPYTHON_VMPROF // pypy does not support line profiling
@@ -76,7 +76,7 @@ static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, vo
         lnotab = PyStr_AS_STRING(frame->f_code->co_lnotab);
 
         if (lnotab != NULL) {
-            line = (long)frame->f_lineno;
+            line = (uint64_t)frame->f_lineno;
             addr = 0;
 
             len = (int)PyStr_GET_SIZE(frame->f_code->co_lnotab);
