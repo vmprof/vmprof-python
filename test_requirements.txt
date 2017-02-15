@@ -5,3 +5,4 @@ cffi
 pytest
 hypothesis
 colorama
+pytz
