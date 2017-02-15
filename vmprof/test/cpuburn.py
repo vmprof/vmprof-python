@@ -1,3 +1,4 @@
+import sys
 import os
 from time import time
 import vmprof
@@ -48,7 +49,10 @@ if __name__ == '__main__':
 
     PROFILE_FILE = 'vmprof_cpuburn.dat'
 
-    outfd = os.open(PROFILE_FILE, os.O_RDWR | os.O_CREAT | os.O_TRUNC)
+    flags = os.O_RDWR | os.O_CREAT | os.O_TRUNC
+    if sys.platform == 'win32':
+        flags |= os.O_BINARY
+    outfd = os.open(PROFILE_FILE, flags)
     vmprof.enable(outfd, period=0.01)
     test()
     vmprof.disable()

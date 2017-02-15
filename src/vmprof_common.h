@@ -48,7 +48,13 @@ static struct profbuf_s *volatile current_codes;
  * is 4, but fails on win32
  */
 typedef struct prof_stacktrace_s {
+#ifdef VMPROF_WINDOWS
+    // if padding is 8 bytes, then on both 32bit and 64bit, the
+    // stack field is aligned
+    char padding[sizeof(void*) - 1];
+#else
     char padding[sizeof(long) - 1];
+#endif
     char marker;
     long count, depth;
     void *stack[];

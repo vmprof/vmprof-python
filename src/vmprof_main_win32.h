@@ -86,10 +86,8 @@ long __stdcall vmprof_mainloop(void *arg)
             continue;
         depth = vmprof_snapshot_thread(tstate->thread_id, tstate, stack);
         if (depth > 0) {
-            // see note in vmprof_common.h on the prof_stacktrace_s struct why
-            // there are two vmpr_write_all calls
-            vmp_write_all((char*)stack + offsetof(prof_stacktrace_s, marker), SIZEOF_PROF_STACKTRACE);
-            vmp_write_all((char*)stack->stack, depth * sizeof(void*));
+            vmp_write_all((char*)stack + offsetof(prof_stacktrace_s, marker),
+                          SIZEOF_PROF_STACKTRACE + depth * sizeof(void*));
         }
     }
 }
@@ -121,4 +119,5 @@ int vmprof_disable(void)
 RPY_EXTERN
 void vmprof_ignore_signals(int ignored)
 {
+    enabled = !ignored;
 }

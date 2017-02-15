@@ -9,3 +9,6 @@ Frequently Asked Questions
 
 * **What do the colors on vmprof.com mean?**: For plain CPython there is no particular meaning, we might change
   that in the future. For PyPy we have a color coding to show at which state the VM sampled (e.g. JIT, Warmup, ...).
+
+* **My Windows profile is malformed?**: Please ensure that you open the file in binary mode. Otherwise Windows
+  will transform `\n` to `\r\n`.
