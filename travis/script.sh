@@ -9,12 +9,11 @@ fi
 py.test vmprof/ -vrs
 py.test jitlog/ -vrs
 
+if [[ -n "$TRAVIS_TAG" ]]; then
+
     if [[ "$MAC_WHEEL" == "1" ]]; then
         bash travis/upload-artifact.sh
     fi
-
-if [[ -n "$TRAVIS_TAG" ]]; then
-
 
     if [[ "$BUILD_LINUX_WHEEL" == "1" ]]; then
         docker pull quay.io/pypa/manylinux1_x86_64
