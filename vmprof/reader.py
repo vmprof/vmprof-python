@@ -163,6 +163,8 @@ class LogReader(object):
 
         lgt = ord(fileobj.read(1))
         s.interp_name = fileobj.read(lgt)
+        if s.interp_name == 'pypy':
+            s.profile_rpython = True
         if PY3:
             s.interp_name = s.interp_name.decode()
 
@@ -237,7 +239,13 @@ class LogReader(object):
         timezone = self.read(8).strip(b'\x00')
         timezone = timezone.decode('ascii')
         if timezone:
-            return pytz.timezone(timezone)
+            try:
+                # TODO, it seems that all systems use different timezone names,
+                # this would need some clarification, or we just remove the whole
+                # feature and ignore the timezone in the log
+                return pytz.timezone(timezone)
+            except pytz.exceptions.UnknownTimeZoneError:
+                return None
         return None
 
     def read_all(self):
