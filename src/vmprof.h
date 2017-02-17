@@ -54,6 +54,7 @@ int IS_VMPROF_EVAL(void * ptr);
 // for cpython
 #include "_vmprof.h"
 #include <Python.h>
+#include <pythread.h>
 #include <frameobject.h>
 #define PY_STACK_FRAME_T PyFrameObject
 #define PY_EVAL_RETURN_T PyObject
