@@ -56,9 +56,10 @@ if IS_PYPY:
             print("Memory profiling is currently unsupported for PyPy. Running without memory statistics.")
         if warn and lines:
             print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
-        native = _is_native_enabled(native)
+        # TODO fixes currently released pypy's
+        #native = _is_native_enabled(native)
         gz_fileno = _gzip_start(fileno)
-        _vmprof.enable(gz_fileno, period, memory, lines, native)
+        _vmprof.enable(gz_fileno, period) # , memory, lines, native)
 else:
     # CPYTHON
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None):
