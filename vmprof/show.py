@@ -235,7 +235,11 @@ class LinesPrinter(object):
             try:
                 sublines = inspect.getblock(all_lines[start_lineno-1:])
             except tokenize.TokenError:
-                # inspect.getblock fails on multi line dictionary comprehensions
+                # the problem stems from getblock not being able to tokenize such an example:
+                # >>> inspect.getblock(['i:i**i','}']) => TokenError
+                # e.g. it fails on multi line dictionary comprehensions
+                # the current approach is best effort, but cuts of some lines at the top.
+                # see issue #118 for details
                 sublines = all_lines[start_lineno-1:max(linenos)]
         else:
             stream.write("\n")
