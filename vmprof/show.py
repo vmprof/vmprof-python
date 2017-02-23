@@ -5,6 +5,7 @@ import linecache
 import os
 import six
 import sys
+import tokenize
 
 import vmprof
 import argparse
@@ -231,7 +232,11 @@ class LinesPrinter(object):
                 # Clear the cache to ensure that we get up-to-date results.
                 linecache.clearcache()
             all_lines = linecache.getlines(filename)
-            sublines = inspect.getblock(all_lines[start_lineno-1:])
+            try:
+                sublines = inspect.getblock(all_lines[start_lineno-1:])
+            except tokenize.TokenError:
+                # inspect.getblock fails on multi line dictionary comprehensions
+                sublines = all_lines[start_lineno-1:max(linenos)]
         else:
             stream.write("\n")
             stream.write("Could not find file %s\n" % filename)
