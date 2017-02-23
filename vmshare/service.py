@@ -4,10 +4,12 @@ import argparse
 import os
 import requests
 import vmprof
+import tempfile
 from jitlog.parser import read_jitlog_data, parse_jitlog
 from vmprof.stats import Stats
 from vmprof.stats import EmptyProfileFile
 import jitlog
+import gzip
 
 PY3 = sys.version_info[0] >= 3
 
@@ -80,7 +82,7 @@ class Service(object):
 
     def post_file(self, rid, filename, filetype, compress=False):
         if not os.path.exists(filename):
-            return False
+            return None
         if compress:
             filename = compress_file(filename)
         with open(filename, 'rb') as fd:
@@ -91,7 +93,7 @@ class Service(object):
             del headers['Content-Type']
             response = requests.post(url, headers=headers, files=files)
             self.stop_if_error_occured(response)
-        return True
+            return response
 
     def post(self, kwargs):
         sys.stderr.write("Uploading to %s...\n" % self.host)
@@ -109,30 +111,30 @@ class Service(object):
                 sys.stderr.write(" => Uploading the cpu profile...\n")
                 self.post_file(rid, filename,
                                Service.FILE_CPU_PROFILE, compress=False)
-        elif Service.FILE_MEM_PROFILE in kwargs:
-            filename = kwargs[Service.FILE_MEM_PROFILE]
-            if os.path.exists(filename):
-                sys.stderr.write(" => uploading the mem profile...\n")
-                self.post_file(rid, filename,
-                               Service.FILE_MEM_PROFILE, compress=False)
-        elif Service.FILE_JIT_PROFILE in kwargs:
+                sys.stderr.write('      ' + self.get_url('#/%s' % rid) + "\n")
+        if Service.FILE_JIT_PROFILE in kwargs:
             filename = kwargs[Service.FILE_JIT_PROFILE]
             if os.path.exists(filename):
-                sys.stderr.write(" => uploading the jit log...\n")
+                sys.stderr.write(" => Uploading the jit log...\n")
                 forest = parse_jitlog(filename)
                 if forest.exception_raised():
                     sys.stderr.write(" error: %s\n" % forest.exception_raised())
                 # append source code to the binary
                 forest.extract_source_code_lines()
                 forest.copy_and_add_source_code_tags()
-                filename = self.filepath
-                self.post_file(rid, filename,
-                               Service.FILE_JIT_PROFILE, compress=False)
+                filename = forest.filepath
+                response = self.post_file(rid, filename,
+                               Service.FILE_JIT_PROFILE, compress=True)
                 forest.unlink_jitlog()
+                json = response.json()
+                if 'jid' in json:
+                    url = self.get_url('#/%s/traces' % json['jid'])
+                else:
+                    url = self.get_url('#/%s' % rid)
+                sys.stderr.write('      ' + url + "\n")
 
         self.finalize_entry(rid)
 
-        sys.stderr.write(self.get_url('#'+rid) + "\n")
 
     def finalize_entry(self, rid, data=b""):
         url = self.get_url('/api/runtime/%s/freeze/' % rid)
