@@ -50,7 +50,7 @@ class Service(object):
     def get_headers(self):
         base_headers = { 'Content-Type': 'application/json' }
         if self.auth:
-            base_headers = {'AUTHORIZATION': "Token %s" % self.auth}
+            base_headers['AUTHORIZATION'] = "Token %s" % self.auth
         if self.csrf_token:
             base_headers['csrftoken'] = self.csrf_token
         return base_headers
