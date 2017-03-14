@@ -221,27 +221,22 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
         //    printf("func_addr is 0, now %p\n", rip);
         //}
 
+#ifdef PYPY
+        unw_word_t rip = 0;
+        if (unw_get_reg(&cursor, UNW_REG_IP, &rip) < 0) {
+            return 0;
+        }
+#endif
+
         if (IS_VMPROF_EVAL((void*)pip.start_ip)) {
             // yes we found one stack entry of the python frames!
             return vmp_walk_and_record_python_stack_only(frame, result, max_depth, depth, pc);
+#ifdef PYPY
+        } else if (IS_JIT_FRAME((void*)rip)) {
+            depth = vmprof_write_header_for_jit_addr(result, depth, pc, max_depth);
+            return vmp_walk_and_record_python_stack_only(frame, result, max_depth, depth, pc);
+#endif
         } else {
-            // TODO
-//#ifdef PYPY_JIT_CODEMAP
-//            // see vmp_dynamic.c on line ip->flags = DYN_JIT_FLAG
-//            if (pip.flags == DYN_JIT_FLAG) {
-//                if (top_most_frame->kind != VMPROF_JITTED_TAG) {
-//                    // if this is encountered frequently something is wrong with
-//                    // the stack building
-//                    return 0;
-//                }
-//                intptr_t pc = ((intptr_t*)(top_most_frame->value - sizeof(intptr_t)))[0];
-//                depth = vmprof_write_header_for_jit_addr(result, depth, pc, max_depth);
-//                top_most_frame = FRAME_STEP(top_most_frame);
-//            } else if (func_addr != 0x0) {
-//                depth = _write_native_stack((void*)(func_addr | 0x1), result, depth);
-//            }
-//#else
-//#endif
             // mark native routines with the first bit set,
             // this is possible because compiler align to 8 bytes.
             //
