@@ -8,10 +8,6 @@ if IS_PYPY:
 else:
     extra_compile_args = []
     extra_source_files = [
-       'src/libudis86/decode.c',
-       'src/libudis86/itab.c',
-       'src/libudis86/udis86.c',
-       'src/trampoline.c',
        'src/symboltable.c',
     ]
     if sys.platform == 'win32':
@@ -78,7 +74,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.4.2",
+    version="0.4.3.dev0",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
