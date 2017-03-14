@@ -15,13 +15,9 @@
 #include "compat.h"
 
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
-#define UNW_LOCAL_ONLY
-#include "unwind/libunwind.h"
-#  ifdef X86_64
-#    define REG_RBX UNW_X86_64_RBX
-#  elif defined(X86_32)
-#    define REG_RBX UNW_X86_EDI
-#  endif
+#include "unwind/vmprof_unwind.h"
+
+typedef mcontext_t unw_context_t;
 
 // functions copied from libunwind using dlopen
 
@@ -445,9 +441,9 @@ teardown:
 static const char * vmprof_error = NULL;
 
 #ifdef __i386__
-#define PREFIX "_ULx86"
+#define PREFIX "x86"
 #elif __x86_64__
-#define PREFIX "_ULx86_64"
+#define PREFIX "x86_64"
 #endif
 
 int vmp_native_enable(void) {
@@ -458,22 +454,22 @@ int vmp_native_enable(void) {
         if (!(libhandle = dlopen("libunwind.so", RTLD_LAZY | RTLD_LOCAL))) {
             goto bail_out;
         }
-        if (!(unw_getcontext = dlsym(libhandle, PREFIX "_getcontext"))) {
+        if (!(unw_getcontext = dlsym(libhandle, "_U" PREFIX "_getcontext"))) {
             goto bail_out;
         }
-        if (!(unw_get_reg = dlsym(libhandle, PREFIX "_get_reg"))) {
+        if (!(unw_get_reg = dlsym(libhandle, "_UL" PREFIX "_get_reg"))) {
             goto bail_out;
         }
-        if (!(unw_get_proc_info = dlsym(libhandle, PREFIX "_get_proc_info"))){
+        if (!(unw_get_proc_info = dlsym(libhandle, "_UL" PREFIX "_get_proc_info"))){
             goto bail_out;
         }
-        if (!(unw_init_local = dlsym(libhandle, PREFIX "_init_local"))) {
+        if (!(unw_init_local = dlsym(libhandle, "_UL" PREFIX "_init_local"))) {
             goto bail_out;
         }
-        if (!(unw_step = dlsym(libhandle, PREFIX "_step"))) {
+        if (!(unw_step = dlsym(libhandle, "_UL" PREFIX "_step"))) {
             goto bail_out;
         }
-        if (!(unw_is_signal_frame = dlsym(libhandle, PREFIX "_is_signal_frame"))) {
+        if (!(unw_is_signal_frame = dlsym(libhandle, "_UL" PREFIX "_is_signal_frame"))) {
             goto bail_out;
         }
         if (dlclose(libhandle)) {
@@ -487,6 +483,7 @@ int vmp_native_enable(void) {
     return vmp_read_vmaps(NULL);
 #endif
 bail_out:
+    vmprof_error = dlerror();
     fprintf(stderr, "could not load libunwind at runtime. error: %s\n", vmprof_error);
     vmp_native_traces_enabled = 0;
     return 0;

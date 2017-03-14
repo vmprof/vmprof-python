@@ -337,21 +337,12 @@ void init_cpyprof(int native)
         vmp_native_disable();
         return;
     }
-#if CPYTHON_HAS_FRAME_EVALUATION
-    PyThreadState *tstate = PyThreadState_GET();
-    tstate->interp->eval_frame = vmprof_eval;
-    _default_eval_loop = _PyEval_EvalFrameDefault;
-#endif
     vmp_native_enable();
 }
 
 static void disable_cpyprof(void)
 {
     vmp_native_disable();
-#if CPYTHON_HAS_FRAME_EVALUATION
-    PyThreadState *tstate = PyThreadState_GET();
-    tstate->interp->eval_frame = _PyEval_EvalFrameDefault;
-#endif
     dump_native_symbols(vmp_profile_fileno());
 }
 #endif
