@@ -197,7 +197,6 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
     }
 #endif
 
-    //printf("stack trace:\n");
     int depth = 0;
     PY_STACK_FRAME_T * top_most_frame = frame;
     while (depth < max_depth) {
@@ -489,6 +488,7 @@ int vmp_native_enable(void) {
 #endif
 bail_out:
     fprintf(stderr, "could not load libunwind at runtime. error: %s\n", vmprof_error);
+    vmp_native_traces_enabled = 0;
     return 0;
 }
 
