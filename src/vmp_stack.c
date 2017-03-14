@@ -170,28 +170,38 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
         return 0;
     }
 
+    if (signal < 0) {
+        while (signal < 0) {
+            int err = unw_step(&cursor);
+            if (err <= 0) {
+                return 0;
+            }
+            signal++;
+        }
+    } else {
 #ifdef VMPROF_LINUX
-    while (signal) {
-        int is_signal_frame = unw_is_signal_frame(&cursor);
-        if (is_signal_frame) {
-            unw_step(&cursor); // step once more discard signal frame
-            break;
+        while (signal) {
+            int is_signal_frame = unw_is_signal_frame(&cursor);
+            if (is_signal_frame) {
+                unw_step(&cursor); // step once more discard signal frame
+                break;
+            }
+            int err = unw_step(&cursor);
+            if (err <= 0) {
+                return 0;
+            }
         }
-        int err = unw_step(&cursor);
-        if (err <= 0) {
-            return 0;
-        }
-    }
 #else
-    // who would have guessed that unw_is_signal_frame does not work on mac os x
-    if (signal) {
-        unw_step(&cursor); // vmp_walk_and_record_stack
-        // get_stack_trace is inlined
-        unw_step(&cursor); // _vmprof_sample_stack
-        unw_step(&cursor); // sigprof_handler
-        unw_step(&cursor); // _sigtramp
-    }
+        // who would have guessed that unw_is_signal_frame does not work on mac os x
+        if (signal) {
+            unw_step(&cursor); // vmp_walk_and_record_stack
+            // get_stack_trace is inlined
+            unw_step(&cursor); // _vmprof_sample_stack
+            unw_step(&cursor); // sigprof_handler
+            unw_step(&cursor); // _sigtramp
+        }
 #endif
+    }
 
     int depth = 0;
     PY_STACK_FRAME_T * top_most_frame = frame;

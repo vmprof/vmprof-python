@@ -103,14 +103,14 @@ else:
                            str]
                     fileobj.write(b''.join(out))
 
-    def sample_stack_now():
+    def sample_stack_now(skip=0):
         """ Helper utility mostly for tests, this is considered
             private API.
 
             It will return a list of stack frames the python program currently
             walked.
         """
-        stackframes = _vmprof.sample_stack_now()
+        stackframes = _vmprof.sample_stack_now(skip)
         assert isinstance(stackframes, list)
         return stackframes
 
