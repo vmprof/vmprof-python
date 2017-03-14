@@ -256,11 +256,11 @@ sample_stack_now(PyObject *module, PyObject * args)
     int entry_count;
     void ** m;
     void * routine_ip;
+    long skip = 0;
 
     // stop any signal to occur
     vmprof_ignore_signals(1);
 
-    long skip = 0;
     if (!PyArg_ParseTuple(args, "l", &skip)) {
         goto error;
     }
