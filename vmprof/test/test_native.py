@@ -36,7 +36,10 @@ class TestNative(object):
         @self.ffi.def_extern()
         def g():
             global sample
-            sample = vmprof.sample_stack_now(-7)
+            skip = -7
+            if tuple(sys.version_info[0:2]) >= (3,6):
+                skip = -15
+            sample = vmprof.sample_stack_now(skip)
             x = []
             for i in range(100000):
                 x.append('abc')
