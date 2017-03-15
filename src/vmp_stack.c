@@ -450,10 +450,21 @@ teardown:
 
 static const char * vmprof_error = NULL;
 
+
+#ifdef VMPROF_LINUX
+#define LIBUNWIND "libunwind.so"
 #ifdef __i386__
 #define PREFIX "x86"
 #elif __x86_64__
 #define PREFIX "x86_64"
+#endif
+#define U_PREFIX "_U"
+#define UL_PREFIX "_UL"
+#else
+#define LIBUNWIND "/usr/lib/system/libunwind.dylib"
+#define PREFIX "_unw"
+#define U_PREFIX ""
+#define UL_PREFIX ""
 #endif
 
 int vmp_native_enable(void) {
@@ -461,25 +472,25 @@ int vmp_native_enable(void) {
     vmp_native_traces_enabled = 1;
 
     if (!unw_get_reg) {
-        if (!(libhandle = dlopen("libunwind.so", RTLD_LAZY | RTLD_LOCAL))) {
+        if (!(libhandle = dlopen(LIBUNWIND, RTLD_LAZY | RTLD_LOCAL))) {
             goto bail_out;
         }
-        if (!(unw_getcontext = dlsym(libhandle, "_U" PREFIX "_getcontext"))) {
+        if (!(unw_getcontext = dlsym(libhandle, U_PREFIX PREFIX "_getcontext"))) {
             goto bail_out;
         }
-        if (!(unw_get_reg = dlsym(libhandle, "_UL" PREFIX "_get_reg"))) {
+        if (!(unw_get_reg = dlsym(libhandle, UL_PREFIX PREFIX "_get_reg"))) {
             goto bail_out;
         }
-        if (!(unw_get_proc_info = dlsym(libhandle, "_UL" PREFIX "_get_proc_info"))){
+        if (!(unw_get_proc_info = dlsym(libhandle, UL_PREFIX PREFIX "_get_proc_info"))){
             goto bail_out;
         }
-        if (!(unw_init_local = dlsym(libhandle, "_UL" PREFIX "_init_local"))) {
+        if (!(unw_init_local = dlsym(libhandle, UL_PREFIX PREFIX "_init_local"))) {
             goto bail_out;
         }
-        if (!(unw_step = dlsym(libhandle, "_UL" PREFIX "_step"))) {
+        if (!(unw_step = dlsym(libhandle, UL_PREFIX PREFIX "_step"))) {
             goto bail_out;
         }
-        if (!(unw_is_signal_frame = dlsym(libhandle, "_UL" PREFIX "_is_signal_frame"))) {
+        if (!(unw_is_signal_frame = dlsym(libhandle, UL_PREFIX PREFIX "_is_signal_frame"))) {
             goto bail_out;
         }
         if (dlclose(libhandle)) {
