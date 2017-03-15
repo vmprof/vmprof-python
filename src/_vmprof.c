@@ -251,7 +251,7 @@ static PyObject *
 sample_stack_now(PyObject *module, PyObject * args)
 {
     PyThreadState * tstate = NULL;
-    PyObject * list;
+    PyObject * list = NULL;
     int i;
     int entry_count;
     void ** m;
@@ -261,12 +261,12 @@ sample_stack_now(PyObject *module, PyObject * args)
     // stop any signal to occur
     vmprof_ignore_signals(1);
 
-    if (!PyArg_ParseTuple(args, "l", &skip)) {
+    list = PyList_New(0);
+    if (list == NULL) {
         goto error;
     }
 
-    list = PyList_New(0);
-    if (list == NULL) {
+    if (!PyArg_ParseTuple(args, "l", &skip)) {
         goto error;
     }
 

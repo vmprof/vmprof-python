@@ -33,6 +33,8 @@ class TestNative(object):
         native_call = self.lib.native_callback_g
 
         # the order is f -> ... -> native_call_g -> ... -> g
+        # in g, we cut off several PyEval_EvalFrameEx calls
+        # to get f -> g -> <native calls ...> -> native_call_g
         @self.ffi.def_extern()
         def g():
             global sample

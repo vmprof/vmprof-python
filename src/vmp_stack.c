@@ -26,7 +26,7 @@ static int (*unw_step)(unw_cursor_t*) = NULL;
 static int (*unw_init_local)(unw_cursor_t *, unw_context_t *) = NULL;
 static int (*unw_get_proc_info)(unw_cursor_t *, unw_proc_info_t *) = NULL;
 static int (*unw_is_signal_frame)(unw_cursor_t *) = NULL;
-static int (*unw_getcontext)(unw_cursor_t *) = NULL;
+static int (*unw_getcontext)(unw_context_t *) = NULL;
 
 #endif
 
