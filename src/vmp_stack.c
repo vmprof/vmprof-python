@@ -462,7 +462,7 @@ static const char * vmprof_error = NULL;
 #define UL_PREFIX "_UL"
 #else
 #define LIBUNWIND "/usr/lib/system/libunwind.dylib"
-#define PREFIX "_unw"
+#define PREFIX "unw"
 #define U_PREFIX ""
 #define UL_PREFIX ""
 #endif
@@ -473,9 +473,6 @@ int vmp_native_enable(void) {
 
     if (!unw_get_reg) {
         if (!(libhandle = dlopen(LIBUNWIND, RTLD_LAZY | RTLD_LOCAL))) {
-            goto bail_out;
-        }
-        if (!(unw_getcontext = dlsym(libhandle, U_PREFIX PREFIX "_getcontext"))) {
             goto bail_out;
         }
         if (!(unw_get_reg = dlsym(libhandle, UL_PREFIX PREFIX "_get_reg"))) {
@@ -491,6 +488,9 @@ int vmp_native_enable(void) {
             goto bail_out;
         }
         if (!(unw_is_signal_frame = dlsym(libhandle, UL_PREFIX PREFIX "_is_signal_frame"))) {
+            goto bail_out;
+        }
+        if (!(unw_getcontext = dlsym(libhandle, U_PREFIX PREFIX "_getcontext"))) {
             goto bail_out;
         }
         if (dlclose(libhandle)) {

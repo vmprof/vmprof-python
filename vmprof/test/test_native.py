@@ -20,7 +20,7 @@ if sys.platform != 'win32':
     """, extra_compile_args=['-g'])
     ffi.compile()
 
-@py.test.mark.skipif("sys.platform == 'win32'")
+@py.test.mark.skipif("'linux' not in sys.platform")
 class TestNative(object):
     def setup_class(cls):
         from vmprof.test import _test_native
