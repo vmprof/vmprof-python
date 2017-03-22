@@ -48,18 +48,22 @@ def _is_native_enabled(native):
 
 if IS_PYPY:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, warn=True):
+        pypy_version_info = sys.pypy_version_info[:3]
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
-        if warn and sys.pypy_version_info[:3] < (4, 1, 0):
+        if warn and pypy_version_info < (4, 1, 0):
             raise Exception("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
         if warn and memory:
             print("Memory profiling is currently unsupported for PyPy. Running without memory statistics.")
         if warn and lines:
             print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
         # TODO fixes currently released pypy's
-        #native = _is_native_enabled(native)
+        native = _is_native_enabled(native)
         gz_fileno = _gzip_start(fileno)
-        _vmprof.enable(gz_fileno, period) # , memory, lines, native)
+        if pypy_version_info >= (5, 8, 0):
+            _vmprof.enable(gz_fileno, period, memory, lines, native)
+        else:
+            _vmprof.enable(gz_fileno, period) # , memory, lines, native)
 else:
     # CPYTHON
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None):
