@@ -10,39 +10,25 @@ as a command line switch.
 **NOTE** be sure to provide debugging symbols for your native functions, otherwise
 you will not see the symbol name of your e.g. C program.
 
-In Program Activation
----------------------
-
-Whenever vmprof is enabled during the execution of a specific program part,
-sometimes it will not sample the python level frames that have already
-been entered. See the following example::
-
-    # myprogram.py
-    ...
-    def func():
-        vmporf.enable(fileno, ..., native=True)
-        another_func()
-        vmprof.disable()
-
-If vmprof has never been activated before, the frames just before ``another_func()`` will
-not be recorded.
-
-The technical reason for this behaviour is: The
-frame evaulation function is patched (e.g. it adds a trampoline to
-PyEval_EvalFrameEx on CPython 2.7). All frames that have been activated to that
-point, will not have a trampoline inserted, and thus will be ignored by the stack
-sampling. To overcome this issue, invoke the whole program from command line::
-
-    $ python -m vmprof ...
-
 Technical Design
 ----------------
 
 Native sampling utilizes ``libunwind`` in the signal handler to unwind the stack.
 
+Each stack frame is inspected until the frame evaluation function is encountered. Then the stack walking
+switches back to the traditional Python frame walking. Callbacks (Python frame -> ... C frame ... -> Python frame ->
+ C frame)
+will not display intermediate native functions. It would give the impression that the first C frame was never called,
+but it will show the second C frame.
+
+Earlier Implementation
+----------------------
+
+Prior to 0.4.3 the following logic was implemented (see e.g. commit 3912330b509d).
+It was removed because it could not be implemented on Mac OS X
+(libunwind misses register/cancel functions for generated machine code).
+
 To find the corresponding ``PyFrameObject`` during stack unwinding vmprof inserts a trampoline on CPython (called ``vmprof_eval``) and places it just before ``PyEval_EvalFrameEx``. It is a callee trampoline saving the ``PyFrameObject`` in the callee saved register ``%rbx``. On Python 3.6+ the frame evaluation `PEP 523`_ is utilized as trampoline.
 
 .. _`PEP 523`: https://www.python.org/dev/peps/pep-0523/
-
-Symbols that are exposed from CPython/PyPy internally are ignored and not contained in the resulting profile. During stack sampling, instruction pointers that point into the virtual memory region of CPython/PyPy are not recorded.
 
