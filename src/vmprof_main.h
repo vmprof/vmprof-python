@@ -343,7 +343,6 @@ void init_cpyprof(int native)
 static void disable_cpyprof(void)
 {
     vmp_native_disable();
-    dump_native_symbols(vmp_profile_fileno());
 }
 #endif
 
@@ -376,9 +375,15 @@ int vmprof_enable(int memory, int native)
 
 int close_profile(void)
 {
+    int fileno = vmp_profile_fileno();
+    fsync(fileno);
+    dump_native_symbols(fileno);
+
     (void)vmp_write_time_now(MARKER_TRAILER);
 
     teardown_rss();
+
+
     /* don't close() the file descriptor from here */
     vmp_set_profile_fileno(-1);
     return 0;

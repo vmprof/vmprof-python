@@ -126,7 +126,7 @@ static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, vo
 }
 
 int vmp_walk_and_record_python_stack_only(PY_STACK_FRAME_T *frame, void ** result,
-                                     int max_depth, int depth, intptr_t pc)
+                                          int max_depth, int depth, intptr_t pc)
 {
     while (depth < max_depth && frame) {
         frame = _write_python_stack_entry(frame, result, &depth, max_depth);

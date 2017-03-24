@@ -73,40 +73,6 @@ else:
         native = _is_native_enabled(native)
         _vmprof.enable(gz_fileno, period, memory, lines, native)
 
-    def dump_native_symbols(fileno):
-        # native symbols cannot be resolved in the signal handler.
-        # it would take far too long. Thus this method should be called
-        # just after the sampling finished and before the file descriptor
-        # is closed.
-
-        # called from C with the fileno that has been used for this profile
-        # duplicates are avoided if this function is only called once for a profile
-        fileobj = io.open(fileno, mode='rb', closefd=False)
-        fileobj.seek(0)
-        _, profiles, _, _, _, _, _ = read_prof(fileobj)
-
-        duplicates = set()
-        fileobj = io.open(fileno, mode='ab', closefd=False)
-
-        for profile in profiles:
-            addrs = profile[0]
-            for addr in addrs:
-                if addr in duplicates:
-                    continue
-                duplicates.add(addr)
-                if addr & 0x1 and addr > 1:
-                    name, lineno, srcfile = _vmprof.resolve_addr(addr)
-                    if name == "" and srcfile == '-':
-                        name = "<native symbol 0x%x>" % addr
-
-                    str = "n:%s:%d:%s" % (name, lineno, srcfile)
-                    if PY3:
-                        str = str.encode()
-                    out = [MARKER_NATIVE_SYMBOLS, struct.pack("l", addr),
-                           struct.pack("l", len(str)),
-                           str]
-                    fileobj.write(b''.join(out))
-
     def sample_stack_now(skip=0):
         """ Helper utility mostly for tests, this is considered
             private API.

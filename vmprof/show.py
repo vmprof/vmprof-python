@@ -193,11 +193,11 @@ class LinesPrinter(object):
             parts = node.name.count(':')
             if parts == 3:
                 block_type, funname, funline, filename = node.name.split(':')
-
-                lines = d.setdefault((filename, int(funline), funname), {})
-
-                for l, cnt in six.iteritems(node.lines):
-                    lines[l] = lines.get(l, 0) + cnt
+                # only python supported for line profiling
+                if block_type == 'py':
+                    lines = d.setdefault((filename, int(funline), funname), {})
+                    for l, cnt in six.iteritems(node.lines):
+                        lines[l] = lines.get(l, 0) + cnt
 
             for c in six.itervalues(node.children):
                 walk(c, d)
