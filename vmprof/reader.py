@@ -163,7 +163,7 @@ class LogReader(object):
 
         lgt = ord(fileobj.read(1))
         s.interp_name = fileobj.read(lgt)
-        if s.interp_name == 'pypy':
+        if s.interp_name == b'pypy':
             s.profile_rpython = True
         if PY3:
             s.interp_name = s.interp_name.decode()
