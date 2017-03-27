@@ -14,6 +14,10 @@ class Stats(object):
         if state:
             self.profile_lines = state.profile_lines
             self.profile_memory = state.profile_memory
+        else:
+            # unkown, for tests only
+            self.profile_lines = False
+            self.profile_memory = False
         self.generate_top()
         if jit_frames is None:
             jit_frames = set()

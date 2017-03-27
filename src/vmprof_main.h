@@ -257,8 +257,15 @@ static int install_sigprof_handler(void)
 
 static int remove_sigprof_handler(void)
 {
-    if (signal(SIGPROF, SIG_DFL) == SIG_ERR)
+    struct sigaction ign_sigint, prev;
+    ign_sigint.sa_handler = SIG_IGN;
+    ign_sigint.sa_flags = 0;
+    sigemptyset(&ign_sigint.sa_mask);
+
+    if (sigaction(SIGPROF, &ign_sigint, NULL) < 0) {
+        fprintf(stderr, "Could not remove the signal handler (for profiling)\n");
         return -1;
+    }
     return 0;
 }
 
@@ -275,12 +282,12 @@ static int install_sigprof_timer(void)
 
 static int remove_sigprof_timer(void) {
     static struct itimerval timer;
-    timer.it_interval.tv_sec = 0;
-    timer.it_interval.tv_usec = 0;
-    timer.it_value.tv_sec = 0;
-    timer.it_value.tv_usec = 0;
-    if (setitimer(ITIMER_PROF, &timer, NULL) != 0)
+    timerclear(&(timer.it_interval));
+    timerclear(&(timer.it_value));
+    if (setitimer(ITIMER_PROF, &timer, NULL) != 0) {
+        fprintf(stderr, "Could not disable the signal handler (for profiling)\n");
         return -1;
+    }
     return 0;
 }
 
