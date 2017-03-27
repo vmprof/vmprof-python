@@ -125,6 +125,7 @@ def main():
         if forest.extract_source_code_lines():
             # only copy the tags if the jitlog has no source code yet!
             forest.copy_and_add_source_code_tags()
+        host, auth = args.web_url, args.web_auth
         service = Service(host, auth)
         service.post({ Service.FILE_JIT_PROFILE: forest.filepath })
         forest.unlink_jitlog() # free space!
