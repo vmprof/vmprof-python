@@ -6,10 +6,14 @@ class EmptyProfileFile(Exception):
 
 class Stats(object):
     def __init__(self, profiles, adr_dict=None, jit_frames=None, interp=None,
-                 meta=None, start_time=None, end_time=None):
+                 meta=None, start_time=None, end_time=None, state=None):
         self.profiles = profiles
         self.adr_dict = adr_dict
         self.functions = {}
+        # kludgy, state is optional. stats should only take state as input
+        if state:
+            self.profile_lines = state.profile_lines
+            self.profile_memory = state.profile_memory
         self.generate_top()
         if jit_frames is None:
             jit_frames = set()
@@ -53,7 +57,11 @@ class Stats(object):
     def generate_top(self):
         for profile in self.profiles:
             current_iter = {}
-            for addr in profile[0]:
+            for i, addr in enumerate(profile[0]):
+                if self.profile_lines and i % 2 == 1:
+                    # this entry in the profile is a negative number indicating a line
+                    assert addr <= 0
+                    continue
                 if addr not in current_iter:  # count only topmost
                     self.functions[addr] = self.functions.get(addr, 0) + 1
                     current_iter[addr] = None

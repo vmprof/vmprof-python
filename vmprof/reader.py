@@ -315,7 +315,7 @@ class LogReaderState(ReaderState):
         self.little_endian = True
         self.period = 0
 
-def read_prof(fileobj, virtual_ips_only=False):
+def _read_prof(fileobj, virtual_ips_only=False):
     fileobj = gunzip(fileobj)
 
     state = LogReaderState()
@@ -324,6 +324,5 @@ def read_prof(fileobj, virtual_ips_only=False):
 
     if virtual_ips_only:
         return state.virtual_ips
-    return state.period, state.profiles, state.virtual_ips, \
-           state.interp_name, state.meta, state.start_time, state.end_time
+    return state
 

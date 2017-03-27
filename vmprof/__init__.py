@@ -12,7 +12,7 @@ from . import cli
 
 import _vmprof
 
-from vmprof.reader import read_prof, MARKER_NATIVE_SYMBOLS
+from vmprof.reader import MARKER_NATIVE_SYMBOLS
 from vmprof.stats import Stats
 from vmprof.profiler import Profiler, read_profile
 

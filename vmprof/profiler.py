@@ -2,7 +2,7 @@ import vmprof
 import tempfile
 
 from vmprof.stats import Stats
-from vmprof.reader import read_prof
+from vmprof.reader import _read_prof
 
 
 class VMProfError(Exception):
@@ -34,15 +34,16 @@ def read_profile(prof_file):
     if not hasattr(prof_file, 'read'):
         prof_file = file_to_close = open(str(prof_file), 'rb')
 
-    period, profiles, virtual_symbols, interp_name, meta, start_time, end_time = read_prof(prof_file)
+    state = _read_prof(prof_file)
 
     if file_to_close:
         file_to_close.close()
 
     jit_frames = {}
-    d = dict(virtual_symbols)
-    s = Stats(profiles, d, jit_frames, interp=interp_name,
-              start_time=start_time, end_time=end_time, meta=meta)
+    d = dict(state.virtual_ips)
+    s = Stats(state.profiles, d, jit_frames, interp=state.interp_name,
+              start_time=state.start_time, end_time=state.end_time,
+              meta=state.meta, state=state)
     return s
 
 
