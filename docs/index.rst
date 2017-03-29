@@ -26,6 +26,7 @@ The following provides more information about CPU profiles and JIT Compiler Logs
    format
    jitlog
    query
+   data
 
 .. _`CPython`: http://python.org
 .. _`PyPy`: http://pypy.org
