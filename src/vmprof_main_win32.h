@@ -89,7 +89,7 @@ int vmprof_snapshot_thread(DWORD thread_id, PY_WIN_THREAD_STATE *tstate, prof_st
 #endif
 }
 
-#ifdef RPYTHON_VMPROF
+#ifndef RPYTHON_VMPROF
 static
 PY_WIN_THREAD_STATE * get_current_thread_state(void)
 {
