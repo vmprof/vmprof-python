@@ -37,7 +37,8 @@ class AbstractPrinter(object):
             print("Fatal: could not read vmprof profile file '{}': {}".format(profile, e))
 
         if stats.get_runtime_in_microseconds() < 1000000:
-            print(color("WARNING: The profiling completed in less than 1 seconds. Please run your programs longer!", color.RED), file=sys.stderr)
+            msg = color("WARNING: The profiling completed in less than 1 seconds. Please run your programs longer!\r\n", color.RED)
+            sys.stderr.write(msg)
 
         try:
             tree = stats.get_tree()
