@@ -29,6 +29,10 @@ class Stats(object):
         self.start_time = start_time
         self.end_time = end_time
 
+    def get_runtime_in_microseconds(self):
+        ts = self.end_time - self.start_time
+        return ts.microseconds
+
     def get_name(self, addr):
         if addr not in self.adr_dict:
             return "unknown"

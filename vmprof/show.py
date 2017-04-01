@@ -6,9 +6,10 @@ import os
 import six
 import sys
 import tokenize
-
 import vmprof
 import argparse
+
+from vmprof.stats import EmptyProfileFile
 
 
 class color(six.text_type):
@@ -22,8 +23,29 @@ class color(six.text_type):
         return six.text_type.__new__(
             cls, "%s%s%s%s" % (color, cls.BOLD if bold else "", content, cls.END))
 
+class AbstractPrinter(object):
+    def show(self, profile):
+        """
+        Read and display a vmprof profile file.
 
-class PrettyPrinter(object):
+        :param profile: The filename of the vmprof profile file to display.
+        :type profile: str
+        """
+        try:
+            stats = vmprof.read_profile(profile)
+        except Exception as e:
+            print("Fatal: could not read vmprof profile file '{}': {}".format(profile, e))
+
+        if stats.get_runtime_in_microseconds() < 1000000:
+            print(color("WARNING: The profiling completed in less than 1 seconds. Please run your programs longer!", color.RED), file=sys.stderr)
+
+        try:
+            tree = stats.get_tree()
+            self._show(tree)
+        except EmptyProfileFile as e:
+            print("No stack trace has been recorded (profile is empty)! Did your program not run long enough?")
+
+class PrettyPrinter(AbstractPrinter):
     """
     A pretty print for vmprof profile files.
     """
@@ -47,22 +69,7 @@ class PrettyPrinter(object):
         self._prune_level = prune_level or 1000
         self._indent = indent or 2
 
-    def show(self, profile):
-        """
-        Read and display a vmprof profile file.
-
-        :param profile: The filename of the vmprof profile file to display.
-        :type profile: str
-        """
-        try:
-            stats = vmprof.read_profile(profile)
-        except Exception as e:
-            print("Fatal: could not read vmprof profile file '{}': {}".format(profile, e))
-            return
-
-        #vmprof.cli.show(stats)
-        tree = stats.get_tree()
-
+    def _show(self, tree):
         self._print_tree(tree)
 
     def _walk_tree(self, parent, node, level, callback):
@@ -119,69 +126,14 @@ class PrettyPrinter(object):
         self._walk_tree(None, tree, 0, print_node)
 
 
-def main():
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("profile")
-
-    parser.add_argument(
-        '--prune_percent',
-        type=float,
-        default=0,
-        help="The indention per level within the call graph.")
-
-    parser.add_argument(
-        '--prune_level',
-        type=int,
-        default=None,
-        help='Prune output of a profile stats node when CPU.')
-
-    parser.add_argument(
-        '--indent',
-        type=int,
-        default=2,
-        help='The indention per level within the call graph.')
-
-    parser.add_argument('--lines', dest='lines', action='store_true')
-    parser.set_defaults(lines=False)
-
-    parser.add_argument('--filter', dest='filter', type=str, default=None)
-
-    args = parser.parse_args()
-
-    if args.lines:
-        pp = LinesPrinter(filter=args.filter)
-    else:
-        pp = PrettyPrinter(
-            prune_percent=args.prune_percent,
-            prune_level=args.prune_level,
-            indent=args.indent)
-
-    pp.show(args.profile)
-
-class LinesPrinter(object):
+class LinesPrinter(AbstractPrinter):
     def __init__(self, filter=None):
         self.filter = filter
 
-    def show(self, profile):
-        """
-        Read and display a vmprof profile file.
-
-        :param profile: The filename of the vmprof profile file to display.
-        :type profile: str
-        """
-        try:
-            stats = vmprof.read_profile(profile)
-        except Exception as e:
-            print("Fatal: could not read vmprof profile file '{}': {}".format(profile, e))
-            return
-
-        tree = stats.get_tree()
-
+    def _show(self, tree):
         for (filename, funline, funname), line_stats in self.lines_stat(tree):
             if self.filter is None or funname.find(self.filter) != -1:
                 self.show_func(filename, funline, funname, line_stats)
-
 
     def lines_stat(self, tree):
         funcs = {}
@@ -268,6 +220,45 @@ class LinesPrinter(object):
             stream.write(txt)
             stream.write("\n")
         stream.write("\n")
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("profile")
+
+    parser.add_argument(
+        '--prune_percent',
+        type=float,
+        default=0,
+        help="The indention per level within the call graph.")
+
+    parser.add_argument(
+        '--prune_level',
+        type=int,
+        default=None,
+        help='Prune output of a profile stats node when CPU.')
+
+    parser.add_argument(
+        '--indent',
+        type=int,
+        default=2,
+        help='The indention per level within the call graph.')
+
+    parser.add_argument('--lines', dest='lines', action='store_true')
+    parser.set_defaults(lines=False)
+
+    parser.add_argument('--filter', dest='filter', type=str, default=None)
+
+    args = parser.parse_args()
+
+    if args.lines:
+        pp = LinesPrinter(filter=args.filter)
+    else:
+        pp = PrettyPrinter(
+            prune_percent=args.prune_percent,
+            prune_level=args.prune_level,
+            indent=args.indent)
+
+    pp.show(args.profile)
 
 
 if __name__ == '__main__':
