@@ -91,6 +91,23 @@ else:
         return _vmprof.resolve_addr(addr)
 
 
+def is_enabled():
+    """ Indicates if vmprof has already been enabled for this process.
+        Returns True or False. None is returned if the state is unknown.
+    """
+    if hasattr(_vmprof, 'is_enabled'):
+        return _vmprof.is_enabled()
+    return None
+
+def get_profile_path():
+    """ Returns the absolute path for the file that is currently open.
+        None is returned if the backend implementation does not implement that function,
+        or profiling is not enabled.
+    """
+    if hasattr(_vmprof, 'get_profile_path'):
+        return _vmprof.get_profile_path()
+    return None
+
 _gzip_proc = None
 
 def _gzip_start(fileno):
