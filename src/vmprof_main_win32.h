@@ -142,10 +142,10 @@ long __stdcall vmprof_mainloop(void *arg)
         tstate = _RPython_ThreadLocals_Head(); // the first one is one behind head
         tstate = _RPython_ThreadLocals_Enum(tstate);
         while (tstate) {
-            if (p->ready == 42) {
+            if (tstate->ready == 42) {
                 depth = vmprof_snapshot_thread(tstate->thread_ident, tstate, stack);
                 if (depth > 0) {
-                    _write_all((char*)stack + offsetof(prof_stacktrace_s, marker),
+                    vmp_write_all((char*)stack + offsetof(prof_stacktrace_s, marker),
                          depth * sizeof(void *) +
                          sizeof(struct prof_stacktrace_s) -
                          offsetof(struct prof_stacktrace_s, marker));
