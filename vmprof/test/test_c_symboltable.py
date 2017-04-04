@@ -43,10 +43,14 @@ if sys.platform != 'win32':
                 source += fd.read().decode()
         includes.append('src/libbacktrace')
 
+    extra_compile = []
+    if sys.platform.startswith("linux"):
+        extra_compile = ['-DVMPROF_LINUX', '-DVMPROF_UNIX']
+
     # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
     ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=includes,
                          define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
-                         extra_compile_args=[])
+                         extra_compile_args=extra_compile)
 
     ffi.compile(verbose=True)
 
