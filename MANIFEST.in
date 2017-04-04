@@ -1,4 +1,4 @@
-recursive-include src *.h *.c
+recursive-include src *.h *.c *.def
 include LICENSE
 recursive-exclude vmprof/test *
 recursive-exclude jitlog/test *
