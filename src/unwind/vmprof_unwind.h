@@ -16,7 +16,7 @@ typedef int32_t unw_sword_t;
 typedef uint64_t unw_word_t;
 typedef int64_t unw_sword_t;
 #else
-// platform not supported
+// not supported platform
 #endif
 
 
