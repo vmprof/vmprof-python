@@ -1,7 +1,15 @@
 from setuptools import setup, find_packages, Extension
+from distutils.command.build_py import build_py
 import os, sys
+import subprocess
 
 IS_PYPY = '__pypy__' in sys.builtin_module_names
+
+class vmprof_build(build_py, object):
+    def run(self):
+        super(vmprof_build, self).run()
+
+BASEDIR = os.path.dirname(os.path.abspath(__file__))
 
 if IS_PYPY:
     ext_modules = [] # built-in
@@ -45,6 +53,15 @@ else:
            'src/libbacktrace/posix.c',
            'src/libbacktrace/sort.c',
         ]
+        # configure libbacktrace!!
+        class vmprof_build(build_py, object):
+            def run(self):
+                orig_dir = os.getcwd()
+                os.chdir(os.path.join(BASEDIR, "src", "libbacktrace"))
+                subprocess.check_call(["./configure"])
+                os.chdir(orig_dir)
+                super(vmprof_build, self).run()
+
     else:
         raise NotImplementedError("platform '%s' is not supported!" % sys.platform)
     extra_compile_args.append('-I src/')
@@ -79,6 +96,7 @@ setup(
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
     url='https://github.com/vmprof/vmprof-python',
+    cmdclass={'build_py': vmprof_build},
     install_requires=[
         'requests',
         'six',
