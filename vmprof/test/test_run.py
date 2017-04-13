@@ -7,8 +7,11 @@ import gzip
 import pytz
 import vmprof
 import six
+import pytest
 from cffi import FFI
 from datetime import datetime
+import requests
+from vmshare.service import Service, ServiceException
 from vmprof.show import PrettyPrinter
 from vmprof.profiler import read_profile
 from vmprof.reader import (gunzip, MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
@@ -406,6 +409,15 @@ class TestNative(object):
         parent = stats.get_tree()
         assert walk(parent)
 
+def test_connection_reset():
+    s = Service('http://vmprof.com')
+    def post_new_entry(self, data={}):
+        raise requests.exceptions.ConnectionError('oh no!')
+    s.post_new_entry = post_new_entry
+    with pytest.raises(ServiceException) as e:
+        s.post({})
+    import traceback
+    traceback.print_tb(e.tb)
 
 if __name__ == '__main__':
     test_line_profiling()
