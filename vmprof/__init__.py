@@ -66,12 +66,12 @@ if IS_PYPY:
             _vmprof.enable(gz_fileno, period) # , memory, lines, native)
 else:
     # CPYTHON
-    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None):
+    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, real_time=False):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         gz_fileno = _gzip_start(fileno)
         native = _is_native_enabled(native)
-        _vmprof.enable(gz_fileno, period, memory, lines, native)
+        _vmprof.enable(gz_fileno, period, memory, lines, native, real_time)
 
     def sample_stack_now(skip=0):
         """ Helper utility mostly for tests, this is considered

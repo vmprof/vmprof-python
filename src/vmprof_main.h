@@ -48,11 +48,15 @@
 #include "rss_darwin.h"
 #endif
 
+#if VMPROF_LINUX
+#include <dirent.h>
+#include <syscall.h>
+#endif
 
 /************************************************************/
 
 static void *(*mainloop_get_virtual_ip)(char *) = 0;
-static int opened_profile(const char *interp_name, int memory, int proflines, int native);
+static int opened_profile(const char *interp_name, int memory, int proflines, int native, int real_time);
 static void flush_codes(void);
 
 /************************************************************/
@@ -94,7 +98,7 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 {
     PY_STACK_FRAME_T * frame;
 #ifdef RPYTHON_VMPROF
-    // do nothing here, 
+    // do nothing here,
     frame = (PY_STACK_FRAME_T*)current;
 #else
     if (!current) {
@@ -181,11 +185,43 @@ static PY_THREAD_STATE_T * _get_pystate_for_this_thread(void) {
 }
 #endif
 
+#ifdef VMPROF_LINUX
+static void broadcast_signal_for_threads(pid_t pid)
+{
+    pid_t tid;
+    DIR * dir;
+    struct dirent   dirs;
+    struct dirent * dirp;
+
+    dir = opendir("/proc/self/task");
+
+    while(1) {
+        readdir_r(dir, &dirs, &dirp);
+        if (!dirp)
+            break;
+        if (dirp->d_name[0] == '.')
+            continue;
+        tid = atoi(dirp->d_name);
+        if (tid == pid)
+            continue;
+        syscall(SYS_tgkill, pid, tid, signal_type);
+    }
+
+    closedir(dir);
+}
+#endif
+
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
     int commit;
     PY_THREAD_STATE_T * tstate = NULL;
     void (*prevhandler)(int);
+
+#ifdef VMPROF_LINUX
+    pid_t pid = getpid();
+    pid_t tid = syscall(SYS_gettid);
+#endif
+
 #ifndef RPYTHON_VMPROF
     // TERRIBLE HACK AHEAD
     // on OS X, the thread local storage is sometimes uninitialized
@@ -211,6 +247,17 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     }
     signal(SIGSEGV, prevhandler);
     __sync_lock_release(&spinlock);
+#endif
+
+#ifdef VMPROF_LINUX
+    // SIGNAL ABUSE AHEAD
+    // On linux, the prof timer will deliver the signal to the thread which triggered the timer,
+    // because these timers are based on process and system time, and as such, are thread-aware.
+    // For the real timer, the signal gets delivered to the main thread, seemingly always.
+    // Consequently if we want to sample all threads, we need to forward the signal with tgkill.
+    if ((signal_type == SIGALRM) && (pid == tid)) {
+        broadcast_signal_for_threads(pid);
+    }
 #endif
 
     long val = __sync_fetch_and_add(&signal_handler_value, 2L);
@@ -257,7 +304,7 @@ static int install_sigprof_handler(void)
     sa.sa_sigaction = sigprof_handler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
     if (sigemptyset(&sa.sa_mask) == -1 ||
-        sigaction(SIGPROF, &sa, NULL) == -1)
+        sigaction(signal_type, &sa, NULL) == -1)
         return -1;
     return 0;
 }
@@ -269,7 +316,7 @@ static int remove_sigprof_handler(void)
     ign_sigint.sa_flags = 0;
     sigemptyset(&ign_sigint.sa_mask);
 
-    if (sigaction(SIGPROF, &ign_sigint, NULL) < 0) {
+    if (sigaction(signal_type, &ign_sigint, NULL) < 0) {
         fprintf(stderr, "Could not remove the signal handler (for profiling)\n");
         return -1;
     }
@@ -282,7 +329,7 @@ static int install_sigprof_timer(void)
     timer.it_interval.tv_sec = 0;
     timer.it_interval.tv_usec = (int)profile_interval_usec;
     timer.it_value = timer.it_interval;
-    if (setitimer(ITIMER_PROF, &timer, NULL) != 0)
+    if (setitimer(itimer_type, &timer, NULL) != 0)
         return -1;
     return 0;
 }
@@ -291,7 +338,7 @@ static int remove_sigprof_timer(void) {
     static struct itimerval timer;
     timerclear(&(timer.it_interval));
     timerclear(&(timer.it_value));
-    if (setitimer(ITIMER_PROF, &timer, NULL) != 0) {
+    if (setitimer(itimer_type, &timer, NULL) != 0) {
         fprintf(stderr, "Could not disable the signal handler (for profiling)\n");
         return -1;
     }
