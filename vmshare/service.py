@@ -10,6 +10,7 @@ from vmprof.stats import Stats
 from vmprof.stats import EmptyProfileFile
 import jitlog
 import gzip
+import warnings
 
 PY3 = sys.version_info[0] >= 3
 
@@ -92,9 +93,9 @@ class Service(object):
             # take the lower bound...
             megabytes = os.path.getsize(filename) / 1000
             if megabytes >= 100:
-                sys.stderr.write("WARNING: vmprof.com limits the "
-                                 "profile file (compressed) to 100 MBs. "
-                                 "The upload might fail!\n")
+                warnings.warn("WARNING: vmprof.com limits the "
+                              "compressed profile file to 100 MBs. "
+                              "The upload might fail!\n")
         with open(filename, 'rb') as fd:
             url = self.get_url('/api/runtime/upload/%s/%s/add' % (filetype, rid))
             files = { 'file': fd }
