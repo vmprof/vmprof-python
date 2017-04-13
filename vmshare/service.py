@@ -83,8 +83,18 @@ class Service(object):
     def post_file(self, rid, filename, filetype, compress=False):
         if not os.path.exists(filename):
             return None
+
         if compress:
             filename = compress_file(filename)
+
+        if 'vmprof.com' in self.host:
+            # not sure about nginx, what does MB mean? 1MB == 1000 byte or 1024 byte?
+            # take the lower bound...
+            megabytes = os.path.getsize(filename) / 1000
+            if megabytes >= 100:
+                sys.stderr.write("WARNING: vmprof.com limits the "
+                                 "profile file (compressed) to 100 MBs. "
+                                 "The upload might fail!\n")
         with open(filename, 'rb') as fd:
             url = self.get_url('/api/runtime/upload/%s/%s/add' % (filetype, rid))
             files = { 'file': fd }
@@ -101,48 +111,39 @@ class Service(object):
         argv = kwargs.get('argv', '-')
         vm = kwargs.get('VM','unknown')
 
-        try:
-            rid = self.post_new_entry({'argv': argv, 'VM': vm})
-            if rid is None:
-                raise ServiceException("could not create meta data for profiles")
+        rid = self.post_new_entry({'argv': argv, 'VM': vm})
+        if rid is None:
+            raise ServiceException("could not create meta data for profiles")
 
-            if Service.FILE_CPU_PROFILE in kwargs:
-                filename = kwargs[Service.FILE_CPU_PROFILE]
-                if os.path.exists(filename):
-                    sys.stderr.write(" => Uploading the cpu profile...\n")
-                    self.post_file(rid, filename,
-                                   Service.FILE_CPU_PROFILE, compress=False)
-                    sys.stderr.write('      ' + self.get_url('#/%s' % rid) + "\n")
-            if Service.FILE_JIT_PROFILE in kwargs:
-                filename = kwargs[Service.FILE_JIT_PROFILE]
-                if os.path.exists(filename):
-                    sys.stderr.write(" => Uploading the jit log...\n")
-                    forest = parse_jitlog(filename)
-                    if forest.exception_raised():
-                        sys.stderr.write(" error: %s\n" % forest.exception_raised())
-                    # append source code to the binary
-                    forest.extract_source_code_lines()
-                    forest.copy_and_add_source_code_tags()
-                    filename = forest.filepath
-                    response = self.post_file(rid, filename,
-                                   Service.FILE_JIT_PROFILE, compress=True)
-                    forest.unlink_jitlog()
-                    json = response.json()
-                    if 'jid' in json:
-                        url = self.get_url('#/%s/traces' % json['jid'])
-                    else:
-                        url = self.get_url('#/%s' % rid)
-                    sys.stderr.write('      ' + url + "\n")
+        if Service.FILE_CPU_PROFILE in kwargs:
+            filename = kwargs[Service.FILE_CPU_PROFILE]
+            if os.path.exists(filename):
+                sys.stderr.write(" => Uploading the cpu profile...\n")
+                self.post_file(rid, filename,
+                               Service.FILE_CPU_PROFILE, compress=False)
+                sys.stderr.write('      ' + self.get_url('#/%s' % rid) + "\n")
+        if Service.FILE_JIT_PROFILE in kwargs:
+            filename = kwargs[Service.FILE_JIT_PROFILE]
+            if os.path.exists(filename):
+                sys.stderr.write(" => Uploading the jit log...\n")
+                forest = parse_jitlog(filename)
+                if forest.exception_raised():
+                    sys.stderr.write(" error: %s\n" % forest.exception_raised())
+                # append source code to the binary
+                forest.extract_source_code_lines()
+                forest.copy_and_add_source_code_tags()
+                filename = forest.filepath
+                response = self.post_file(rid, filename,
+                               Service.FILE_JIT_PROFILE, compress=True)
+                forest.unlink_jitlog()
+                json = response.json()
+                if 'jid' in json:
+                    url = self.get_url('#/%s/traces' % json['jid'])
+                else:
+                    url = self.get_url('#/%s' % rid)
+                sys.stderr.write('      ' + url + "\n")
 
-            self.finalize_entry(rid)
-        except requests.exceptions.ConnectionError as e:
-            if 'vmprof.com' in self.host:
-                sys.stderr.write("ERROR: Connection error. Potential reason could "
-                                 "be that your profile is too big for vmprof.com "
-                                 "(max. limit around 70 MB)\n")
-                raise ServiceException(e)
-            else:
-                raise
+        self.finalize_entry(rid)
 
 
     def finalize_entry(self, rid, data=b""):
