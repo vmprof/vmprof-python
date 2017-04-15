@@ -368,6 +368,10 @@ void dump_native_symbols(int fileno)
                 memory = (flags & PROFILE_MEMORY) != 0;
                 native = (flags & PROFILE_NATIVE) != 0;
                 lines = (flags & PROFILE_LINES) != 0;
+                if (!native) {
+                    lseek(fileno, 0, SEEK_END);
+                    return;
+                }
                 break;
             } case MARKER_META: {
                 LOG("meta 0x%llx\n", cur_pos);
