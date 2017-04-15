@@ -274,11 +274,19 @@ disable_vmprof(PyObject *module, PyObject *args)
         return NULL;
     }
 
+#if VMPROF_UNIX
     if ((read(fd, NULL, 0) != 0) && (only_needed != 0)) {
         PyErr_SetString(PyExc_ValueError,
                         "file descriptor must be readable to save only needed code objects");
         return NULL;
     }
+#else
+    if (only_needed) {
+        PyErr_SetString(PyExc_ValueError,
+                        "saving only needed code objects is not supported for windows");
+        return NULL;
+    }
+#endif
 
     if (!is_enabled) {
         PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
@@ -288,10 +296,14 @@ disable_vmprof(PyObject *module, PyObject *args)
     is_enabled = 0;
     vmprof_ignore_signals(1);
 
+#if VMPROF_UNIX
     if (only_needed)
         emit_all_code_objects_seen(fd);
     else
         emit_all_code_objects();
+#else
+    emit_all_code_objects();
+#endif
 
     if (vmprof_disable() < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
