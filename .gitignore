@@ -64,3 +64,8 @@ target/
 
 _test_*.o
 _test_*.c
+
+# ./configure output
+src/libbacktrace/Makefile
+src/libbacktrace/config.status
+src/libbacktrace/gstdint.h
