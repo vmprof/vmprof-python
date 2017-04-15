@@ -15,6 +15,7 @@ static volatile int is_enabled = 0;
 static destructor Original_code_dealloc = 0;
 static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 void dump_native_symbols(int fileno);
+void find_needed_symbols(int fileno, PyObject *all_code_uids);
 
 #if VMPROF_UNIX
 #include "trampoline.h"
@@ -109,6 +110,33 @@ static int _look_for_code_object(PyObject *o, void *all_codes)
     return 0;
 }
 
+static int _look_for_code_object_seen(PyObject *o, void *all_codes)
+{
+    if (PyCode_Check(o) && PySet_GET_SIZE(all_codes)) {
+        Py_ssize_t i;
+        PyCodeObject *co = (PyCodeObject *)o;
+        PyObject *uid_co = PyLong_FromVoidPtr((void*)CODE_ADDR_TO_UID(co));
+        int check = PySet_Discard(all_codes, uid_co);
+
+        Py_CLEAR(uid_co);
+
+        if (check < 0)
+            return -1;
+
+        if (check && emit_code_object(co) < 0)
+            return -1;
+
+        i = PyTuple_Size(co->co_consts);
+        while (i > 0) {
+            --i;
+            if (_look_for_code_object(PyTuple_GET_ITEM(co->co_consts, i),
+                                      all_codes) < 0)
+                return -1;
+        }
+    }
+    return 0;
+}
+
 static void emit_all_code_objects(void)
 {
     PyObject *gc_module = NULL, *lst = NULL, *all_codes = NULL;
@@ -136,6 +164,40 @@ static void emit_all_code_objects(void)
     }
 
  error:
+    Py_XDECREF(all_codes);
+    Py_XDECREF(lst);
+    Py_XDECREF(gc_module);
+}
+
+static void emit_all_code_objects_seen(int fileno)
+{
+    PyObject *gc_module = NULL, *lst = NULL, *all_codes = NULL;
+    Py_ssize_t i, size;
+
+    gc_module = PyImport_ImportModuleNoBlock("gc");
+    if (gc_module == NULL)
+        goto error;
+
+    lst = PyObject_CallMethod(gc_module, "get_objects", "");
+    if (lst == NULL || !PyList_Check(lst))
+        goto error;
+
+    all_codes = PySet_New(NULL);
+    if (all_codes == NULL)
+        goto error;
+
+    find_needed_symbols(fileno, all_codes);
+
+    size = PyList_GET_SIZE(lst);
+    for (i = 0; i < size; i++) {
+        PyObject *o = PyList_GET_ITEM(lst, i);
+        if (o->ob_type->tp_traverse &&
+                o->ob_type->tp_traverse(o, _look_for_code_object_seen, (void *) all_codes)
+            < 0)
+            goto error;
+    }
+
+    error:
     Py_XDECREF(all_codes);
     Py_XDECREF(lst);
     Py_XDECREF(gc_module);
@@ -203,15 +265,33 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 }
 
 static PyObject *
-disable_vmprof(PyObject *module, PyObject *noarg)
+disable_vmprof(PyObject *module, PyObject *args)
 {
+    int fd = vmp_profile_fileno();
+    int only_needed = 0;
+
+    if (!PyArg_ParseTuple(args, "|i", &only_needed)) {
+        return NULL;
+    }
+
+    if ((read(fd, NULL, 0) != 0) && (only_needed != 0)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "file descriptor must be readable to save only needed code objects");
+        return NULL;
+    }
+
     if (!is_enabled) {
         PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
         return NULL;
     }
+
     is_enabled = 0;
     vmprof_ignore_signals(1);
-    emit_all_code_objects();
+
+    if (only_needed)
+        emit_all_code_objects_seen(fd);
+    else
+        emit_all_code_objects();
 
     if (vmprof_disable() < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
@@ -330,7 +410,7 @@ error:
 
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
-    {"disable", disable_vmprof, METH_NOARGS, "Disable profiling."},
+    {"disable", disable_vmprof, METH_VARARGS, "Disable profiling."},
     {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
      "Write eagerly all the IDs of code objects"},
     {"sample_stack_now", sample_stack_now, METH_VARARGS, "Sample the stack now"},

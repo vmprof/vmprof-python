@@ -439,3 +439,103 @@ void dump_native_symbols(int fileno)
 
     lseek(fileno, 0, SEEK_END);
 }
+
+void find_needed_symbols(int fileno, PyObject *all_code_uids)
+{
+    off_t orig_pos, cur_pos;
+    char marker;
+    ssize_t count;
+    int version;
+    int flags;
+    int memory = 0, lines = 0, native = 0;
+    fsync(fileno);
+    orig_pos = lseek(fileno, 0, SEEK_CUR);
+
+    lseek(fileno, 5*WORD_SIZE, SEEK_SET);
+
+    while (1) {
+        count = read(fileno, &marker, 1);
+        if (count <= 0) {
+            break;
+        }
+        cur_pos = lseek(fileno, 0, SEEK_CUR);
+        LOG("posss 0x%llx %d\n", cur_pos-1, cur_pos-1);
+        switch (marker) {
+            case MARKER_HEADER: {
+                LOG("header 0x%llx\n", cur_pos);
+                if (_skip_header(fileno, &version, &flags) != 0) {
+                    return;
+                }
+                memory = (flags & PROFILE_MEMORY) != 0;
+                native = (flags & PROFILE_NATIVE) != 0;
+                lines = (flags & PROFILE_LINES) != 0;
+                break;
+            } case MARKER_META: {
+                LOG("meta 0x%llx\n", cur_pos);
+                if (_skip_string(fileno) != 0) { return; }
+                if (_skip_string(fileno) != 0) { return; }
+                break;
+            } case MARKER_TIME_N_ZONE:
+            case MARKER_TRAILER: {
+                LOG("tnz or trailer 0x%llx\n", cur_pos);
+                if (_skip_time_and_zone(fileno) != 0) { return; }
+                break;
+            } case MARKER_VIRTUAL_IP:
+            case MARKER_NATIVE_SYMBOLS: {
+                //LOG("virtip 0x%llx\n", cur_pos);
+                if (_skip_addr(fileno) != 0) { return; }
+                if (_skip_string(fileno) != 0) { return; }
+                break;
+            } case MARKER_STACKTRACE: {
+                long trace_count = _read_word(fileno);
+                long depth = _read_word(fileno);
+                long i;
+
+                LOG("stack 0x%llx %d %d\n", cur_pos, trace_count, depth);
+
+#ifdef RPYTHON_VMPROF
+                for (i = depth/2-1; i >= 0; i--) {
+                    long kind = (long)_read_addr(fileno);
+                    void * addr = _read_addr(fileno);
+#else
+                for (i = 0; i < depth; i++) {
+                    void * addr = _read_addr(fileno);
+#endif
+                    if (!lines || (i % 2 == 1)) {
+                        LOG("found addr %p\n", addr);
+                        PyObject *co_uid = PyLong_FromVoidPtr(addr);
+                        int check = PySet_Add(all_code_uids, co_uid);
+
+                        Py_CLEAR(co_uid);
+
+                        if (check < 0) {
+                            lseek(fileno, 0, SEEK_END);
+                            return;
+                        }
+                    }
+                }
+                LOG("passed  memory %d \n", memory);
+
+                if (version >= VERSION_THREAD_ID) {
+                    if (_skip_addr(fileno) != 0) { return; } // thread id
+                }
+                if (memory) {
+                    if (_skip_addr(fileno) != 0) { return; } // profile memory
+                }
+
+                break;
+            } default: {
+                fprintf(stderr, "unknown marker 0x%x\n", marker);
+                lseek(fileno, 0, SEEK_END);
+                return;
+            }
+        }
+
+        cur_pos = lseek(fileno, 0, SEEK_CUR);
+        if (cur_pos >= orig_pos) {
+            break;
+        }
+    }
+
+    lseek(fileno, 0, SEEK_END);
+}
