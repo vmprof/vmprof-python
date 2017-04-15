@@ -162,8 +162,16 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
     if (!PyArg_ParseTuple(args, "id|iii", &fd, &interval, &memory, &lines, &native)) {
         return NULL;
     }
-    assert(fd >= 0 && "file descripter provided to vmprof must not" \
-                      " be less then zero.");
+
+    if (write(fd, NULL, 0) != 0) {
+        PyErr_SetString(PyExc_ValueError, "file descriptor must be writeable");
+        return NULL;
+    }
+
+    if ((read(fd, NULL, 0) != 0) && (native != 0)) {
+        PyErr_SetString(PyExc_ValueError, "file descriptor must be readable for native profiling");
+        return NULL;
+    }
 
     if (is_enabled) {
         PyErr_SetString(PyExc_ValueError, "vmprof is already enabled");
