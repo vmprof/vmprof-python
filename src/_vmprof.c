@@ -15,7 +15,8 @@ static volatile int is_enabled = 0;
 static destructor Original_code_dealloc = 0;
 static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 void dump_native_symbols(int fileno);
-void find_needed_symbols(int fileno, PyObject *all_code_uids);
+void find_needed_symbols(int fileno, void *all_code_uids,
+                         int (*add_code_addr)(void *all_code, void *addr));
 
 #if VMPROF_UNIX
 #include "trampoline.h"
@@ -169,6 +170,14 @@ static void emit_all_code_objects(void)
     Py_XDECREF(gc_module);
 }
 
+static int add_code_addr(void *all_code_uids, void *addr)
+{
+    PyObject *co_uid = PyLong_FromVoidPtr(addr);
+    int check = PySet_Add((PyObject*) all_code_uids, co_uid);
+    Py_CLEAR(co_uid);
+    return check;
+}
+
 static void emit_all_code_objects_seen(int fileno)
 {
     PyObject *gc_module = NULL, *lst = NULL, *all_codes = NULL;
@@ -186,7 +195,12 @@ static void emit_all_code_objects_seen(int fileno)
     if (all_codes == NULL)
         goto error;
 
-    find_needed_symbols(fileno, all_codes);
+#ifndef RPYTHON_VMPROF
+    find_needed_symbols(fileno, all_codes, NULL);
+#else
+    find_needed_symbols(fileno, all_codes, add_code_addr);
+#endif
+
 
     size = PyList_GET_SIZE(lst);
     for (i = 0; i < size; i++) {

@@ -7,7 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <assert.h>
 #include <dlfcn.h>
+
 #if defined(VMPROF_LINUX)
 #include <link.h>
 #endif
@@ -444,7 +446,7 @@ void dump_native_symbols(int fileno)
     lseek(fileno, 0, SEEK_END);
 }
 
-void find_needed_symbols(int fileno, PyObject *all_code_uids)
+void find_needed_symbols(int fileno, void *all_code_uids, int (*add_code_addr)(void*, void*))
 {
     off_t orig_pos, cur_pos;
     char marker;
@@ -452,10 +454,17 @@ void find_needed_symbols(int fileno, PyObject *all_code_uids)
     int version;
     int flags;
     int memory = 0, lines = 0, native = 0;
+
+    // RPython kludge, because symboltable.c is compiled without Python linking.
+#ifdef RPYTHON_VMPROF
+    assert(add_code_addr != NULL);
+#else
+    assert(add_code_addr == NULL);
+#endif
+
     fsync(fileno);
     orig_pos = lseek(fileno, 0, SEEK_CUR);
-
-    lseek(fileno, 5*WORD_SIZE, SEEK_SET);
+    cur_pos = lseek(fileno, 5*WORD_SIZE, SEEK_SET);
 
     while (1) {
         count = read(fileno, &marker, 1);
@@ -501,23 +510,39 @@ void find_needed_symbols(int fileno, PyObject *all_code_uids)
                 for (i = depth/2-1; i >= 0; i--) {
                     long kind = (long)_read_addr(fileno);
                     void * addr = _read_addr(fileno);
+                    // if the address is native, skip it
+                    if (kind == VMPROF_NATIVE_TAG)
+                        continue;
+                    LOG("found addr %p\n", addr);
+                    int check = add_code_addr(all_code_uids, addr);
+
+                    if (check < 0) {
+                        lseek(fileno, 0, SEEK_END);
+                        return;
+                    }
+                }
 #else
                 for (i = 0; i < depth; i++) {
                     void * addr = _read_addr(fileno);
-#endif
-                    if (!lines || (i % 2 == 1)) {
-                        LOG("found addr %p\n", addr);
-                        PyObject *co_uid = PyLong_FromVoidPtr(addr);
-                        int check = PySet_Add(all_code_uids, co_uid);
+                    // if we are tracking lines, skip them
+                    if (lines && (i % 2 == 0))
+                        continue;
+                    // if the address is native, skip it
+                    if (((intptr_t)addr & 0x1) == 1)
+                        continue;
+                    LOG("found addr %p\n", addr);
+                    PyObject *co_uid = PyLong_FromVoidPtr(addr);
+                    int check = PySet_Add(all_code_uids, co_uid);
 
-                        Py_CLEAR(co_uid);
+                    Py_CLEAR(co_uid);
 
-                        if (check < 0) {
-                            lseek(fileno, 0, SEEK_END);
-                            return;
-                        }
+                    if (check < 0) {
+                        lseek(fileno, 0, SEEK_END);
+                        return;
                     }
                 }
+#endif
+
                 LOG("passed  memory %d \n", memory);
 
                 if (version >= VERSION_THREAD_ID) {
