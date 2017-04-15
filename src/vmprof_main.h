@@ -49,7 +49,6 @@
 #endif
 
 #if VMPROF_LINUX
-#include <dirent.h>
 #include <syscall.h>
 #endif
 
@@ -185,32 +184,6 @@ static PY_THREAD_STATE_T * _get_pystate_for_this_thread(void) {
 }
 #endif
 
-#ifdef VMPROF_LINUX
-static void broadcast_signal_for_threads(pid_t pid)
-{
-    pid_t tid;
-    DIR * dir;
-    struct dirent   dirs;
-    struct dirent * dirp;
-
-    dir = opendir("/proc/self/task");
-
-    while(1) {
-        readdir_r(dir, &dirs, &dirp);
-        if (!dirp)
-            break;
-        if (dirp->d_name[0] == '.')
-            continue;
-        tid = atoi(dirp->d_name);
-        if (tid == pid)
-            continue;
-        syscall(SYS_tgkill, pid, tid, signal_type);
-    }
-
-    closedir(dir);
-}
-#endif
-
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
     int commit;
@@ -219,7 +192,17 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 
 #ifdef VMPROF_LINUX
     pid_t pid = getpid();
-    pid_t tid = syscall(SYS_gettid);
+    pid_t tid = (pid_t) syscall(SYS_gettid);
+
+    // SIGNAL ABUSE AHEAD
+    // On linux, the prof timer will deliver the signal to the thread which triggered the timer,
+    // because these timers are based on process and system time, and as such, are thread-aware.
+    // For the real timer, the signal gets delivered to the main thread, seemingly always.
+    // Consequently if we want to sample the original thread, we may need to forward the signal.
+    if ((signal_type == SIGALRM) && (tid != original_tid)) {
+        syscall(SYS_tgkill, pid, original_tid, SIGALRM);
+        return;
+    }
 #endif
 
 #ifndef RPYTHON_VMPROF
@@ -247,17 +230,6 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     }
     signal(SIGSEGV, prevhandler);
     __sync_lock_release(&spinlock);
-#endif
-
-#ifdef VMPROF_LINUX
-    // SIGNAL ABUSE AHEAD
-    // On linux, the prof timer will deliver the signal to the thread which triggered the timer,
-    // because these timers are based on process and system time, and as such, are thread-aware.
-    // For the real timer, the signal gets delivered to the main thread, seemingly always.
-    // Consequently if we want to sample all threads, we need to forward the signal with tgkill.
-    if ((signal_type == SIGALRM) && (pid == tid)) {
-        broadcast_signal_for_threads(pid);
-    }
 #endif
 
     long val = __sync_fetch_and_add(&signal_handler_value, 2L);

@@ -12,6 +12,10 @@
 #include "vmprof_mt.h"
 #endif
 
+#ifdef VMPROF_LINUX
+#include <syscall.h>
+#endif
+
 #define MAX_FUNC_NAME 1024
 
 static long prepare_interval_usec = 0;
@@ -22,6 +26,7 @@ static int opened_profile(const char *interp_name, int memory, int proflines, in
 #ifdef VMPROF_UNIX
 static int signal_type = SIGPROF;
 static int itimer_type = ITIMER_PROF;
+static pid_t original_tid = 0;
 static struct profbuf_s *volatile current_codes;
 #endif
 
@@ -79,6 +84,9 @@ char *vmprof_init(int fd, double interval, int memory,
     if (real_time) {
         signal_type = SIGALRM;
         itimer_type = ITIMER_REAL;
+#if VMPROF_LINUX
+        original_tid = (pid_t) syscall(SYS_gettid);
+#endif
     } else {
         signal_type = SIGPROF;
         itimer_type = ITIMER_PROF;

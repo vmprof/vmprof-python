@@ -3,6 +3,7 @@
 import py
 import sys
 import tempfile
+import time
 import gzip
 import time
 import pytz
@@ -77,10 +78,16 @@ def function_bar():
     return function_foo()
 
 
+def function_slp(t=0.05):
+    return time.sleep(t)
+
+
 foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
                                            function_foo.__code__.co_filename)
 bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
+slp_full_name = "py:function_slp:%d:%s" % (function_slp.__code__.co_firstlineno,
+                                           function_slp.__code__.co_filename)
 
 GZIP = False
 
@@ -237,6 +244,34 @@ def test_memory_measurment():
         function_bar()
 
     prof.get_stats()
+
+
+@py.test.mark.skipif("sys.platform != 'linux'")
+def test_vmprof_real_time():
+    prof = vmprof.Profiler()
+    with prof.measure(real_time=True):
+        function_slp()
+    stats = prof.get_stats()
+    tprof = stats.top_profile()
+    d = dict(tprof)
+    assert d[slp_full_name] > 0
+
+@py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
+@py.test.mark.skipif("sys.platform != 'linux'")
+def test_vmprof_real_time_threaded():
+    import threading
+    prof = vmprof.Profiler()
+    thread = threading.Thread(target=function_slp, args=[0.5])
+    with prof.measure(real_time=True):
+        thread.start()
+        time.sleep(0.25)
+        thread.join()
+    stats = prof.get_stats()
+    tprof = stats.top_profile()
+    d = dict(tprof)
+    assert slp_full_name not in d
+
+
 
 if GZIP:
     def test_gzip_problem():
