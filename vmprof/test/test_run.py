@@ -78,7 +78,15 @@ def function_bar():
     return function_foo()
 
 
-def function_slp(t=0.05):
+def functime_foo(t=0.05, insert=False):
+    if (insert):
+        vmprof.insert_real_time_thread()
+    return time.sleep(t)
+
+
+def functime_bar(t=0.05, remove=False):
+    if (remove):
+        vmprof.remove_real_time_thread()
     return time.sleep(t)
 
 
@@ -86,8 +94,11 @@ foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
                                            function_foo.__code__.co_filename)
 bar_full_name = "py:function_bar:%d:%s" % (function_bar.__code__.co_firstlineno,
                                            function_bar.__code__.co_filename)
-slp_full_name = "py:function_slp:%d:%s" % (function_slp.__code__.co_firstlineno,
-                                           function_slp.__code__.co_filename)
+
+foo_time_name = "py:functime_foo:%d:%s" % (functime_foo.__code__.co_firstlineno,
+                                           functime_foo.__code__.co_filename)
+bar_time_name = "py:functime_bar:%d:%s" % (functime_bar.__code__.co_firstlineno,
+                                           functime_bar.__code__.co_filename)
 
 GZIP = False
 
@@ -250,26 +261,35 @@ def test_memory_measurment():
 def test_vmprof_real_time():
     prof = vmprof.Profiler()
     with prof.measure(real_time=True):
-        function_slp()
+        functime_foo()
     stats = prof.get_stats()
     tprof = stats.top_profile()
     d = dict(tprof)
-    assert d[slp_full_name] > 0
+    assert d[foo_time_name] > 0
+
 
 @py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
 @py.test.mark.skipif("sys.platform != 'linux'")
-def test_vmprof_real_time_threaded():
+@py.test.mark.parametrize("insert_foo,remove_bar", [
+    (False, False),
+    (False,  True),
+    ( True, False),
+    ( True,  True),
+])
+def test_vmprof_real_time_threaded(insert_foo, remove_bar):
     import threading
     prof = vmprof.Profiler()
-    thread = threading.Thread(target=function_slp, args=[0.5])
-    with prof.measure(real_time=True):
+    wait = 0.5
+    thread = threading.Thread(target=functime_foo, args=[wait, insert_foo])
+    with prof.measure(period=0.25, real_time=True):
         thread.start()
-        time.sleep(0.25)
+        functime_bar(wait, remove_bar)
         thread.join()
     stats = prof.get_stats()
     tprof = stats.top_profile()
     d = dict(tprof)
-    assert slp_full_name not in d
+    assert insert_foo == (foo_time_name in d)
+    assert remove_bar != (bar_time_name in d)
 
 
 

@@ -47,7 +47,7 @@ def _is_native_enabled(native):
     return native
 
 if IS_PYPY:
-    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, warn=True):
+    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, real_time=False, warn=True):
         pypy_version_info = sys.pypy_version_info[:3]
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
@@ -61,7 +61,7 @@ if IS_PYPY:
         native = _is_native_enabled(native)
         gz_fileno = _gzip_start(fileno)
         if pypy_version_info >= (5, 8, 0):
-            _vmprof.enable(gz_fileno, period, memory, lines, native)
+            _vmprof.enable(gz_fileno, period, memory, lines, native, real_time)
         else:
             _vmprof.enable(gz_fileno, period) # , memory, lines, native)
 else:
@@ -89,6 +89,21 @@ else:
             Only considers linking symbols found by dladdr.
         """
         return _vmprof.resolve_addr(addr)
+
+
+def insert_real_time_thread():
+    """ Inserts a thread into the list of threads to be sampled in real time mode.
+        When enabling real time mode, the caller thread is inserted automatically.
+        Returns the number of registered threads, or -1 if we can't insert thread.
+    """
+    return _vmprof.insert_real_time_thread()
+
+def remove_real_time_thread():
+    """ Removes a thread from the list of threads to be sampled in real time mode.
+        When disabling in real time mode, *all* threads are removed automatically.
+        Returns the number of registered threads, or -1 if we can't remove thread.
+    """
+    return _vmprof.remove_real_time_thread()
 
 
 def is_enabled():

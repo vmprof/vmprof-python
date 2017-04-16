@@ -26,8 +26,66 @@ static int opened_profile(const char *interp_name, int memory, int proflines, in
 #ifdef VMPROF_UNIX
 static int signal_type = SIGPROF;
 static int itimer_type = ITIMER_PROF;
-static pid_t original_tid = 0;
+static pid_t *threads = NULL;
+static size_t threads_size = 0;
+static size_t thread_count = 0;
+static size_t threads_size_step = 8;
 static struct profbuf_s *volatile current_codes;
+#endif
+
+#ifdef VMPROF_LINUX
+
+static inline ssize_t search_thread(pid_t tid, ssize_t i) {
+    if (i < 0)
+        i = 0;
+    while (i < thread_count) {
+        if (threads[i] == tid)
+            return i;
+        i++;
+    }
+    return -1;
+}
+
+ssize_t insert_thread(pid_t tid, ssize_t i) {
+    assert(signal_type == SIGALRM);
+    i = search_thread(tid, i);
+    if (i > 0)
+        return -1;
+    if (thread_count == threads_size) {
+        threads_size += threads_size_step;
+        threads = realloc(threads, sizeof(pid_t) * threads_size);
+        assert(threads != NULL);
+        memset(threads + thread_count, 0, sizeof(pid_t) * threads_size_step);
+    }
+    threads[thread_count++] = tid;
+    return thread_count;
+}
+
+ssize_t remove_thread(pid_t tid, ssize_t i) {
+    assert(signal_type == SIGALRM);
+    if (thread_count == 0)
+        return -1;
+    if (threads == NULL)
+        return -1;
+    i = search_thread(tid, i);
+    if (i < 0)
+        return -1;
+    threads[i] = threads[--thread_count];
+    threads[thread_count] = 0;
+    return thread_count;
+}
+
+ssize_t remove_threads(void) {
+    assert(signal_type == SIGALRM);
+    if (threads != NULL) {
+        free(threads);
+        threads = NULL;
+    }
+    thread_count = 0;
+    threads_size = 0;
+    return 0;
+}
+
 #endif
 
 #define MAX_STACK_DEPTH   \
@@ -84,9 +142,6 @@ char *vmprof_init(int fd, double interval, int memory,
     if (real_time) {
         signal_type = SIGALRM;
         itimer_type = ITIMER_REAL;
-#if VMPROF_LINUX
-        original_tid = (pid_t) syscall(SYS_gettid);
-#endif
     } else {
         signal_type = SIGPROF;
         itimer_type = ITIMER_PROF;

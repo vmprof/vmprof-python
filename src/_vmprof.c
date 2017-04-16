@@ -312,7 +312,7 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
         return NULL;
     }
 
-    if (vmprof_enable(memory, native) < 0) {
+    if (vmprof_enable(memory, native, real_time) < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
     }
@@ -474,18 +474,72 @@ static PyObject * vmp_get_profile_path(PyObject *module, PyObject *noargs) {
 }
 #endif
 
+
+#ifdef VMPROF_LINUX
+static PyObject *
+insert_real_time_thread(PyObject *module, PyObject * noargs) {
+    ssize_t thread_count;
+
+    if (!is_enabled) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
+        return NULL;
+    }
+
+    if (signal_type != SIGALRM) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not in real time mode");
+        return NULL;
+    }
+
+    while (__sync_lock_test_and_set(&spinlock, 1)) {
+    }
+    thread_count = insert_thread((pid_t) syscall(SYS_gettid), -1);
+    __sync_lock_release(&spinlock);
+
+    return PyLong_FromSsize_t(thread_count);
+}
+
+static PyObject *
+remove_real_time_thread(PyObject *module, PyObject * noargs) {
+    ssize_t thread_count;
+
+    if (!is_enabled) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
+        return NULL;
+    }
+
+    if (signal_type != SIGALRM) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not in real time mode");
+        return NULL;
+    }
+
+    while (__sync_lock_test_and_set(&spinlock, 1)) {
+    }
+    thread_count = remove_thread((pid_t) syscall(SYS_gettid), -1);
+    __sync_lock_release(&spinlock);
+
+    return PyLong_FromSsize_t(thread_count);
+}
+#endif
+
+
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
     {"disable", disable_vmprof, METH_VARARGS, "Disable profiling."},
     {"write_all_code_objects", write_all_code_objects, METH_VARARGS,
      "Write eagerly all the IDs of code objects"},
     {"sample_stack_now", sample_stack_now, METH_VARARGS, "Sample the stack now"},
+    {"is_enabled", vmp_is_enabled, METH_NOARGS, "Indicates if vmprof is currently sampling."},
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
     {"resolve_addr", resolve_addr, METH_VARARGS, "Return the name of the addr"},
 #endif
-    {"is_enabled", vmp_is_enabled, METH_NOARGS, "Indicates if vmprof is currently sampling."},
 #ifdef VMPROF_UNIX
     {"get_profile_path", vmp_get_profile_path, METH_NOARGS, "Profile path the profiler logs to."},
+#endif
+#ifdef VMPROF_LINUX
+    {"insert_real_time_thread", insert_real_time_thread, METH_NOARGS,
+     "Insert a thread into the real time profiling list."},
+    {"remove_real_time_thread", remove_real_time_thread, METH_NOARGS,
+     "Remove a thread from the real time profiling list."},
 #endif
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };

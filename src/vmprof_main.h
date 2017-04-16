@@ -184,26 +184,30 @@ static PY_THREAD_STATE_T * _get_pystate_for_this_thread(void) {
 }
 #endif
 
+#ifdef VMPROF_LINUX
+static int broadcast_signal_for_threads(pid_t pid)
+{
+    int done = 1;
+    size_t i = 0;
+    pid_t tid;
+    while (i < thread_count) {
+        tid = threads[i];
+        if (tid == pid)
+            done = 0;
+        else
+        if (syscall(SYS_tgkill, pid, tid, SIGALRM))
+            remove_thread(tid, i);
+        i++;
+    }
+    return done;
+}
+#endif
+
 static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
     int commit;
     PY_THREAD_STATE_T * tstate = NULL;
     void (*prevhandler)(int);
-
-#ifdef VMPROF_LINUX
-    pid_t pid = getpid();
-    pid_t tid = (pid_t) syscall(SYS_gettid);
-
-    // SIGNAL ABUSE AHEAD
-    // On linux, the prof timer will deliver the signal to the thread which triggered the timer,
-    // because these timers are based on process and system time, and as such, are thread-aware.
-    // For the real timer, the signal gets delivered to the main thread, seemingly always.
-    // Consequently if we want to sample the original thread, we may need to forward the signal.
-    if ((signal_type == SIGALRM) && (tid != original_tid)) {
-        syscall(SYS_tgkill, pid, original_tid, SIGALRM);
-        return;
-    }
-#endif
 
 #ifndef RPYTHON_VMPROF
     // TERRIBLE HACK AHEAD
@@ -218,6 +222,23 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     // get_current_thread_state returns a sane result
     while (__sync_lock_test_and_set(&spinlock, 1)) {
     }
+
+#ifdef VMPROF_LINUX
+    // SIGNAL ABUSE AHEAD
+    // On linux, the prof timer will deliver the signal to the thread which triggered the timer,
+    // because these timers are based on process and system time, and as such, are thread-aware.
+    // For the real timer, the signal gets delivered to the main thread, seemingly always.
+    // Consequently if we want to sample multiple threads, we need to forward this signal.
+    if (signal_type == SIGALRM) {
+        pid_t pid = getpid();
+        pid_t tid = (pid_t) syscall(SYS_gettid);
+        if ((pid == tid) && broadcast_signal_for_threads(pid)) {
+            __sync_lock_release(&spinlock);
+            return;
+        }
+    }
+#endif
+
     prevhandler = signal(SIGSEGV, &segfault_handler);
     int fault_code = setjmp(restore_point);
     if (fault_code == 0) {
@@ -380,7 +401,7 @@ static void disable_cpyprof(void)
 #endif
 
 RPY_EXTERN
-int vmprof_enable(int memory, int native)
+int vmprof_enable(int memory, int native, int real_time)
 {
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
     init_cpyprof(native);
@@ -390,6 +411,10 @@ int vmprof_enable(int memory, int native)
     profile_interval_usec = prepare_interval_usec;
     if (memory && setup_rss() == -1)
         goto error;
+#if VMPROF_LINUX
+    if (real_time && insert_thread((pid_t)syscall(SYS_gettid), -1) == -1)
+        goto error;
+#endif
     if (install_pthread_atfork_hooks() == -1)
         goto error;
     if (install_sigprof_handler() == -1)
@@ -435,6 +460,10 @@ int vmprof_disable(void)
         return -1;
     if (remove_sigprof_handler() == -1)
         return -1;
+#ifdef VMPROF_LINUX
+    if ((signal_type == SIGALRM) && remove_threads() == -1)
+        return -1;
+#endif
     flush_codes();
     if (shutdown_concurrent_bufs(vmp_profile_fileno()) < 0)
         return -1;
