@@ -210,15 +210,15 @@ int backtrace_full_cb(void *data, uintptr_t pc, const char *filename,
 struct backtrace_state * bstate = NULL;
 int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno, char * srcfile, int srcfile_len) {
 #ifdef __APPLE__
-    Dl_info info;
-    if (dladdr((const void*)addr, &info) == 0) {
+    Dl_info dlinfo;
+    if (dladdr((const void*)addr, &dlinfo) == 0) {
         return 1;
     }
-    if (info.dli_sname != NULL) {
-        (void)strncpy(name, info.dli_sname, name_len-1);
+    if (dlinfo.dli_sname != NULL) {
+        (void)strncpy(name, dlinfo.dli_sname, name_len-1);
         name[name_len-1] = 0;
     }
-    lookup_vmprof_debug_info(name, info.dli_fbase, srcfile, srcfile_len, lineno);
+    lookup_vmprof_debug_info(name, dlinfo.dli_fbase, srcfile, srcfile_len, lineno);
     // copy the shared object name to the source file name if source cannot be determined
     if (srcfile[0] == 0 && dlinfo.dli_fname != NULL) {
         (void)strncpy(srcfile, dlinfo.dli_fname, srcfile_len-1);
