@@ -97,8 +97,12 @@ class TestSymbolTable(object):
         name = ffi.new("char**")
         src = ffi.new("char**")
         _lineno = ffi.new("int*")
+        # the idea of this test is to extract some details out of e.g. libc
+        # usually linux distros do not ship dwarf information unless you install
+        # them.
         lib.test_extract_sofile(name, _lineno, src)
 
         assert ffi.string(name[0]) == b"abs"
+        # should be something like /lib64/libc.so.6 (e.g. on Fedora 25)
         assert b"libc" in ffi.string(src[0])
         assert b".so" in ffi.string(src[0])
