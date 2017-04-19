@@ -435,8 +435,9 @@ void vmp_scan_profile(int fileno, int dump_nat_sym, void *all_code_uids)
                                 if (vmp_resolve_addr(addr, name, MAXLEN, &lineno, srcfile, MAXLEN) == 0) {
                                     LOG("dumping add %p, name %s, %s:%d\n", addr, name, srcfile, lineno);
                                     _dump_native_symbol(fileno, addr, name, lineno, srcfile);
-                                    it = kh_put(ptr, nat_syms, (intptr_t)addr, &lineno);
-                                    kh_value(nat_syms, (intptr_t)addr) = 1;
+                                    int ret;
+                                    it = kh_put(ptr, nat_syms, (intptr_t)addr, &ret);
+                                    kh_value(nat_syms, it) = 1;
                                 }
                             }
                         }
@@ -446,7 +447,7 @@ void vmp_scan_profile(int fileno, int dump_nat_sym, void *all_code_uids)
                     } else {
                         // cpython adds all addresses into a set to get the intersection
                         // of all gc known code addresses
-                        if (all_code_uids) {
+                        if (all_code_uids != NULL) {
                             PyObject *co_uid = PyLong_FromVoidPtr(addr);
                             int check = PySet_Add(all_code_uids, co_uid);
                             Py_CLEAR(co_uid);
