@@ -219,6 +219,11 @@ int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno, char 
         name[name_len-1] = 0;
     }
     lookup_vmprof_debug_info(name, info.dli_fbase, srcfile, srcfile_len, lineno);
+    // copy the shared object name to the source file name if source cannot be determined
+    if (srcfile[0] == 0 && dlinfo.dli_fname != NULL) {
+        (void)strncpy(srcfile, dlinfo.dli_fname, srcfile_len-1);
+        srcfile[srcfile_len-1] = 0;
+    }
 #elif defined(VMPROF_LINUX)
     if (bstate == NULL) {
         bstate = backtrace_create_state (NULL, 1, backtrace_error_cb, NULL);
@@ -241,6 +246,18 @@ int vmp_resolve_addr(void * addr, char * name, int name_len, int * lineno, char 
         if (dlinfo.dli_sname != NULL) {
             (void)strncpy(info.name, dlinfo.dli_sname, info.name_len-1);
             name[name_len-1] = 0;
+        }
+
+    }
+
+    // copy the shared object name to the source file name if source cannot be determined
+    if (srcfile[0] == 0) {
+        Dl_info dlinfo;
+        dlinfo.dli_fname = NULL;
+        (void)dladdr((const void*)addr, &dlinfo);
+        if (dlinfo.dli_fname != NULL) {
+            (void)strncpy(srcfile, dlinfo.dli_fname, srcfile_len-1);
+            srcfile[srcfile_len-1] = 0;
         }
     }
 #endif
