@@ -442,18 +442,13 @@ error:
 static PyObject * vmp_get_profile_path(PyObject *module, PyObject *noargs) {
     PyObject * o;
     if (is_enabled) {
-#ifdef VMPROF_LINUX
-        char proffs[4096];
-        char buffer[4096];
-        size_t buffer_size = 4096;
-
-        buffer_size = snprintf(proffs, 4096, "/proc/self/fd/%d\0", vmp_profile_fileno());
-        ssize_t out = readlink(proffs, buffer, 4096);
-        if (out == -1) {
-            out = 0;
+        char * buffer[4096];
+        ssize_t buffer_len = vmp_fd_to_path(vmp_profile_fileno(), buffer, 4096);
+        if (buffer_len == -1) {
+            PyErr_Format(PyExc_NotImplementedError, "not implemented platform %s", vmp_machine_os_name());
+            return NULL;
         }
-        return PyStr_n_NEW(buffer, out);
-#endif
+        return PyStr_n_NEW(buffer, buffer_len);
     }
     Py_RETURN_NONE;
 }
