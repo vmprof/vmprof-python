@@ -421,5 +421,13 @@ class TestNative(object):
         parent = stats.get_tree()
         assert walk(parent)
 
+    def test_is_enabled(self):
+        assert vmprof.is_enabled() == False
+        tmpfile = tempfile.NamedTemporaryFile(delete=False)
+        vmprof.enable(tmpfile.fileno())
+        assert vmprof.is_enabled() == True
+        vmprof.disable()
+        assert vmprof.is_enabled() == False
+
 if __name__ == '__main__':
     test_line_profiling()

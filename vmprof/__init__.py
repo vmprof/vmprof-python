@@ -97,7 +97,7 @@ def is_enabled():
     """
     if hasattr(_vmprof, 'is_enabled'):
         return _vmprof.is_enabled()
-    return None
+    raise NotImplementedError("is_enabled is not implemented on this platform")
 
 def get_profile_path():
     """ Returns the absolute path for the file that is currently open.
@@ -106,7 +106,7 @@ def get_profile_path():
     """
     if hasattr(_vmprof, 'get_profile_path'):
         return _vmprof.get_profile_path()
-    return None
+    raise NotImplementedError("get_profile_path not implemented on this platform")
 
 _gzip_proc = None
 

@@ -275,6 +275,13 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
     return Py_None;
 }
 
+static PyObject * vmp_is_enabled(PyObject *module, PyObject *noargs) {
+    if (is_enabled) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
 static PyObject *
 disable_vmprof(PyObject *module, PyObject *args)
 {
@@ -431,6 +438,7 @@ error:
 }
 #endif
 
+
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
     {"disable", disable_vmprof, METH_VARARGS, "Disable profiling."},
@@ -440,6 +448,7 @@ static PyMethodDef VMProfMethods[] = {
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
     {"resolve_addr", resolve_addr, METH_VARARGS, "Return the name of the addr"},
 #endif
+    {"is_enabled", vmp_is_enabled, METH_NOARGS, "Indicates if vmprof is currently sampling."},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
