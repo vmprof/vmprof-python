@@ -23,6 +23,8 @@ if sys.platform != 'win32':
     {
         *name = gname;
         *src = gsrc;
+        gname[0] = '\x00'
+        gsrc[0] = '\x00'
         return vmp_resolve_addr(&vmp_resolve_addr, gname, 64,
                                 lineno, gsrc, 128);
     }
@@ -30,6 +32,8 @@ if sys.platform != 'win32':
     {
         *name = gname;
         *src = gsrc;
+        gname[0] = '\x00'
+        gsrc[0] = '\x00'
         return vmp_resolve_addr(&abs, gname, 64,
                                 lineno, gsrc, 128);
     }
