@@ -28,9 +28,9 @@ IS_PYPY = '__pypy__' in sys.builtin_module_names
 # 1000Hz
 DEFAULT_PERIOD = 0.00099
 
-def disable():
+def disable(only_needed=False):
     try:
-        _vmprof.disable()
+        _vmprof.disable(only_needed)
         _gzip_finish()
     except IOError as e:
         raise Exception("Error while writing profile: " + str(e))

@@ -3,11 +3,15 @@
 #include "vmprof.h"
 #include "machine.h"
 
+#include "khash.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <assert.h>
 #include <dlfcn.h>
+
 #if defined(VMPROF_LINUX)
 #include <link.h>
 #endif
@@ -338,8 +342,9 @@ int _skip_time_and_zone(int fileno)
     return 0;
 }
 
+KHASH_MAP_INIT_INT(ptr, intptr_t)
 
-void dump_native_symbols(int fileno)
+void vmp_scan_profile(int fileno, int dump_nat_sym, void *all_code_uids)
 {
     off_t orig_pos, cur_pos;
     char marker;
@@ -349,6 +354,9 @@ void dump_native_symbols(int fileno)
     int memory = 0, lines = 0, native = 0;
     fsync(fileno);
     orig_pos = lseek(fileno, 0, SEEK_CUR);
+
+    khash_t(ptr) * nat_syms = kh_init(ptr);
+    khiter_t it;
 
     lseek(fileno, 5*WORD_SIZE, SEEK_SET);
 
@@ -363,11 +371,17 @@ void dump_native_symbols(int fileno)
             case MARKER_HEADER: {
                 LOG("header 0x%llx\n", cur_pos);
                 if (_skip_header(fileno, &version, &flags) != 0) {
+                    kh_destroy(ptr, nat_syms);
                     return;
                 }
                 memory = (flags & PROFILE_MEMORY) != 0;
                 native = (flags & PROFILE_NATIVE) != 0;
                 lines = (flags & PROFILE_LINES) != 0;
+                if (!native && dump_nat_sym) {
+                    lseek(fileno, 0, SEEK_END);
+                    kh_destroy(ptr, nat_syms);
+                    return;
+                }
                 break;
             } case MARKER_META: {
                 LOG("meta 0x%llx\n", cur_pos);
@@ -400,19 +414,46 @@ void dump_native_symbols(int fileno)
 #else
                 for (i = 0; i < depth; i++) {
                     void * addr = _read_addr(fileno);
+                    if (lines && i % 2 == 0) {
+                        continue;
+                    }
                     if (((intptr_t)addr & 0x1) == 1) {
 #endif
-                        LOG("found kind %p\n", addr);
-                        char name[MAXLEN];
-                        char srcfile[MAXLEN];
-                        name[0] = 0;
-                        srcfile[0] = 0;
-                        int lineno = 0;
-                        if (vmp_resolve_addr(addr, name, MAXLEN, &lineno, srcfile, MAXLEN) == 0) {
-                            LOG("dumping add %p, name %s, %s:%d\n", addr, name, srcfile, lineno);
-                            _dump_native_symbol(fileno, addr, name, lineno, srcfile);
+                        /* dump the native symbol to disk */
+                        if (dump_nat_sym) {
+                            LOG("found kind %p\n", addr);
+
+                            // if the address has already been dumped,
+                            // do not log it again!
+                            it = kh_get(ptr, nat_syms, (intptr_t)addr);
+                            if (it == kh_end(nat_syms)) {
+                                char name[MAXLEN];
+                                char srcfile[MAXLEN];
+                                name[0] = 0;
+                                srcfile[0] = 0;
+                                int lineno = 0;
+                                if (vmp_resolve_addr(addr, name, MAXLEN, &lineno, srcfile, MAXLEN) == 0) {
+                                    LOG("dumping add %p, name %s, %s:%d\n", addr, name, srcfile, lineno);
+                                    _dump_native_symbol(fileno, addr, name, lineno, srcfile);
+                                    int ret;
+                                    it = kh_put(ptr, nat_syms, (intptr_t)addr, &ret);
+                                    kh_value(nat_syms, it) = 1;
+                                }
+                            }
+                        }
+#ifdef RPYTHON_VMPROF
+                    }
+#else
+                    } else {
+                        // cpython adds all addresses into a set to get the intersection
+                        // of all gc known code addresses
+                        if (all_code_uids != NULL) {
+                            PyObject *co_uid = PyLong_FromVoidPtr(addr);
+                            int check = PySet_Add(all_code_uids, co_uid);
+                            Py_CLEAR(co_uid);
                         }
                     }
+#endif
                 }
                 LOG("passed  memory %d \n", memory);
 
@@ -427,6 +468,7 @@ void dump_native_symbols(int fileno)
             } default: {
                 fprintf(stderr, "unknown marker 0x%x\n", marker);
                 lseek(fileno, 0, SEEK_END);
+                kh_destroy(ptr, nat_syms);
                 return;
             }
         }
@@ -437,5 +479,11 @@ void dump_native_symbols(int fileno)
         }
     }
 
+    kh_destroy(ptr, nat_syms);
     lseek(fileno, 0, SEEK_END);
+}
+
+void dump_native_symbols(int fileno)
+{
+    vmp_scan_profile(fileno, 1, NULL);
 }
