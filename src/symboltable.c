@@ -3,6 +3,8 @@
 #include "vmprof.h"
 #include "machine.h"
 
+#include "khash.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -340,8 +342,9 @@ int _skip_time_and_zone(int fileno)
     return 0;
 }
 
+KHASH_MAP_INIT_INT(ptr, intptr_t)
 
-void dump_native_symbols(int fileno)
+void vmp_scan_profile(int fileno, int dump_nat_sym, void *all_code_uids)
 {
     off_t orig_pos, cur_pos;
     char marker;
@@ -351,6 +354,9 @@ void dump_native_symbols(int fileno)
     int memory = 0, lines = 0, native = 0;
     fsync(fileno);
     orig_pos = lseek(fileno, 0, SEEK_CUR);
+
+    khash_t(ptr) * nat_syms = kh_init(ptr);
+    khiter_t it;
 
     lseek(fileno, 5*WORD_SIZE, SEEK_SET);
 
@@ -365,13 +371,15 @@ void dump_native_symbols(int fileno)
             case MARKER_HEADER: {
                 LOG("header 0x%llx\n", cur_pos);
                 if (_skip_header(fileno, &version, &flags) != 0) {
+                    kh_destroy(ptr, nat_syms);
                     return;
                 }
                 memory = (flags & PROFILE_MEMORY) != 0;
                 native = (flags & PROFILE_NATIVE) != 0;
                 lines = (flags & PROFILE_LINES) != 0;
-                if (!native) {
+                if (!native && dump_nat_sym) {
                     lseek(fileno, 0, SEEK_END);
+                    kh_destroy(ptr, nat_syms);
                     return;
                 }
                 break;
@@ -406,19 +414,45 @@ void dump_native_symbols(int fileno)
 #else
                 for (i = 0; i < depth; i++) {
                     void * addr = _read_addr(fileno);
+                    if (lines && i % 2 == 0) {
+                        continue;
+                    }
                     if (((intptr_t)addr & 0x1) == 1) {
 #endif
-                        LOG("found kind %p\n", addr);
-                        char name[MAXLEN];
-                        char srcfile[MAXLEN];
-                        name[0] = 0;
-                        srcfile[0] = 0;
-                        int lineno = 0;
-                        if (vmp_resolve_addr(addr, name, MAXLEN, &lineno, srcfile, MAXLEN) == 0) {
-                            LOG("dumping add %p, name %s, %s:%d\n", addr, name, srcfile, lineno);
-                            _dump_native_symbol(fileno, addr, name, lineno, srcfile);
+                        /* dump the native symbol to disk */
+                        if (dump_nat_sym) {
+                            LOG("found kind %p\n", addr);
+
+                            // if the address has already been dumped,
+                            // do not log it again!
+                            it = kh_get(ptr, nat_syms, (intptr_t)addr);
+                            if (it == kh_end(nat_syms)) {
+                                char name[MAXLEN];
+                                char srcfile[MAXLEN];
+                                name[0] = 0;
+                                srcfile[0] = 0;
+                                int lineno = 0;
+                                if (vmp_resolve_addr(addr, name, MAXLEN, &lineno, srcfile, MAXLEN) == 0) {
+                                    LOG("dumping add %p, name %s, %s:%d\n", addr, name, srcfile, lineno);
+                                    _dump_native_symbol(fileno, addr, name, lineno, srcfile);
+                                    it = kh_put(ptr, nat_syms, (intptr_t)addr, &lineno);
+                                    kh_value(nat_syms, (intptr_t)addr) = 1;
+                                }
+                            }
+                        }
+#ifdef RPYTHON_VMPROF
+                    }
+#else
+                    } else {
+                        // cpython adds all addresses into a set to get the intersection
+                        // of all gc known code addresses
+                        if (all_code_uids) {
+                            PyObject *co_uid = PyLong_FromVoidPtr(addr);
+                            int check = PySet_Add(all_code_uids, co_uid);
+                            Py_CLEAR(co_uid);
                         }
                     }
+#endif
                 }
                 LOG("passed  memory %d \n", memory);
 
@@ -433,6 +467,7 @@ void dump_native_symbols(int fileno)
             } default: {
                 fprintf(stderr, "unknown marker 0x%x\n", marker);
                 lseek(fileno, 0, SEEK_END);
+                kh_destroy(ptr, nat_syms);
                 return;
             }
         }
@@ -443,128 +478,11 @@ void dump_native_symbols(int fileno)
         }
     }
 
+    kh_destroy(ptr, nat_syms);
     lseek(fileno, 0, SEEK_END);
 }
 
-void find_needed_symbols(int fileno, void *all_code_uids, int (*add_code_addr)(void*, void*))
+void dump_native_symbols(int fileno)
 {
-    off_t orig_pos, cur_pos;
-    char marker;
-    ssize_t count;
-    int version;
-    int flags;
-    int memory = 0, lines = 0, native = 0;
-
-    // RPython kludge, because symboltable.c is compiled without Python linking.
-#ifdef RPYTHON_VMPROF
-    assert(add_code_addr != NULL);
-#else
-    assert(add_code_addr == NULL);
-#endif
-
-    fsync(fileno);
-    orig_pos = lseek(fileno, 0, SEEK_CUR);
-    cur_pos = lseek(fileno, 5*WORD_SIZE, SEEK_SET);
-
-    while (1) {
-        count = read(fileno, &marker, 1);
-        if (count <= 0) {
-            break;
-        }
-        cur_pos = lseek(fileno, 0, SEEK_CUR);
-        LOG("posss 0x%llx %d\n", cur_pos-1, cur_pos-1);
-        switch (marker) {
-            case MARKER_HEADER: {
-                LOG("header 0x%llx\n", cur_pos);
-                if (_skip_header(fileno, &version, &flags) != 0) {
-                    return;
-                }
-                memory = (flags & PROFILE_MEMORY) != 0;
-                native = (flags & PROFILE_NATIVE) != 0;
-                lines = (flags & PROFILE_LINES) != 0;
-                break;
-            } case MARKER_META: {
-                LOG("meta 0x%llx\n", cur_pos);
-                if (_skip_string(fileno) != 0) { return; }
-                if (_skip_string(fileno) != 0) { return; }
-                break;
-            } case MARKER_TIME_N_ZONE:
-            case MARKER_TRAILER: {
-                LOG("tnz or trailer 0x%llx\n", cur_pos);
-                if (_skip_time_and_zone(fileno) != 0) { return; }
-                break;
-            } case MARKER_VIRTUAL_IP:
-            case MARKER_NATIVE_SYMBOLS: {
-                //LOG("virtip 0x%llx\n", cur_pos);
-                if (_skip_addr(fileno) != 0) { return; }
-                if (_skip_string(fileno) != 0) { return; }
-                break;
-            } case MARKER_STACKTRACE: {
-                long trace_count = _read_word(fileno);
-                long depth = _read_word(fileno);
-                long i;
-
-                LOG("stack 0x%llx %d %d\n", cur_pos, trace_count, depth);
-
-#ifdef RPYTHON_VMPROF
-                for (i = depth/2-1; i >= 0; i--) {
-                    long kind = (long)_read_addr(fileno);
-                    void * addr = _read_addr(fileno);
-                    // if the address is native, skip it
-                    if (kind == VMPROF_NATIVE_TAG)
-                        continue;
-                    LOG("found addr %p\n", addr);
-                    int check = add_code_addr(all_code_uids, addr);
-
-                    if (check < 0) {
-                        lseek(fileno, 0, SEEK_END);
-                        return;
-                    }
-                }
-#else
-                for (i = 0; i < depth; i++) {
-                    void * addr = _read_addr(fileno);
-                    // if we are tracking lines, skip them
-                    if (lines && (i % 2 == 0))
-                        continue;
-                    // if the address is native, skip it
-                    if (((intptr_t)addr & 0x1) == 1)
-                        continue;
-                    LOG("found addr %p\n", addr);
-                    PyObject *co_uid = PyLong_FromVoidPtr(addr);
-                    int check = PySet_Add(all_code_uids, co_uid);
-
-                    Py_CLEAR(co_uid);
-
-                    if (check < 0) {
-                        lseek(fileno, 0, SEEK_END);
-                        return;
-                    }
-                }
-#endif
-
-                LOG("passed  memory %d \n", memory);
-
-                if (version >= VERSION_THREAD_ID) {
-                    if (_skip_addr(fileno) != 0) { return; } // thread id
-                }
-                if (memory) {
-                    if (_skip_addr(fileno) != 0) { return; } // profile memory
-                }
-
-                break;
-            } default: {
-                fprintf(stderr, "unknown marker 0x%x\n", marker);
-                lseek(fileno, 0, SEEK_END);
-                return;
-            }
-        }
-
-        cur_pos = lseek(fileno, 0, SEEK_CUR);
-        if (cur_pos >= orig_pos) {
-            break;
-        }
-    }
-
-    lseek(fileno, 0, SEEK_END);
+    vmp_scan_profile(fileno, 1, NULL);
 }

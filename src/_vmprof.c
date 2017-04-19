@@ -1,8 +1,7 @@
-/*[clinic input]
-module _vmprof
-[clinic start generated code]*/
-/*[clinic end generated code: output=da39a3ee5e6b4b0d input=b443489e38f2be7d]*/
-
+/**
+ * This file is the CPython module _vmprof. It does not share code
+ * with PyPy. PyPy's _vmprof module is included in the main repo.
+ */
 #define _GNU_SOURCE 1
 
 #include <Python.h>
@@ -14,9 +13,7 @@ module _vmprof
 static volatile int is_enabled = 0;
 static destructor Original_code_dealloc = 0;
 static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
-void dump_native_symbols(int fileno);
-void find_needed_symbols(int fileno, void *all_code_uids,
-                         int (*add_code_addr)(void *all_code, void *addr));
+void vmp_scan_profile(int fileno, int dump_native, void *all_code_uids);
 
 #if VMPROF_UNIX
 #include "trampoline.h"
@@ -147,10 +144,12 @@ static void emit_all_code_objects(void)
     if (gc_module == NULL)
         goto error;
 
+    // lst contains all objects that are known by the gc
     lst = PyObject_CallMethod(gc_module, "get_objects", "");
     if (lst == NULL || !PyList_Check(lst))
         goto error;
 
+    // the set only includes the code objects found in the profile
     all_codes = PySet_New(NULL);
     if (all_codes == NULL)
         goto error;
@@ -195,13 +194,11 @@ static void emit_all_code_objects_seen(int fileno)
     if (all_codes == NULL)
         goto error;
 
-#ifndef RPYTHON_VMPROF
-    find_needed_symbols(fileno, all_codes, NULL);
-#else
-    find_needed_symbols(fileno, all_codes, add_code_addr);
-#endif
+    // fill up all_codes with every code object found in the profile
+    vmp_scan_profile(fileno, 0, all_codes);
 
-
+    // intersect the list with the set and dump only the code objects
+    // found in the set!
     size = PyList_GET_SIZE(lst);
     for (i = 0; i < size; i++) {
         PyObject *o = PyList_GET_ITEM(lst, i);
