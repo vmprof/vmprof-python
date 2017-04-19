@@ -438,6 +438,26 @@ error:
 }
 #endif
 
+#ifdef VMPROF_UNIX
+static PyObject * vmp_get_profile_path(PyObject *module, PyObject *noargs) {
+    PyObject * o;
+    if (is_enabled) {
+#ifdef VMPROF_LINUX
+        char proffs[4096];
+        char buffer[4096];
+        size_t buffer_size = 4096;
+
+        buffer_size = snprintf(proffs, 4096, "/proc/self/fd/%d\0", vmp_profile_fileno());
+        ssize_t out = readlink(proffs, buffer, 4096);
+        if (out == -1) {
+            out = 0;
+        }
+        return PyStr_n_NEW(buffer, out);
+#endif
+    }
+    Py_RETURN_NONE;
+}
+#endif
 
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
@@ -449,6 +469,9 @@ static PyMethodDef VMProfMethods[] = {
     {"resolve_addr", resolve_addr, METH_VARARGS, "Return the name of the addr"},
 #endif
     {"is_enabled", vmp_is_enabled, METH_NOARGS, "Indicates if vmprof is currently sampling."},
+#ifdef VMPROF_UNIX
+    {"get_profile_path", vmp_get_profile_path, METH_NOARGS, "Profile path the profiler logs to."},
+#endif
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

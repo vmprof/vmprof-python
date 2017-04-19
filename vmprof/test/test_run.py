@@ -429,5 +429,13 @@ class TestNative(object):
         vmprof.disable()
         assert vmprof.is_enabled() == False
 
+    def test_get_profile_path(self):
+        assert vmprof.get_profile_path() == None
+        tmpfile = tempfile.NamedTemporaryFile(delete=False)
+        vmprof.enable(tmpfile.fileno())
+        assert vmprof.get_profile_path() == tmpfile.name
+        vmprof.disable()
+        assert vmprof.get_profile_path() == None
+
 if __name__ == '__main__':
     test_line_profiling()
