@@ -433,7 +433,10 @@ class TestNative(object):
         assert vmprof.get_profile_path() == None
         tmpfile = tempfile.NamedTemporaryFile(delete=False)
         vmprof.enable(tmpfile.fileno())
-        assert vmprof.get_profile_path() == tmpfile.name
+        if not vmprof.get_profile_path() == tmpfile.name:
+            with open(vmprof.get_profile_path(), 'rb') as fd1:
+                with open(tmpfile.name, "rb") as fd2:
+                    assert fd1.read() == fd2.read()
         vmprof.disable()
         assert vmprof.get_profile_path() == None
 
