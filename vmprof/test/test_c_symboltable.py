@@ -108,5 +108,9 @@ class TestSymbolTable(object):
 
         assert ffi.string(name[0]) == b"abs"
         # should be something like /lib64/libc.so.6 (e.g. on Fedora 25)
-        assert b"libc" in ffi.string(src[0])
-        assert b".so" in ffi.string(src[0])
+        if sys.platform.startswith("linux"):
+            assert b"libc" in ffi.string(src[0])
+            assert b".so" in ffi.string(src[0])
+        elif sys.platform == "darwin":
+            # osx
+            assert b"libsystem_c.dylib" in ffi.string(src[0])
