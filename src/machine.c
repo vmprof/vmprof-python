@@ -33,6 +33,13 @@ long vmp_fd_to_path(int fd, char * buffer, long buffer_len)
     char proffs[24];
     (void)snprintf(proffs, 24, "/proc/self/fd/%d", fd);
     return readlink(proffs, buffer, buffer_len);
+#elif defined(VMPROF_UNIX)
+    char buf[MAXPATHLEN];
+    int size = fcntl(fd, F_GETPATH, buf);
+    if (size >= 0) {
+        (void)strncpy(buffer, buf, buffer_len);
+    }
+    return size;
 #endif
     return -1;
 }
