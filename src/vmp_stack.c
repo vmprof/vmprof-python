@@ -44,6 +44,19 @@ static int (*unw_getcontext)(unw_context_t *) = NULL;
 #include <dlfcn.h>
 #endif
 
+int _per_loop(void) {
+    // how many void* are written to the stack trace per loop iterations?
+#ifdef RPYTHON_VMPROF
+    return 2;
+#else
+    if (vmp_profiles_python_lines()) {
+        return 2;
+    }
+    return 1;
+#endif
+}
+
+
 #ifdef PY_TEST
 // for testing only!
 PY_EVAL_RETURN_T * vmprof_eval(PY_STACK_FRAME_T *f, int throwflag) { return NULL; }
@@ -130,19 +143,27 @@ static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, vo
 int vmp_walk_and_record_python_stack_only(PY_STACK_FRAME_T *frame, void ** result,
                                           int max_depth, int depth, intptr_t pc)
 {
-    while (depth < max_depth && frame) {
+    while ((depth + _per_loop()) <= max_depth && frame) {
         frame = _write_python_stack_entry(frame, result, &depth, max_depth);
     }
     return depth;
 }
 
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
-int _write_native_stack(void* addr, void ** result, int depth) {
+int _write_native_stack(void* addr, void ** result, int depth, int max_depth) {
 #ifdef RPYTHON_VMPROF
+    if (depth + 2 >= max_depth) {
+        // bail, do not write to unknown memory
+        return depth;
+    }
     result[depth++] = (void*)VMPROF_NATIVE_TAG;
 #else
     if (vmp_profiles_python_lines()) {
-        // even if we do not log a python stack frame,
+        if (depth + 2 >= max_depth) {
+            // bail, do not write to unknown memory
+            return depth;
+        }
+        // even if we do not log a python line number,
         // we must keep the profile readable
         result[depth++] = 0;
     }
@@ -227,7 +248,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
 
     int depth = 0;
     PY_STACK_FRAME_T * top_most_frame = frame;
-    while (depth < max_depth) {
+    while ((depth + _per_loop()) <= max_depth) {
         unw_get_proc_info(&cursor, &pip);
 
         func_addr = pip.start_ip;
@@ -269,7 +290,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
             // this is possible because compiler align to 8 bytes.
             //
             if (func_addr != 0x0) {
-                depth = _write_native_stack((void*)(func_addr | 0x1), result, depth);
+                depth = _write_native_stack((void*)(func_addr | 0x1), result, depth, max_depth);
             }
         }
 

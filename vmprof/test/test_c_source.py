@@ -18,12 +18,17 @@ class TestStack(object):
         void vmp_set_ignore_symbols(ptr_t * symbols, int count);
         int vmp_read_vmaps(const char * fname);
         void vmp_native_disable();
+        int sizeof_prof_stacktrace_s(void);
         """)
         with open("src/vmp_stack.c", "rb") as fd:
             source = fd.read().decode()
             libs = [] #['unwind', 'unwind-x86_64']
             if sys.platform.startswith('linux'):
                 libs = ['unwind', 'unwind-x86_64']
+            source += """
+            #include "vmprof_common.h"
+            int sizeof_prof_stacktrace_s(void) { return sizeof(prof_stacktrace_s); }
+            """
             # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
             stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
                                  define_macros=[('_CFFI_USE_EMBEDDING',1), ('PY_TEST',1),
@@ -126,3 +131,9 @@ class TestStack(object):
             assert self.lib.vmp_ignore_ip(l) == 1
         assert self.lib.vmp_ignore_ip(10001) == 0
 
+    def test_sizes(self):
+        if sys.maxsize == 2**63-1:
+            word_size = 8
+        else:
+            word_size = 4
+        assert self.lib.sizeof_prof_stacktrace_s() == 3*word_size
