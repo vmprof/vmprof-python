@@ -31,7 +31,7 @@ class Stats(object):
 
     def get_runtime_in_microseconds(self):
         ts = self.end_time - self.start_time
-        return ts.microseconds
+        return ts.total_seconds() * 1000000
 
     def get_name(self, addr):
         if addr not in self.adr_dict:

@@ -4,6 +4,7 @@ import py
 import sys
 import tempfile
 import gzip
+import time
 import pytz
 import vmprof
 import six
@@ -439,6 +440,16 @@ class TestNative(object):
                     assert fd1.read() == fd2.read()
         vmprof.disable()
         assert vmprof.get_profile_path() == None
+
+    def test_get_runtime(self):
+        p = vmprof.Profiler()
+        with p.measure():
+            time.sleep(2.5)
+        stats = p.get_stats()
+        micros = stats.get_runtime_in_microseconds()
+        ts = stats.end_time - stats.start_time
+        print(ts)
+        assert 2500000 <= micros <= 3000000
 
 if __name__ == '__main__':
     test_line_profiling()
