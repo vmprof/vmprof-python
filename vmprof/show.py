@@ -35,6 +35,7 @@ class AbstractPrinter(object):
             stats = vmprof.read_profile(profile)
         except Exception as e:
             print("Fatal: could not read vmprof profile file '{}': {}".format(profile, e))
+            return
 
         if stats.get_runtime_in_microseconds() < 1000000:
             msg = color("WARNING: The profiling completed in less than 1 seconds. Please run your programs longer!\r\n", color.RED)
