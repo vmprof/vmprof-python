@@ -133,7 +133,7 @@ class IniParser(object):
 def show(stats):
     p = stats.top_profile()
     if not p:
-        print("no stats")
+        print("No stats, profile is empty!\nDid you program run long enough (more than 1 second)?")
         return
 
     p.sort(key=lambda x: x[1], reverse=True)
