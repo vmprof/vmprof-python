@@ -196,6 +196,9 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
     // PyPy saves the information of an address in the same way as line information
     // is saved in CPython. _write_python_stack_entry for details.
     //
+    if (frame == NULL) {
+        return 0;
+    }
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
     intptr_t func_addr;
     unw_cursor_t cursor;
