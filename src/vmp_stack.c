@@ -15,12 +15,12 @@
 #include "compat.h"
 
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
-#include "unwind/vmprof_unwind.h"
 
+#ifdef VMPROF_LINUX
+#include "unwind/vmprof_unwind.h"
 typedef mcontext_t unw_context_t;
 
 // functions copied from libunwind using dlopen
-
 static int (*unw_get_reg)(unw_cursor_t*, int, unw_word_t*) = NULL;
 static int (*unw_step)(unw_cursor_t*) = NULL;
 static int (*unw_init_local)(unw_cursor_t *, unw_context_t *) = NULL;
@@ -28,6 +28,9 @@ static int (*unw_get_proc_info)(unw_cursor_t *, unw_proc_info_t *) = NULL;
 static int (*unw_get_proc_name)(unw_cursor_t *, char *, size_t, unw_word_t*) = NULL;
 static int (*unw_is_signal_frame)(unw_cursor_t *) = NULL;
 static int (*unw_getcontext)(unw_context_t *) = NULL;
+#else
+#include <libunwind.h>
+#endif
 
 #endif
 
@@ -508,53 +511,50 @@ static void * libhandle = NULL;
 #endif
 #define U_PREFIX "_U"
 #define UL_PREFIX "_UL"
-#else
-#define LIBUNWIND "/usr/lib/system/libunwind.dylib"
-#define PREFIX "unw"
-#define U_PREFIX ""
-#define UL_PREFIX ""
 #endif
 
 int vmp_native_enable(void) {
-    vmp_native_traces_enabled = 1;
-
+#ifdef VMPROF_LINUX
     if (!unw_get_reg) {
-        if (!(libhandle = dlopen(LIBUNWIND, RTLD_LAZY | RTLD_LOCAL))) {
+        if ((libhandle = dlopen(LIBUNWIND, RTLD_LAZY | RTLD_LOCAL)) == NULL) {
             goto bail_out;
         }
-        if (!(unw_get_reg = dlsym(libhandle, UL_PREFIX PREFIX "_get_reg"))) {
+        if ((unw_get_reg = dlsym(libhandle, UL_PREFIX PREFIX "_get_reg")) == NULL) {
             goto bail_out;
         }
-        if (!(unw_get_proc_info = dlsym(libhandle, UL_PREFIX PREFIX "_get_proc_info"))){
+        if ((unw_get_proc_info = dlsym(libhandle, UL_PREFIX PREFIX "_get_proc_info")) == NULL){
             goto bail_out;
         }
-        if (!(unw_get_proc_name = dlsym(libhandle, UL_PREFIX PREFIX "_get_proc_name"))){
+        if ((unw_get_proc_name = dlsym(libhandle, UL_PREFIX PREFIX "_get_proc_name")) == NULL){
             goto bail_out;
         }
-        if (!(unw_init_local = dlsym(libhandle, UL_PREFIX PREFIX "_init_local"))) {
+        if ((unw_init_local = dlsym(libhandle, UL_PREFIX PREFIX "_init_local")) == NULL) {
             goto bail_out;
         }
-        if (!(unw_step = dlsym(libhandle, UL_PREFIX PREFIX "_step"))) {
+        if ((unw_step = dlsym(libhandle, UL_PREFIX PREFIX "_step")) == NULL) {
             goto bail_out;
         }
-        if (!(unw_is_signal_frame = dlsym(libhandle, UL_PREFIX PREFIX "_is_signal_frame"))) {
+        if ((unw_is_signal_frame = dlsym(libhandle, UL_PREFIX PREFIX "_is_signal_frame")) == NULL) {
             goto bail_out;
         }
-        if (!(unw_getcontext = dlsym(libhandle, U_PREFIX PREFIX "_getcontext"))) {
+        if ((unw_getcontext = dlsym(libhandle, U_PREFIX PREFIX "_getcontext")) == NULL) {
             goto bail_out;
         }
     }
-
-#if defined(__unix__)
-    return vmp_read_vmaps("/proc/self/maps");
-#elif defined(__APPLE__)
-    return vmp_read_vmaps(NULL);
 #endif
+
+    vmp_native_traces_enabled = 1;
+
+#ifdef VMPROF_LINUX
+    return vmp_read_vmaps("/proc/self/maps");
 bail_out:
     vmprof_error = dlerror();
     fprintf(stderr, "could not load libunwind at runtime. error: %s\n", vmprof_error);
     vmp_native_traces_enabled = 0;
     return 0;
+#else
+    return vmp_read_vmaps(NULL);
+#endif
 }
 
 void vmp_native_disable(void) {
