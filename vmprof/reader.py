@@ -257,6 +257,8 @@ class LogReader(object):
 
         while True:
             marker = fileobj.read(1)
+            if fileobj.tell() == 0x0006bd74 + 8 + 1:
+                import pdb; pdb.set_trace()
             if marker == MARKER_HEADER:
                 assert not s.version, "multiple headers"
                 self.read_header()

@@ -470,8 +470,6 @@ int vmprof_register_virtual_function(char *code_name, intptr_t code_uid,
     if (!__sync_bool_compare_and_swap(&current_codes, NULL, p)) {
         /* failed, flush it */
         commit_buffer(vmp_profile_fileno(), p);
-    } else {
-        cancel_buffer(p);
     }
     return 0;
 }

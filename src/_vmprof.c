@@ -79,7 +79,7 @@ static int emit_code_object(PyCodeObject *co)
     if (sz > MAX_FUNC_NAME / 2) sz = MAX_FUNC_NAME / 2;
     snprintf(buf + sz, MAX_FUNC_NAME / 2, ":%d:%s", co_firstlineno,
              co_filename);
-    return vmprof_register_virtual_function(buf, CODE_ADDR_TO_UID(co), 500);
+    return vmprof_register_virtual_function(buf, CODE_ADDR_TO_UID(co), 500000);
 }
 
 static int _look_for_code_object(PyObject *o, void *all_codes)
