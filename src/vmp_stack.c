@@ -213,14 +213,14 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
     ret = unw_getcontext(&uc);
     if (ret < 0) {
         // could not initialize lib unwind cursor and context
-        printf(stderr, "WARNING: unw_getcontext did not retreive context, switching to python profiling mode \n");
+        fprintf(stderr, "WARNING: unw_getcontext did not retreive context, switching to python profiling mode \n");
         vmp_native_disable();
         return vmp_walk_and_record_python_stack_only(frame, result, max_depth, 0, pc);
     }
     ret = unw_init_local(&cursor, &uc);
     if (ret < 0) {
         // could not initialize lib unwind cursor and context
-        printf(stderr, "WARNING: unw_init_local did not succeed, switching to python profiling mode \n");
+        fprintf(stderr, "WARNING: unw_init_local did not succeed, switching to python profiling mode \n");
         vmp_native_disable();
         return vmp_walk_and_record_python_stack_only(frame, result, max_depth, 0, pc);
     }
