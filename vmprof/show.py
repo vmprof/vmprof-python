@@ -45,7 +45,7 @@ class AbstractPrinter(object):
             tree = stats.get_tree()
             self._show(tree)
         except EmptyProfileFile as e:
-            print("No stack trace has been recorded (profile is empty)! Did your program not run long enough?")
+            print("No stack trace has been recorded (profile is empty)!")
 
 class PrettyPrinter(AbstractPrinter):
     """

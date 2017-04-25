@@ -273,7 +273,7 @@ static int install_sigprof_timer(void)
 {
     static struct itimerval timer;
     timer.it_interval.tv_sec = 0;
-    timer.it_interval.tv_usec = profile_interval_usec;
+    timer.it_interval.tv_usec = (int)profile_interval_usec;
     timer.it_value = timer.it_interval;
     if (setitimer(ITIMER_PROF, &timer, NULL) != 0)
         return -1;

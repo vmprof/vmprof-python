@@ -203,7 +203,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
         return 0;
     }
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
-    intptr_t func_addr;
+    void * func_addr;
     unw_cursor_t cursor;
     unw_context_t uc;
     unw_proc_info_t pip;
@@ -257,7 +257,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
     while ((depth + _per_loop()) <= max_depth) {
         unw_get_proc_info(&cursor, &pip);
 
-        func_addr = pip.start_ip;
+        func_addr = (void*)pip.start_ip;
 
         //{
         //    char name[64];
@@ -296,7 +296,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
             // this is possible because compiler align to 8 bytes.
             //
             if (func_addr != 0x0) {
-                depth = _write_native_stack((void*)(func_addr | 0x1), result, depth, max_depth);
+                depth = _write_native_stack((void*)(((uint64_t)func_addr) | 0x1), result, depth, max_depth);
             }
         }
 
@@ -469,7 +469,7 @@ int vmp_read_vmaps(const char * fname) {
         kr = mach_vm_region(task, &addr, &vmsize, VM_REGION_TOP_INFO,
                           (vm_region_info_t)&topinfo, &count, &obj);
         if (kr == KERN_SUCCESS) {
-            vm_address_t start = addr, end = addr + vmsize;
+            vm_address_t start = (vm_address_t)addr, end = (vm_address_t)(addr + vmsize);
             // dladdr now gives the path of the shared object
             Dl_info info;
             if (dladdr((const void*)start, &info) == 0) {
@@ -578,7 +578,7 @@ int vmp_ignore_ip(intptr_t ip) {
     if (vmp_range_count == 0) {
         return 0;
     }
-    int i = vmp_binary_search_ranges(ip, vmp_ranges, vmp_range_count);
+    int i = vmp_binary_search_ranges(ip, vmp_ranges, (int)vmp_range_count);
     if (i == -1) {
         return 0;
     }
@@ -607,9 +607,9 @@ int vmp_binary_search_ranges(intptr_t ip, intptr_t * l, int count) {
                 // we found the lower bound
                 i = l - ol;
                 if ((i & 1) == 1) {
-                    return i-1;
+                    return (int)i-1;
                 }
-                return i;
+                return (int)i;
             }
         }
         intptr_t * m = l + i;
@@ -623,7 +623,7 @@ int vmp_binary_search_ranges(intptr_t ip, intptr_t * l, int count) {
 }
 
 int vmp_ignore_symbol_count(void) {
-    return vmp_range_count;
+    return (int)vmp_range_count;
 }
 
 intptr_t * vmp_ignore_symbols(void) {
