@@ -25,7 +25,7 @@ else:
         libraries = []
         extra_compile_args = ['-DVMPROF_WINDOWS=1']
     elif sys.platform == 'darwin':
-        libraries = []
+        libraries = ['unwind']
         extra_compile_args = ['-Wno-unused']
         extra_compile_args += ['-DVMPROF_APPLE=1']
         extra_compile_args += ['-DVMPROF_UNIX=1']
