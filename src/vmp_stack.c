@@ -199,16 +199,13 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
     // PyPy saves the information of an address in the same way as line information
     // is saved in CPython. _write_python_stack_entry for details.
     //
-    if (frame == NULL) {
-        return 0;
-    }
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
     void * func_addr;
     unw_cursor_t cursor;
     unw_context_t uc;
     unw_proc_info_t pip;
 
-    if (!vmp_native_enabled()) {
+    if (vmp_native_enabled() == 0) {
         return vmp_walk_and_record_python_stack_only(frame, result, max_depth, 0, pc);
     }
 
@@ -546,15 +543,13 @@ int vmp_native_enable(void) {
     vmp_native_traces_enabled = 1;
 
 #ifdef VMPROF_LINUX
-    return vmp_read_vmaps("/proc/self/maps");
 bail_out:
     vmprof_error = dlerror();
     fprintf(stderr, "could not load libunwind at runtime. error: %s\n", vmprof_error);
     vmp_native_traces_enabled = 0;
     return 0;
-#else
-    return vmp_read_vmaps(NULL);
 #endif
+    return 1;
 }
 
 void vmp_native_disable(void) {
