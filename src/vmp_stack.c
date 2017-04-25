@@ -541,6 +541,7 @@ int vmp_native_enable(void) {
 #endif
 
     vmp_native_traces_enabled = 1;
+    return 1;
 
 #ifdef VMPROF_LINUX
 bail_out:
@@ -549,7 +550,6 @@ bail_out:
     vmp_native_traces_enabled = 0;
     return 0;
 #endif
-    return 1;
 }
 
 void vmp_native_disable(void) {
