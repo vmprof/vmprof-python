@@ -174,6 +174,7 @@ static PY_THREAD_STATE_T * _get_pystate_for_this_thread(void) {
     } while ((istate = PyInterpreterState_Next(istate)) != NULL);
 
     // uh? not found?
+    fprintf(stderr, "WARNING: cannot find thread state, sample will be thrown away\n");
     return NULL;
 }
 #endif
