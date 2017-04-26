@@ -232,7 +232,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             if (commit) {
                 commit_buffer(fd, p);
             } else {
-                fprintf("WARNING: canceled buffer, no stack trace was written\n");
+                fprintf(stderr, "WARNING: canceled buffer, no stack trace was written\n");
                 cancel_buffer(p);
             }
         }

@@ -229,7 +229,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
         while (signal < 0) {
             int err = unw_step(&cursor);
             if (err <= 0) {
-                fprintf("WARNING: did not find signal frame, skipping sample\n");
+                fprintf(stderr, "WARNING: did not find signal frame, skipping sample\n");
                 return 0;
             }
             signal++;
@@ -244,7 +244,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
             }
             int err = unw_step(&cursor);
             if (err <= 0) {
-                fprintf("WARNING: did not find signal frame, skipping sample\n");
+                fprintf(stderr,"WARNING: did not find signal frame, skipping sample\n");
                 return 0;
             }
         }
