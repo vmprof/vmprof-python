@@ -98,11 +98,13 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
     frame = (PY_STACK_FRAME_T*)current;
 #else
     if (!current) {
+        fprintf(stderr, "WARNING: get_stack_trace, current is NULL\n");
         return 0;
     }
     frame = current->frame;
 #endif
     if (frame == NULL) {
+        fprintf(stderr, "WARNING: get_stack_trace, frame is NULL\n");
         return 0;
     }
     return vmp_walk_and_record_stack(frame, result, max_depth, 1, pc);
@@ -230,6 +232,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             if (commit) {
                 commit_buffer(fd, p);
             } else {
+                fprintf("WARNING: canceled buffer, no stack trace was written\n");
                 cancel_buffer(p);
             }
         }

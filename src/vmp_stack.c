@@ -229,6 +229,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
         while (signal < 0) {
             int err = unw_step(&cursor);
             if (err <= 0) {
+                fprintf("WARNING: did not find signal frame, skipping sample\n");
                 return 0;
             }
             signal++;
@@ -243,6 +244,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
             }
             int err = unw_step(&cursor);
             if (err <= 0) {
+                fprintf("WARNING: did not find signal frame, skipping sample\n");
                 return 0;
             }
         }
@@ -310,14 +312,14 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
         if (err == 0) {
             break;
         } else if (err < 0) {
-            return 0; // this sample is broken, cannot walk it fully
+            // this sample is broken, cannot walk native level... record python level (at least)
+            return vmp_walk_and_record_python_stack_only(frame, result, max_depth, 0, pc);
         }
     }
 
-    return 0; // kill this sample, no python level was found
-#else
-    return vmp_walk_and_record_python_stack_only(frame, result, max_depth, 0, pc);
+    // if we come here, the found stack trace is removed and only python stacks are recorded
 #endif
+    return vmp_walk_and_record_python_stack_only(frame, result, max_depth, 0, pc);
 }
 
 int vmp_native_enabled(void) {
