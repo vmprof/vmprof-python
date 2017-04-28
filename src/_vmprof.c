@@ -292,9 +292,9 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
         return NULL;
     }
 
-#ifndef VMPROF_LINUX
+#ifndef VMPROF_UNIX
     if (real_time) {
-        PyErr_SetString(PyExc_ValueError, "real time profiling is only supported on linux");
+        PyErr_SetString(PyExc_ValueError, "real time profiling is only supported on Linux and MacOS");
         return NULL;
     }
 #endif
@@ -475,7 +475,7 @@ static PyObject * vmp_get_profile_path(PyObject *module, PyObject *noargs) {
 #endif
 
 
-#ifdef VMPROF_LINUX
+#ifdef VMPROF_UNIX
 static PyObject *
 insert_real_time_thread(PyObject *module, PyObject * noargs) {
     ssize_t thread_count;
@@ -492,7 +492,8 @@ insert_real_time_thread(PyObject *module, PyObject * noargs) {
 
     while (__sync_lock_test_and_set(&spinlock, 1)) {
     }
-    thread_count = insert_thread((pid_t) syscall(SYS_gettid), -1);
+
+    thread_count = insert_thread(pthread_self(), -1);
     __sync_lock_release(&spinlock);
 
     return PyLong_FromSsize_t(thread_count);
@@ -514,7 +515,8 @@ remove_real_time_thread(PyObject *module, PyObject * noargs) {
 
     while (__sync_lock_test_and_set(&spinlock, 1)) {
     }
-    thread_count = remove_thread((pid_t) syscall(SYS_gettid), -1);
+
+    thread_count = remove_thread(pthread_self(), -1);
     __sync_lock_release(&spinlock);
 
     return PyLong_FromSsize_t(thread_count);
@@ -534,8 +536,6 @@ static PyMethodDef VMProfMethods[] = {
 #endif
 #ifdef VMPROF_UNIX
     {"get_profile_path", vmp_get_profile_path, METH_NOARGS, "Profile path the profiler logs to."},
-#endif
-#ifdef VMPROF_LINUX
     {"insert_real_time_thread", insert_real_time_thread, METH_NOARGS,
      "Insert a thread into the real time profiling list."},
     {"remove_real_time_thread", remove_real_time_thread, METH_NOARGS,

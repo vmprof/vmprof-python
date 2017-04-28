@@ -26,27 +26,27 @@ static int opened_profile(const char *interp_name, int memory, int proflines, in
 #ifdef VMPROF_UNIX
 static int signal_type = SIGPROF;
 static int itimer_type = ITIMER_PROF;
-static pid_t *threads = NULL;
+static pthread_t *threads = NULL;
 static size_t threads_size = 0;
 static size_t thread_count = 0;
 static size_t threads_size_step = 8;
 static struct profbuf_s *volatile current_codes;
 #endif
 
-#ifdef VMPROF_LINUX
+#ifdef VMPROF_UNIX
 
-static inline ssize_t search_thread(pid_t tid, ssize_t i) {
+static inline ssize_t search_thread(pthread_t tid, ssize_t i) {
     if (i < 0)
         i = 0;
     while (i < thread_count) {
-        if (threads[i] == tid)
+        if (pthread_equal(threads[i], tid))
             return i;
         i++;
     }
     return -1;
 }
 
-ssize_t insert_thread(pid_t tid, ssize_t i) {
+ssize_t insert_thread(pthread_t tid, ssize_t i) {
     assert(signal_type == SIGALRM);
     i = search_thread(tid, i);
     if (i > 0)
@@ -61,7 +61,7 @@ ssize_t insert_thread(pid_t tid, ssize_t i) {
     return thread_count;
 }
 
-ssize_t remove_thread(pid_t tid, ssize_t i) {
+ssize_t remove_thread(pthread_t tid, ssize_t i) {
     assert(signal_type == SIGALRM);
     if (thread_count == 0)
         return -1;

@@ -257,7 +257,7 @@ def test_memory_measurment():
     prof.get_stats()
 
 
-@py.test.mark.skipif("sys.platform != 'linux'")
+@py.test.mark.skipif("sys.platform == 'win32'")
 def test_vmprof_real_time():
     prof = vmprof.Profiler()
     with prof.measure(real_time=True):
@@ -269,7 +269,7 @@ def test_vmprof_real_time():
 
 
 @py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
-@py.test.mark.skipif("sys.platform != 'linux'")
+@py.test.mark.skipif("sys.platform == 'win32'")
 @py.test.mark.parametrize("insert_foo,remove_bar", [
     (False, False),
     (False,  True),
