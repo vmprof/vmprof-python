@@ -106,7 +106,8 @@ setup(
     tests_require=['pytest','cffi','hypothesis'],
     entry_points = {
         'console_scripts': [
-            'vmprofshow = vmprof.show:main'
+            'vmprofshow = vmprof.show:main',
+            'vmprof-flamegraph = vmprof.flamegraph:main',
     ]},
     classifiers=[
         'License :: OSI Approved :: MIT License',
