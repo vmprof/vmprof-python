@@ -214,6 +214,46 @@ static void emit_all_code_objects_seen(int fileno)
     Py_XDECREF(gc_module);
 }
 
+static int emit_all_code_objects_helper(int only_needed, int disable_vmprof)
+{
+    int fd = vmp_profile_fileno();
+
+    if (!is_enabled) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
+        return -1;
+    }
+
+#if VMPROF_UNIX
+    if ((read(fd, NULL, 0) != 0) && (only_needed != 0)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "file descriptor must be readable to save only needed code objects");
+        return -1;
+    }
+#else
+    if (only_needed) {
+        PyErr_SetString(PyExc_ValueError,
+                        "saving only needed code objects is not supported for windows");
+        return -1;
+    }
+#endif
+
+    if (disable_vmprof) {
+        is_enabled = 0;
+        vmprof_ignore_signals(1);
+    }
+
+#if VMPROF_UNIX
+    if (only_needed)
+        emit_all_code_objects_seen(fd);
+    else
+        emit_all_code_objects();
+#else
+    emit_all_code_objects();
+#endif
+
+    return 0;
+}
+
 static void cpyprof_code_dealloc(PyObject *co)
 {
     if (is_enabled) {
@@ -285,64 +325,40 @@ static PyObject * vmp_is_enabled(PyObject *module, PyObject *noargs) {
 static PyObject *
 disable_vmprof(PyObject *module, PyObject *args)
 {
-    int fd = vmp_profile_fileno();
     int only_needed = 0;
 
-    if (!PyArg_ParseTuple(args, "|i", &only_needed)) {
+    if (!PyArg_ParseTuple(args, "|i", &only_needed))
         return NULL;
-    }
 
-#if VMPROF_UNIX
-    if ((read(fd, NULL, 0) != 0) && (only_needed != 0)) {
-        PyErr_SetString(PyExc_ValueError,
-                        "file descriptor must be readable to save only needed code objects");
+    if (emit_all_code_objects_helper(only_needed, 1))
         return NULL;
-    }
-#else
-    if (only_needed) {
-        PyErr_SetString(PyExc_ValueError,
-                        "saving only needed code objects is not supported for windows");
-        return NULL;
-    }
-#endif
-
-    if (!is_enabled) {
-        PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
-        return NULL;
-    }
-
-    is_enabled = 0;
-    vmprof_ignore_signals(1);
-
-#if VMPROF_UNIX
-    if (only_needed)
-        emit_all_code_objects_seen(fd);
-    else
-        emit_all_code_objects();
-#else
-    emit_all_code_objects();
-#endif
 
     if (vmprof_disable() < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
     }
+
     if (PyErr_Occurred())
         return NULL;
+
     Py_INCREF(Py_None);
     return Py_None;
 }
 
 static PyObject *
-write_all_code_objects(PyObject *module, PyObject *noargs)
+write_all_code_objects(PyObject *module, PyObject *args)
 {
-    if (!is_enabled) {
-        PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
+    int only_needed = 0;
+
+    if (!PyArg_ParseTuple(args, "|i", &only_needed))
         return NULL;
-    }
-    emit_all_code_objects();
+
+    if (emit_all_code_objects_helper(only_needed, 0))
+        return NULL;
+
     if (PyErr_Occurred())
         return NULL;
+
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -458,7 +474,7 @@ static PyObject * vmp_get_profile_path(PyObject *module, PyObject *noargs) {
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
     {"disable", disable_vmprof, METH_VARARGS, "Disable profiling."},
-    {"write_all_code_objects", write_all_code_objects, METH_NOARGS,
+    {"write_all_code_objects", write_all_code_objects, METH_VARARGS,
      "Write eagerly all the IDs of code objects"},
     {"sample_stack_now", sample_stack_now, METH_VARARGS, "Sample the stack now"},
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
