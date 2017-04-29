@@ -87,6 +87,7 @@ def parse_args(argv):
         ini_options = [
             ('period', float),
             ('web', str),
+            ('mem', bool),
             ('web-auth', str),
             ('web-url', str),
             ('output', str),
