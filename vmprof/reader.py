@@ -52,6 +52,9 @@ class JittedCode(int):
 class NativeCode(int):
     pass
 
+class IncompleteRead(Exception):
+    pass
+
 def wrap_kind(kind, pc):
     if kind == VMPROF_ASSEMBLER_TAG:
         return AssemblerCode(pc)
@@ -100,7 +103,7 @@ class LogReader(object):
         self.addr_size = None
 
     def detect_file_sizes(self):
-        self.fileobj.seek(0, os.SEEK_SET)
+        self.seek()
         firstbytes = self.read(8)
         three = '\x03' if not PY3 else 3
         little = None
@@ -125,19 +128,30 @@ class LogReader(object):
         # even though it migt be a 64bit log, teh addr_size is now 4
         if self.addr_size == 4:
             # read further
-            self.fileobj.seek(0, os.SEEK_SET)
+            self.seek()
             self.read(4*4)
             windows64 = self.read_word() == 1
             if windows64:
                 self.setup_once(little_endian=little, word_size=4, addr_size=8)
 
-        self.fileobj.seek(0, os.SEEK_SET)
+        self.seek()
 
     def setup_once(self, little_endian, word_size, addr_size):
         self.little_endian = little_endian
         assert self.little_endian, "big endian profile are not supported"
         self.word_size = word_size
         self.addr_size = addr_size
+
+    def read(self, count):
+        data = self.fileobj.read(count)
+        size = len(data)
+        if count != size:
+            raise IncompleteRead("expected %d, read %d" % (count, size))
+        else:
+            return data
+
+    def seek(self, position=0, offset=os.SEEK_SET):
+        return self.fileobj.seek(position, offset)
 
     def read_static_header(self):
         assert self.read_word() == 0 # header count
@@ -170,22 +184,19 @@ class LogReader(object):
 
     def read_addr(self):
         if self.addr_size == 8:
-            return struct.unpack('<q', self.fileobj.read(8))[0]
+            return struct.unpack('<q', self.read(8))[0]
         elif self.addr_size == 4:
-            return struct.unpack('<l', self.fileobj.read(4))[0]
+            return struct.unpack('<l', self.read(4))[0]
         else:
             raise NotImplementedError("did not implement size %d" % self.size)
 
     def read_word(self):
         if self.word_size == 8:
-            return struct.unpack('<q', self.fileobj.read(8))[0]
+            return struct.unpack('<q', self.read(8))[0]
         elif self.word_size == 4:
-            return struct.unpack('<l', self.fileobj.read(4))[0]
+            return struct.unpack('<l', self.read(4))[0]
         else:
             raise NotImplementedError("did not implement size %d" % self.size)
-
-    def read(self, count):
-        return self.fileobj.read(count)
 
     def read_string(self):
         cnt = self.read_word()
@@ -223,7 +234,7 @@ class LogReader(object):
         return addrs
 
     def read_s64(self):
-        return struct.unpack('q', self.fileobj.read(8))[0]
+        return struct.unpack('q', self.read(8))[0]
 
     def read_time_and_zone(self):
         return datetime.datetime.fromtimestamp(
@@ -248,55 +259,73 @@ class LogReader(object):
                 return None
         return None
 
+    def read_block_header(self):
+        assert not self.state.version, "multiple headers"
+        self.read_header()
+
+    def read_block_meta(self):
+        key = self.read_string()
+        value = self.read_string()
+        assert not key in self.state.meta, "key duplication, %s already present" % (key,)
+        self.state.meta[key] = value
+
+    def read_block_time_and_zone(self):
+        self.state.start_time = self.read_time_and_zone()
+
+    def read_block_stack_trace(self):
+        count = self.read_word()
+        # for now
+        assert count == 1
+        depth = self.read_word()
+        assert depth <= 2**16, 'stack strace depth too high'
+        trace = self.read_trace(depth)
+        thread_id = 0
+        mem_in_kb = 0
+        if self.state.version >= VERSION_THREAD_ID:
+            thread_id = self.read_addr()
+        if self.state.profile_memory:
+            mem_in_kb = self.read_addr()
+        trace.reverse()
+        self.state.profiles.append((trace, 1, thread_id, mem_in_kb))
+
+    def read_block_symbols(self):
+        unique_id = self.read_addr()
+        name = self.read_string()
+        self.state.virtual_ips.append((unique_id, name))
+
+    def read_block_trailer(self):
+        if self.state.version >= VERSION_DURATION:
+            self.state.end_time = self.read_time_and_zone()
+
     def read_all(self):
-        s = self.state
         fileobj = self.fileobj
 
         self.detect_file_sizes()
         self.read_static_header()
 
+        function_lookup = {
+            MARKER_HEADER:          self.read_block_header,
+            MARKER_META:            self.read_block_meta,
+            MARKER_TIME_N_ZONE:     self.read_block_time_and_zone,
+            MARKER_STACKTRACE:      self.read_block_stack_trace,
+            MARKER_VIRTUAL_IP:      self.read_block_symbols,
+            MARKER_NATIVE_SYMBOLS:  self.read_block_symbols,
+            MARKER_TRAILER:         self.read_block_trailer,
+        }
+
         while True:
             marker = fileobj.read(1)
-            if marker == MARKER_HEADER:
-                assert not s.version, "multiple headers"
-                self.read_header()
-            elif marker == MARKER_META:
-                key = self.read_string()
-                value = self.read_string()
-                assert not key in s.meta, "key duplication, %s already present" % (key,)
-                s.meta[key] = value
-            elif marker == MARKER_TIME_N_ZONE:
-                s.start_time = self.read_time_and_zone()
-            elif marker == MARKER_STACKTRACE:
-                count = self.read_word()
-                # for now
-                assert count == 1
-                depth = self.read_word()
-                assert depth <= 2**16, 'stack strace depth too high'
-                trace = self.read_trace(depth)
-                thread_id = 0
-                mem_in_kb = 0
-                if s.version >= VERSION_THREAD_ID:
-                    thread_id = self.read_addr()
-                if s.profile_memory:
-                    mem_in_kb = self.read_addr()
-                trace.reverse()
-                s.profiles.append((trace, 1, thread_id, mem_in_kb))
-            elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
-                unique_id = self.read_addr()
-                name = self.read_string()
-                s.virtual_ips.append((unique_id, name))
-            elif marker == MARKER_TRAILER:
-                #if not virtual_ips_only:
-                #    symmap = read_ranges(fileobj.read())
-                if s.version >= VERSION_DURATION:
-                    s.end_time = self.read_time_and_zone()
-                break
-            else:
+            handle = function_lookup.get(marker)
+            if handle is None:
                 assert not marker, (fileobj.tell(), repr(marker))
                 break
+            else:
+                handle()
+            if marker == MARKER_TRAILER:
+                break
 
-        s.virtual_ips.sort() # I think it's sorted, but who knows
+        self.state.virtual_ips.sort() # I think it's sorted, but who knows
+
 
 class ReaderState(object):
     pass
