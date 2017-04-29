@@ -311,8 +311,7 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 
     is_enabled = 1;
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject * vmp_is_enabled(PyObject *module, PyObject *noargs) {
@@ -341,8 +340,7 @@ disable_vmprof(PyObject *module, PyObject *args)
     if (PyErr_Occurred())
         return NULL;
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -359,8 +357,7 @@ write_all_code_objects(PyObject *module, PyObject *args)
     if (PyErr_Occurred())
         return NULL;
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 
@@ -403,16 +400,14 @@ sample_stack_now(PyObject *module, PyObject * args)
 
     free(m);
 
+    vmprof_ignore_signals(0);
     Py_INCREF(list);
-
-    vmprof_ignore_signals(0);
     return list;
-error:
-    Py_DECREF(list);
-    Py_INCREF(Py_None);
 
+error:
     vmprof_ignore_signals(0);
-    return Py_None;
+    Py_DECREF(list);
+    Py_RETURN_NONE;
 }
 
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
@@ -444,13 +439,13 @@ resolve_addr(PyObject *module, PyObject *args) {
     if (o_srcfile == NULL) goto error;
     //
     return PyTuple_Pack(3, o_name, o_lineno, o_srcfile);
+
 error:
     Py_XDECREF(o_name);
     Py_XDECREF(o_lineno);
     Py_XDECREF(o_srcfile);
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 #endif
 
