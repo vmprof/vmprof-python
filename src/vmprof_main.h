@@ -193,11 +193,11 @@ static int broadcast_signal_for_threads(void)
     pthread_t tid;
     while (i < thread_count) {
         tid = threads[i];
-        if (pthread_equal(tid, self))
+        if (pthread_equal(tid, self)) {
             done = 0;
-        else
-        if (pthread_kill(tid, SIGALRM))
+        } else if (pthread_kill(tid, SIGALRM)) {
             remove_thread(tid, i);
+        }
         i++;
     }
     return done;
