@@ -269,10 +269,11 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
     int memory = 0;
     int lines = 0;
     int native = 0;
+    int real_time = 0;
     double interval;
     char *p_error;
 
-    if (!PyArg_ParseTuple(args, "id|iii", &fd, &interval, &memory, &lines, &native)) {
+    if (!PyArg_ParseTuple(args, "id|iiii", &fd, &interval, &memory, &lines, &native, &real_time)) {
         return NULL;
     }
 
@@ -291,6 +292,13 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
         return NULL;
     }
 
+#ifndef VMPROF_UNIX
+    if (real_time) {
+        PyErr_SetString(PyExc_ValueError, "real time profiling is only supported on Linux and MacOS");
+        return NULL;
+    }
+#endif
+
     vmp_profile_lines(lines);
 
     if (!Original_code_dealloc) {
@@ -298,13 +306,13 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
         PyCode_Type.tp_dealloc = &cpyprof_code_dealloc;
     }
 
-    p_error = vmprof_init(fd, interval, memory, lines, "cpython", native);
+    p_error = vmprof_init(fd, interval, memory, lines, "cpython", native, real_time);
     if (p_error) {
         PyErr_SetString(PyExc_ValueError, p_error);
         return NULL;
     }
 
-    if (vmprof_enable(memory, native) < 0) {
+    if (vmprof_enable(memory, native, real_time) < 0) {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
     }
@@ -466,18 +474,72 @@ static PyObject * vmp_get_profile_path(PyObject *module, PyObject *noargs) {
 }
 #endif
 
+
+#ifdef VMPROF_UNIX
+static PyObject *
+insert_real_time_thread(PyObject *module, PyObject * noargs) {
+    ssize_t thread_count;
+
+    if (!is_enabled) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
+        return NULL;
+    }
+
+    if (signal_type != SIGALRM) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not in real time mode");
+        return NULL;
+    }
+
+    while (__sync_lock_test_and_set(&spinlock, 1)) {
+    }
+
+    thread_count = insert_thread(pthread_self(), -1);
+    __sync_lock_release(&spinlock);
+
+    return PyLong_FromSsize_t(thread_count);
+}
+
+static PyObject *
+remove_real_time_thread(PyObject *module, PyObject * noargs) {
+    ssize_t thread_count;
+
+    if (!is_enabled) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
+        return NULL;
+    }
+
+    if (signal_type != SIGALRM) {
+        PyErr_SetString(PyExc_ValueError, "vmprof is not in real time mode");
+        return NULL;
+    }
+
+    while (__sync_lock_test_and_set(&spinlock, 1)) {
+    }
+
+    thread_count = remove_thread(pthread_self(), -1);
+    __sync_lock_release(&spinlock);
+
+    return PyLong_FromSsize_t(thread_count);
+}
+#endif
+
+
 static PyMethodDef VMProfMethods[] = {
     {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
     {"disable", disable_vmprof, METH_VARARGS, "Disable profiling."},
     {"write_all_code_objects", write_all_code_objects, METH_VARARGS,
      "Write eagerly all the IDs of code objects"},
     {"sample_stack_now", sample_stack_now, METH_VARARGS, "Sample the stack now"},
+    {"is_enabled", vmp_is_enabled, METH_NOARGS, "Indicates if vmprof is currently sampling."},
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
     {"resolve_addr", resolve_addr, METH_VARARGS, "Return the name of the addr"},
 #endif
-    {"is_enabled", vmp_is_enabled, METH_NOARGS, "Indicates if vmprof is currently sampling."},
 #ifdef VMPROF_UNIX
     {"get_profile_path", vmp_get_profile_path, METH_NOARGS, "Profile path the profiler logs to."},
+    {"insert_real_time_thread", insert_real_time_thread, METH_NOARGS,
+     "Insert a thread into the real time profiling list."},
+    {"remove_real_time_thread", remove_real_time_thread, METH_NOARGS,
+     "Remove a thread from the real time profiling list."},
 #endif
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
