@@ -229,6 +229,8 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 
 #ifndef RPYTHON_VMPROF
 
+    // Even though the docs say that this function call is for 'esoteric use'
+    // it seems to be correctly set when the interpreter is teared down!
     if (!Py_IsInitialized()) {
         return;
     }
