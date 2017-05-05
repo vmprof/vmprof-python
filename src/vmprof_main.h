@@ -100,7 +100,7 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
     // do nothing here,
     frame = (PY_STACK_FRAME_T*)current;
 #else
-    if (!current) {
+    if (current == NULL) {
         fprintf(stderr, "WARNING: get_stack_trace, current is NULL\n");
         return 0;
     }
@@ -163,11 +163,12 @@ static PY_THREAD_STATE_T * _get_pystate_for_this_thread(void) {
     PyThreadState * state;
     long mythread_id;
 
+    mythread_id = PyThread_get_thread_ident();
     istate = PyInterpreterState_Head();
     if (istate == NULL) {
+        fprintf(stderr, "WARNING: interp state head is null (for thread id %d)\n", mythread_id);
         return NULL;
     }
-    mythread_id = PyThread_get_thread_ident();
     // fish fish fish, it will NOT lock the keymutex in pythread
     do {
         state = PyInterpreterState_ThreadHead(istate);
@@ -227,6 +228,11 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     void (*prevhandler)(int);
 
 #ifndef RPYTHON_VMPROF
+
+    if (!Py_IsInitialized()) {
+        return;
+    }
+
     // TERRIBLE HACK AHEAD
     // on OS X, the thread local storage is sometimes uninitialized
     // when the signal handler runs - it means it's impossible to read errno
@@ -287,7 +293,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
             if (commit) {
                 commit_buffer(fd, p);
             } else {
-                fprintf(stderr, "WARNING: canceled buffer, no stack trace was written\n");
+                fprintf(stderr, "WARNING: canceled buffer, no stack trace was written %d\n", is_enabled);
                 cancel_buffer(p);
             }
         }
