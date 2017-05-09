@@ -30,7 +30,13 @@ DEFAULT_PERIOD = 0.00099
 
 def disable(only_needed=False):
     try:
-        _vmprof.disable(only_needed)
+        if IS_PYPY:
+            # for now only_needed is not supported, we need to
+            # copy the sources for pypy and update the code heren
+            # (with version check)
+            _vmprof.disable()
+        else:
+            _vmprof.disable(only_needed)
         _gzip_finish()
     except IOError as e:
         raise Exception("Error while writing profile: " + str(e))
