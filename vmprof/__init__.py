@@ -66,8 +66,12 @@ if IS_PYPY:
         # TODO fixes currently released pypy's
         native = _is_native_enabled(native)
         gz_fileno = _gzip_start(fileno)
-        if pypy_version_info >= (5, 8, 0):
+        #
+        # use the actual version number as soon as we implement real_time in pypy
+        if pypy_version_info >= (999, 0, 0):
             _vmprof.enable(gz_fileno, period, memory, lines, native, real_time)
+        if pypy_version_info >= (5, 8, 0):
+            _vmprof.enable(gz_fileno, period, memory, lines, native)
         else:
             _vmprof.enable(gz_fileno, period) # , memory, lines, native)
 else:
