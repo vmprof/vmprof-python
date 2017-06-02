@@ -30,6 +30,8 @@ class Stats(object):
         self.end_time = end_time
 
     def get_runtime_in_microseconds(self):
+        if self.start_time is None or self.end_time is None:
+            return 0 # old versions that do not emit start or end time
         ts = self.end_time - self.start_time
         return ts.total_seconds() * 1000000
 
