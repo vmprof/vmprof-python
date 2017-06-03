@@ -375,6 +375,13 @@ void vmp_scan_profile(int fileno, int dump_nat_sym, void *all_code_uids)
     khash_t(ptr) * nat_syms = kh_init(ptr);
     khiter_t it;
 
+#ifndef RPYTHON_VMPROF
+    PyObject *all_done_uids = NULL;
+    if (all_code_uids != NULL) {
+        all_done_uids = PySet_New(NULL);
+    }
+#endif
+
     lseek(fileno, 5*WORD_SIZE, SEEK_SET);
 
     while (1) {
@@ -413,7 +420,16 @@ void vmp_scan_profile(int fileno, int dump_nat_sym, void *all_code_uids)
             } case MARKER_VIRTUAL_IP:
               case MARKER_NATIVE_SYMBOLS: {
                 //LOG("virtip 0x%llx\n", cur_pos);
+#ifndef RPYTHON_VMPROF
+                void * addr = _read_addr(fileno);
+                if (all_done_uids != NULL) {
+                    PyObject *co_uid = PyLong_FromVoidPtr(addr);
+                    int check = PySet_Add(all_done_uids, co_uid);
+                    Py_CLEAR(co_uid);
+                }
+#else
                 if (_skip_addr(fileno) != 0) { return; }
+#endif
                 if (_skip_string(fileno) != 0) { return; }
                 break;
             } case MARKER_STACKTRACE: {
@@ -495,6 +511,17 @@ void vmp_scan_profile(int fileno, int dump_nat_sym, void *all_code_uids)
             break;
         }
     }
+
+#ifndef RPYTHON_VMPROF
+    if (all_done_uids != NULL) {
+        while (PySet_GET_SIZE(all_done_uids)) {
+            PyObject *co_uid = PySet_Pop(all_done_uids);
+            PySet_Discard(all_code_uids, co_uid);
+            Py_CLEAR(co_uid);
+        }
+        Py_CLEAR(all_done_uids);
+    }
+#endif
 
     kh_destroy(ptr, nat_syms);
     lseek(fileno, 0, SEEK_END);

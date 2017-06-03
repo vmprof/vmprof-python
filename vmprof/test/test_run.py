@@ -161,9 +161,14 @@ def test_only_needed():
     with prof.measure(only_needed=True):
         function_foo()
     stats_two = prof.get_stats()
+    with prof.measure(only_needed=True):
+        vmprof._vmprof.write_all_code_objects()
+        function_foo()
+    stats_all = prof.get_stats()
     assert foo_full_name in stats_one.adr_dict.values()
     assert foo_full_name in stats_two.adr_dict.values()
     assert len(stats_one.adr_dict) > len(stats_two.adr_dict)
+    assert stats_one.adr_size == stats_all.adr_size
 
 def test_nested_call():
     prof = vmprof.Profiler()
