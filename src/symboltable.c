@@ -317,7 +317,7 @@ ssize_t read_exactly(int fileno, void * buf, ssize_t size) {
     }
 
     if (r == -1) {
-        if (errno == EINTR) {
+        while (errno == EINTR) {
             if ((r = read(fileno, buf, (size_t)size)) == size) {
                 return r;
             }
