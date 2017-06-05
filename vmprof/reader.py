@@ -307,7 +307,7 @@ class LogReaderDumpNative(LogReader):
 
     def finished_reading_profile(self):
         import _vmprof
-        if not hasattr('resolve_addr'):
+        if not hasattr(_vmprof, 'resolve_addr'):
             # windows does not implement that!
             return
 
