@@ -306,6 +306,12 @@ class LogReaderDumpNative(LogReader):
         self.dedup = set()
 
     def finished_reading_profile(self):
+        import _vmprof
+        if not hasattr('resolve_addr'):
+            # windows does not implement that!
+            return
+
+        resolve_addr = _vmprof.resolve_addr
         from _vmprof import resolve_addr
         LogReader.finished_reading_profile(self)
         if len(self.dedup) == 0:
