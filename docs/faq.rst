@@ -12,3 +12,6 @@ Frequently Asked Questions
 
 * **My Windows profile is malformed?**: Please ensure that you open the file in binary mode. Otherwise Windows
   will transform `\n` to `\r\n`.
+
+* **Do I need to install libunwind?**: Usually not. We ship python wheels that bundle libunwind shared objects. If you install vmprof from source, then you need to install the development headers of your distribution. OSX ships libunwind per default. If your pip version is really old it does not pull wheels and it will end up compiling from source.
+
