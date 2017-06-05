@@ -134,7 +134,7 @@ def test_enable_disable():
 
 def test_start_end_time():
     prof = vmprof.Profiler()
-    before_profile = datetime.now(pytz.utc)
+    before_profile = datetime.now()
     if sys.platform == 'win32':
         # it seems that the windows implementation of vmp_write_time_now
         # is borken, and cuts of some micro second precision.
@@ -142,28 +142,15 @@ def test_start_end_time():
         time.sleep(1)
     with prof.measure():
         function_foo()
-    after_profile = datetime.now(pytz.utc)
+    after_profile = datetime.now()
     stats = prof.get_stats()
-    s = stats.start_time.astimezone(pytz.utc)
-    e = stats.end_time.astimezone(pytz.utc)
+    s = stats.start_time
+    e = stats.end_time
     assert before_profile <= s and s <= after_profile
     assert s <= e
     assert e <= after_profile and s <= after_profile
     assert before_profile <= after_profile
     assert before_profile <= e
-
-@py.test.mark.skipif("sys.platform == 'win32'")
-def test_only_needed():
-    prof = vmprof.Profiler()
-    with prof.measure(only_needed=False):
-        function_foo()
-    stats_one = prof.get_stats()
-    with prof.measure(only_needed=True):
-        function_foo()
-    stats_two = prof.get_stats()
-    assert foo_full_name in stats_one.adr_dict.values()
-    assert foo_full_name in stats_two.adr_dict.values()
-    assert len(stats_one.adr_dict) > len(stats_two.adr_dict)
 
 def test_nested_call():
     prof = vmprof.Profiler()

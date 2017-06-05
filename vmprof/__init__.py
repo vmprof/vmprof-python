@@ -1,8 +1,5 @@
-import io
 import os
 import sys
-import subprocess
-import struct
 try:
     from shutil import which
 except ImportError:
@@ -12,7 +9,8 @@ from . import cli
 
 import _vmprof
 
-from vmprof.reader import MARKER_NATIVE_SYMBOLS
+from vmprof.reader import (MARKER_NATIVE_SYMBOLS, FdWrapper,
+        LogReaderState, LogReaderDumpNative)
 from vmprof.stats import Stats
 from vmprof.profiler import Profiler, read_profile
 
@@ -30,14 +28,17 @@ DEFAULT_PERIOD = 0.00099
 
 def disable(only_needed=False):
     try:
-        if IS_PYPY:
-            # for now only_needed is not supported, we need to
-            # copy the sources for pypy and update the code heren
-            # (with version check)
-            _vmprof.disable()
-        else:
-            _vmprof.disable(only_needed)
-        _gzip_finish()
+        # fish the file descriptor that is still open!
+        if hasattr(_vmprof, 'stop_sampling'):
+            fileno = _vmprof.stop_sampling()
+            if fileno >= 0:
+                # TODO does fileobj leak the fd? I dont think so, but need to check 
+                fileobj = FdWrapper(fileno)
+                l = LogReaderDumpNative(fileobj, LogReaderState())
+                l.read_all()
+                if hasattr(_vmprof, 'write_all_code_objects'):
+                    _vmprof.write_all_code_objects(l.dedup)
+        _vmprof.disable()
     except IOError as e:
         raise Exception("Error while writing profile: " + str(e))
 
@@ -47,7 +48,6 @@ def _is_native_enabled(native):
             raise ValueError("native profiling is only supported on Linux & Mac OS X")
         native = False
     else:
-        # TODO native should be enabled by default?
         if native is None:
             native = True
     return native
@@ -63,25 +63,21 @@ if IS_PYPY:
             print("Memory profiling is currently unsupported for PyPy. Running without memory statistics.")
         if warn and lines:
             print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
-        # TODO fixes currently released pypy's
         native = _is_native_enabled(native)
-        gz_fileno = _gzip_start(fileno)
         #
-        # use the actual version number as soon as we implement real_time in pypy
         if pypy_version_info > (5, 8, 0):
-            _vmprof.enable(gz_fileno, period, memory, lines, native, real_time)
+            _vmprof.enable(fileno, period, memory, lines, native, real_time)
         if pypy_version_info >= (5, 8, 0):
-            _vmprof.enable(gz_fileno, period, memory, lines, native)
+            _vmprof.enable(fileno, period, memory, lines, native)
         else:
-            _vmprof.enable(gz_fileno, period) # , memory, lines, native)
+            _vmprof.enable(fileno, period)
 else:
     # CPYTHON
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, real_time=False):
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
-        gz_fileno = _gzip_start(fileno)
         native = _is_native_enabled(native)
-        _vmprof.enable(gz_fileno, period, memory, lines, native, real_time)
+        _vmprof.enable(fileno, period, memory, lines, native, real_time)
 
     def sample_stack_now(skip=0):
         """ Helper utility mostly for tests, this is considered
@@ -99,7 +95,6 @@ else:
             Only considers linking symbols found by dladdr.
         """
         return _vmprof.resolve_addr(addr)
-
 
 def insert_real_time_thread():
     """ Inserts a thread into the list of threads to be sampled in real time mode.
@@ -132,39 +127,3 @@ def get_profile_path():
     if hasattr(_vmprof, 'get_profile_path'):
         return _vmprof.get_profile_path()
     raise NotImplementedError("get_profile_path not implemented on this platform")
-
-_gzip_proc = None
-
-def _gzip_start(fileno):
-    """Spawn a gzip subprocess that writes compressed profile data to `fileno`.
-
-    Return the subprocess' input fileno.
-    """
-    # XXX During the sprint in munich we found several issues
-    # on bigger applications running vmprof. For instance:
-    # coala or some custom medium sized scripts.
-    return fileno
-    #
-    # Prefer system gzip and fall back to Python's gzip module
-    if which("gzip"):
-        gzip_cmd = ["gzip", "-", "-4"]
-    else:
-        gzip_cmd = ["python", "-u", "-m", "gzip"]
-    global _gzip_proc
-    _gzip_proc = subprocess.Popen(gzip_cmd, stdin=subprocess.PIPE,
-                                  stdout=fileno, bufsize=-1,
-                                  close_fds=(sys.platform != "win32"))
-    if _gzip_proc.returncode is not None:
-        # oh, the gzip process has terminated already?
-        _gzip_proc = None
-        return fileno # proceed without compressing the object
-    return _gzip_proc.stdin.fileno()
-
-def _gzip_finish():
-    global _gzip_proc
-    if _gzip_proc is not None:
-        _gzip_proc.stdin.close()
-        returncode = _gzip_proc.wait()
-        assert returncode == 0, \
-               "return code was non zero: %d" % returncode
-        _gzip_proc = None

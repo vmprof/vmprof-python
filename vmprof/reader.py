@@ -1,7 +1,6 @@
 from __future__ import print_function
 import os
 import struct
-import array
 import sys
 from six.moves import xrange
 import io
@@ -98,6 +97,10 @@ class LogReader(object):
         self.state = state
         self.word_size = None
         self.addr_size = None
+        self.setup()
+
+    def setup(self):
+        pass
 
     def detect_file_sizes(self):
         self.fileobj.seek(0, os.SEEK_SET)
@@ -235,17 +238,8 @@ class LogReader(object):
         return tv_sec * 10**6 + tv_usec
 
     def read_timezone(self):
-        import pytz
         timezone = self.read(8).strip(b'\x00')
-        timezone = timezone.decode('ascii')
-        if timezone:
-            try:
-                # TODO, it seems that all systems use different timezone names,
-                # this would need some clarification, or we just remove the whole
-                # feature and ignore the timezone in the log
-                return pytz.timezone(timezone)
-            except pytz.exceptions.UnknownTimeZoneError:
-                return None
+        # we should use pytz and parse iso8601 if we really support time zones
         return None
 
     def read_all(self):
@@ -281,11 +275,11 @@ class LogReader(object):
                 if s.profile_memory:
                     mem_in_kb = self.read_addr()
                 trace.reverse()
-                s.profiles.append((trace, 1, thread_id, mem_in_kb))
+                self.add_trace(trace, 1, thread_id, mem_in_kb)
             elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
                 unique_id = self.read_addr()
                 name = self.read_string()
-                s.virtual_ips.append((unique_id, name))
+                self.add_virtual_ip(marker, unique_id, name)
             elif marker == MARKER_TRAILER:
                 #if not virtual_ips_only:
                 #    symmap = read_ranges(fileobj.read())
@@ -296,7 +290,52 @@ class LogReader(object):
                 assert not marker, (fileobj.tell(), repr(marker))
                 break
 
-        s.virtual_ips.sort() # I think it's sorted, but who knows
+        self.finished_reading_profile()
+
+    def finished_reading_profile(self):
+        self.state.virtual_ips.sort() # I think it's sorted, but who knows
+
+    def add_virtual_ip(self, marker, unique_id, name):
+        self.state.virtual_ips.append((unique_id, name))
+
+    def add_trace(self, trace, trace_count, thread_id, mem_in_kb):
+        self.state.profiles.append((trace, trace_count, thread_id, mem_in_kb))
+
+class LogReaderDumpNative(LogReader):
+    def setup(self):
+        self.dedup = set()
+
+    def finished_reading_profile(self):
+        from _vmprof import resolve_addr
+        LogReader.finished_reading_profile(self)
+        if len(self.dedup) == 0:
+            return
+        self.fileobj.seek(0, os.SEEK_END)
+        # must match '<lang>:<name>:<line>:<file>'
+        # 'n' has been chosen as lang here, because the symbol
+        # can be generated from several languages (e.g. C, C++, ...)
+
+        for addr in self.dedup:
+            bytelist = [b"\x08"]
+            name, lineno, srcfile = resolve_addr(addr)
+            if not name:
+                name = "<native symbol 0x%x>" % addr
+            if not srcfile:
+                srcfile = "-"
+            string = "n:%s:%d:%s" % (name, lineno, srcfile)
+            bytestring = string.encode('utf-8')
+            bytelist.append(struct.pack("P", addr))
+            bytelist.append(struct.pack("l", len(bytestring)))
+            bytelist.append(bytestring)
+            self.fileobj.write(b"".join(bytelist))
+
+    def add_virtual_ip(self, marker, unique_id, name):
+        pass # do nothing, no need to save this data
+
+    def add_trace(self, trace, trace_count, thread_id, mem_in_kb):
+        for addr in trace:
+            if addr not in self.dedup:
+                self.dedup.add(addr)
 
 class ReaderState(object):
     pass
@@ -326,3 +365,19 @@ def _read_prof(fileobj, virtual_ips_only=False):
         return state.virtual_ips
     return state
 
+class FdWrapper(object):
+    """ This wrapper behaves like a file object. Could not find
+        an stdlib API function that creates such an object without
+        closing it.
+    """
+    def __init__(self, fd):
+        self.fd = fd
+
+    def write(self, bytes):
+        return os.write(self.fd, bytes)
+
+    def read(self, n):
+        return os.read(self.fd, n)
+
+    def seek(self, pos, how):
+        return os.lseek(self.fd, pos, how)
