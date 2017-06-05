@@ -11,7 +11,7 @@ class VMProfError(Exception):
 class ProfilerContext(object):
     done = False
 
-    def __init__(self, name, period, memory, native, only_needed, real_time):
+    def __init__(self, name, period, memory, native, real_time):
         if name is None:
             self.tmpfile = tempfile.NamedTemporaryFile("w+b", delete=False)
         else:
@@ -20,7 +20,6 @@ class ProfilerContext(object):
         self.period = period
         self.memory = memory
         self.native = native
-        self.only_needed = only_needed
         self.real_time = real_time
 
     def __enter__(self):
@@ -28,7 +27,7 @@ class ProfilerContext(object):
                       native=self.native, real_time=self.real_time)
 
     def __exit__(self, type, value, traceback):
-        vmprof.disable(only_needed=self.only_needed)
+        vmprof.disable()
         self.tmpfile.close() # flushes the stream
         self.done = True
 
@@ -57,8 +56,8 @@ class Profiler(object):
     def __init__(self):
         self._lib_cache = {}
 
-    def measure(self, name=None, period=0.001, memory=False, native=False, only_needed=False, real_time=False):
-        self.ctx = ProfilerContext(name, period, memory, native, only_needed, real_time)
+    def measure(self, name=None, period=0.001, memory=False, native=False, real_time=False):
+        self.ctx = ProfilerContext(name, period, memory, native, real_time)
         return self.ctx
 
     def get_stats(self):

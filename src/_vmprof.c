@@ -85,14 +85,14 @@ static int _look_for_code_object(PyObject *o, void * param)
 {
     PyObject * all_codes = (PyObject*)((void**)param)[0];
     PyObject * seen_codes = (PyObject*)((void**)param)[1];
-    if (PyCode_Check(o) && !PySet_Contains((PyObject *)all_codes, o)) {
+    if (PyCode_Check(o) && !PySet_Contains(all_codes, o)) {
         PyCodeObject *co = (PyCodeObject *)o;
         PyObject * id = PyLong_FromVoidPtr((void*)CODE_ADDR_TO_UID(co));
         if (PySet_Contains(seen_codes, id)) {
             // only emit if the code id has been seen!
             if (emit_code_object(co) < 0)
                 return -1;
-            if (PySet_Add((PyObject *)all_codes, o) < 0)
+            if (PySet_Add(all_codes, o) < 0)
                 return -1;
         }
 

@@ -26,7 +26,7 @@ IS_PYPY = '__pypy__' in sys.builtin_module_names
 # 1000Hz
 DEFAULT_PERIOD = 0.00099
 
-def disable(only_needed=False):
+def disable():
     try:
         # fish the file descriptor that is still open!
         if hasattr(_vmprof, 'stop_sampling'):
