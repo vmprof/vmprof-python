@@ -67,7 +67,7 @@ if IS_PYPY:
         #
         if pypy_version_info > (5, 8, 0):
             _vmprof.enable(fileno, period, memory, lines, native, real_time)
-        if pypy_version_info >= (5, 8, 0):
+        elif pypy_version_info >= (5, 8, 0):
             _vmprof.enable(fileno, period, memory, lines, native)
         else:
             _vmprof.enable(fileno, period)
