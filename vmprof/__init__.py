@@ -68,7 +68,7 @@ if IS_PYPY:
         gz_fileno = _gzip_start(fileno)
         #
         # use the actual version number as soon as we implement real_time in pypy
-        if pypy_version_info >= (999, 0, 0):
+        if pypy_version_info > (5, 8, 0):
             _vmprof.enable(gz_fileno, period, memory, lines, native, real_time)
         if pypy_version_info >= (5, 8, 0):
             _vmprof.enable(gz_fileno, period, memory, lines, native)
