@@ -323,7 +323,11 @@ class LogReaderDumpNative(LogReader):
 
         for addr in self.dedup:
             bytelist = [b"\x08"]
-            name, lineno, srcfile = resolve_addr(addr)
+            result = resolve_addr(addr)
+            if result is None:
+                name, lineno, srcfile = None, 0, None
+            else:
+                name, lineno, srcfile = result
             if not name:
                 name = "<native symbol 0x%x>" % addr
             if not srcfile:
