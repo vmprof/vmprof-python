@@ -80,13 +80,13 @@ def function_bar():
 
 def functime_foo(t=0.05, insert=False):
     if (insert):
-        vmprof.insert_real_time_thread()
+        assert vmprof.insert_real_time_thread() > 1
     return time.sleep(t)
 
 
 def functime_bar(t=0.05, remove=False):
     if (remove):
-        vmprof.remove_real_time_thread()
+        assert vmprof.remove_real_time_thread() == 1
     return time.sleep(t)
 
 
@@ -268,7 +268,7 @@ def test_vmprof_real_time_threaded(insert_foo, remove_bar):
     prof = vmprof.Profiler()
     wait = 0.5
     thread = threading.Thread(target=functime_foo, args=[wait, insert_foo])
-    with prof.measure(period=0.025, real_time=True):
+    with prof.measure(period=0.25, real_time=True):
         thread.start()
         functime_bar(wait, remove_bar)
         thread.join()
