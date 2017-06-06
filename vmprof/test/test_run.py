@@ -268,7 +268,7 @@ def test_vmprof_real_time_threaded(insert_foo, remove_bar):
     prof = vmprof.Profiler()
     wait = 0.5
     thread = threading.Thread(target=functime_foo, args=[wait, insert_foo])
-    with prof.measure(period=0.25, real_time=True):
+    with prof.measure(period=0.025, real_time=True):
         thread.start()
         functime_bar(wait, remove_bar)
         thread.join()
