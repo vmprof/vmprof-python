@@ -63,6 +63,8 @@ if IS_PYPY:
             print("Memory profiling is currently unsupported for PyPy. Running without memory statistics.")
         if warn and lines:
             print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
+        if real_time:
+            raise ValueError('real_time=True is currently not supported on PyPy.')
         native = _is_native_enabled(native)
         #
         if pypy_version_info > (5, 8, 0):
