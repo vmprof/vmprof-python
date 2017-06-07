@@ -55,6 +55,9 @@ def _is_native_enabled(native):
 if IS_PYPY:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, real_time=False, warn=True):
         pypy_version_info = sys.pypy_version_info[:3]
+        MAJOR = pypy_version_info[0]
+        MINOR = pypy_version_info[1]
+        PATCH = pypy_version_info[2]
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         if warn and pypy_version_info < (4, 1, 0):
@@ -67,9 +70,9 @@ if IS_PYPY:
             raise ValueError('real_time=True is currently not supported on PyPy.')
         native = _is_native_enabled(native)
         #
-        if pypy_version_info > (5, 8, 0):
+        if MAJOR >= 5 and MINOR > 8 and PATCH > 0:
             _vmprof.enable(fileno, period, memory, lines, native, real_time)
-        elif pypy_version_info >= (5, 8, 0):
+        elif MAJOR >= 5 and MINOR >= 8 and PATCH >= 0:
             _vmprof.enable(fileno, period, memory, lines, native)
         else:
             _vmprof.enable(fileno, period)
