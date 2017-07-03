@@ -70,7 +70,7 @@ if IS_PYPY:
             raise ValueError('real_time=True is currently not supported on PyPy.')
         native = _is_native_enabled(native)
         #
-        if MAJOR >= 5 and MINOR > 8 and PATCH > 0:
+        if MAJOR >= 5 and MINOR >= 9 and PATCH >= 0:
             _vmprof.enable(fileno, period, memory, lines, native, real_time)
         elif MAJOR >= 5 and MINOR >= 8 and PATCH >= 0:
             _vmprof.enable(fileno, period, memory, lines, native)

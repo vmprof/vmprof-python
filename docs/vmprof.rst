@@ -51,6 +51,8 @@ Installation of ``vmprof`` is performed with a simple command::
 
     pip install vmprof
 
+Since it installs a wheel with libunwind shared objects, you need a recent version of pip.
+
 Since it depends on some C code for CPython, you need a compiler.
 
     sudo apt-get install python-dev
@@ -58,7 +60,7 @@ Since it depends on some C code for CPython, you need a compiler.
 .. _`CPython`: http://python.org
 .. _`PyPy`: http://pypy.org
 
-We stronly suggest using the ``--web`` option that will display you a much
+We strongly suggest using the ``--web`` option that will display you a much
 nicer web interface hosted on ``vmprof.com``.
 
 If you prefer to host your own vmprof visualization server, you need the
