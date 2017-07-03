@@ -60,7 +60,7 @@ static void flush_codes(void);
 
 /************************************************************/
 
-/* value: last bit is 1 if signals must be ignored; all other bits
+/* value: LSB bit is 1 if signals must be ignored; all other bits
    are a counter for how many threads are currently in a signal handler */
 static long volatile signal_handler_value = 1;
 
@@ -69,8 +69,7 @@ void vmprof_ignore_signals(int ignored)
 {
     if (!ignored) {
         __sync_fetch_and_and(&signal_handler_value, ~1L);
-    }
-    else {
+    } else {
         /* set the last bit, and wait until concurrently-running signal
            handlers finish */
         while (__sync_or_and_fetch(&signal_handler_value, 1L) != 1L) {

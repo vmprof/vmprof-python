@@ -391,3 +391,6 @@ class FdWrapper(object):
 
     def seek(self, pos, how):
         return os.lseek(self.fd, pos, how)
+
+    def tell(self):
+        return os.lseek(self.fd, 0, os.SEEK_CUR)
