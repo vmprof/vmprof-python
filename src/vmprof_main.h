@@ -260,7 +260,7 @@ static void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     __sync_lock_release(&spinlock);
 #endif
 
-    long val = vmprof_enter_signal(void);
+    long val = vmprof_enter_signal();
 
     if ((val & 1) == 0) {
         int saved_errno = errno;
