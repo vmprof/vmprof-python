@@ -72,6 +72,7 @@ else:
                                'src/machine.c',
                                'src/compat.c',
                                'src/vmp_stack.c',
+                               'src/vmprof_main.c',
                                ] + extra_source_files,
                            depends=[
                                'src/vmprof_main.h',
