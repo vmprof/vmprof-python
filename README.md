@@ -19,9 +19,11 @@ python -m vmprof <your program> <your program args>
 Our build system ships wheels to PyPI. If you build from source you need
 to install CPython development headers and libunwind headers (on Linux only).
 
-###Windows
-Install Microsoft Visual C++ Compiler for Python 2.7
-	
+### Windows
+
+Install Microsoft Visual C++ Compiler for Python 2.7. Currently we do not create
+wheels for Windows.
+
 	pip install vmprof
 
 ## Development
@@ -41,23 +43,15 @@ information.
 
 ## vmprofshow
 
-`vmprofshow` is a command line tool that comes with **VMProf** which can read profile files
+`vmprofshow` is a command line tool that comes with **VMProf**. It can read profile files
 and produce a formatted output.
 
 Here is an example of how to use `vmprofshow`:
 
-Clone the vmprof repo first to use a minimalistic cpuburn.py:
-
-```console
-git clone https://github.com/vmprof/vmprof-python
-cd vmprof-python
-pip install .
-```
-
 Run that smallish program which burns CPU cycles (with vmprof enabled):
 
 ```console
-pypy vmprof/test/cpuburn.py
+pypy vmprof/test/cpuburn.py # you can find cpuburn.py in the vmprof-python repo
 ```
 
 This will produce a profile file `vmprof_cpuburn.dat`.
