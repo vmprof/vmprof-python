@@ -1,4 +1,4 @@
-# VMprof Python client
+# VMProf Python package
 
 [![Build Status on TravisCI](https://travis-ci.org/vmprof/vmprof-python.svg?branch=master)](https://travis-ci.org/vmprof/vmprof-python)
 [![Build Status on TeamCity](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:VMprofPython_TestsPy27Win)/statusIcon.svg)](https://teamcity.jetbrains.com/project.html?projectId=VMprofPython)
