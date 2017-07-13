@@ -6,7 +6,7 @@
 [![Build Status on AppVeyor](https://ci.appveyor.com/api/projects/status/github/vmprof/vmprof-python?branch=master&svg=true)](https://ci.appveyor.com/project/planrich/vmprof-python)
 
 
-See https://vmprof.readthedocs.org for up to date info
+Head over to https://vmprof.readthedocs.org for more info!
 
 ## Installation
 
