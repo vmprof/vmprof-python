@@ -41,8 +41,8 @@ the program using the given API.
 Requirements
 ------------
 
-vmprof 0.3 works only on x86_64 and x86 linux, Mac OS X and x86 Windows (32bit).
-It works on CPython 2.7, 3.4, 3.5 and PyPy 4.1.
+VMProf runs on x86_64 and x86. It supports Linux, Mac OS X and Windows running
+CPython 2.7, 3.4, 3.5 and PyPy 4.1+.
 
 Installation
 ------------
@@ -51,9 +51,9 @@ Installation of ``vmprof`` is performed with a simple command::
 
     pip install vmprof
 
-Since it installs a wheel with libunwind shared objects, you need a recent version of pip.
+PyPi ships wheels with libunwind shared objects (this means you need a recent version of pip).
 
-Since it depends on some C code for CPython, you need a compiler.
+If you build VMProf from source you need to compile C code:
 
     sudo apt-get install python-dev
 

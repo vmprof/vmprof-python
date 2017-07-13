@@ -10,12 +10,14 @@ See https://vmprof.readthedocs.org for up to date info
 
 ## Basic usage
 
-###Linux
+### Linux and Mac OS X
 ```console
-sudo apt-get install python-dev
 pip install vmprof
 python -m vmprof <your program> <your program args>
 ```
+
+Our build system ships wheels to PyPI. If you build from source you need
+to install CPython development headers and libunwind headers (on Linux only).
 
 ###Windows
 Install Microsoft Visual C++ Compiler for Python 2.7
