@@ -8,23 +8,16 @@
 
 See https://vmprof.readthedocs.org for up to date info
 
-## Basic usage
+## Installation
 
-### Linux and Mac OS X
 ```console
 pip install vmprof
 python -m vmprof <your program> <your program args>
 ```
 
-Our build system ships wheels to PyPI. If you build from source you need
+Our build system ships wheels to PyPI (Linux, Mac OS X). If you build from source you need
 to install CPython development headers and libunwind headers (on Linux only).
-
-### Windows
-
-Install Microsoft Visual C++ Compiler for Python 2.7. Currently we do not create
-wheels for Windows.
-
-	pip install vmprof
+On Windows this means you need Microsoft Visual C++ Compiler for your Python version.
 
 ## Development
 
@@ -55,7 +48,6 @@ pypy vmprof/test/cpuburn.py # you can find cpuburn.py in the vmprof-python repo
 ```
 
 This will produce a profile file `vmprof_cpuburn.dat`.
-
 Now display the profile:
 
 ```console
