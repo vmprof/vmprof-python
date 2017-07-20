@@ -86,7 +86,7 @@ int _vmprof_sample_stack(struct profbuf_s *p, PY_THREAD_STATE_T * tstate, uconte
 }
 
 #ifndef RPYTHON_VMPROF
-static PY_THREAD_STATE_T * _get_pystate_for_this_thread(void) {
+PY_THREAD_STATE_T * _get_pystate_for_this_thread(void) {
     // see issue 116 on github.com/vmprof/vmprof-python.
     // PyGILState_GetThisThreadState(); can hang forever
     //
@@ -131,33 +131,13 @@ void set_current_codes(void * to) {
 
 #endif
 
-int broadcast_signal_for_threads(void)
-{
-    int done = 1;
-    size_t i = 0;
-    pthread_t self = pthread_self();
-    pthread_t tid;
-    while (i < thread_count) {
-        tid = threads[i];
-        if (pthread_equal(tid, self)) {
-            done = 0;
-        } else if (pthread_kill(tid, SIGALRM)) {
-            remove_thread(tid, i);
-        }
-        i++;
+void vmprof_aquire_lock(void) {
+    while (__sync_lock_test_and_set(&spinlock, 1)) {
     }
-    return done;
 }
 
-inline int is_main_thread(void)
-{
-#ifdef VMPROF_LINUX
-    pid_t pid = getpid();
-    pid_t tid = (pid_t) syscall(SYS_gettid);
-    return (pid == tid);
-#elif defined(VMPROF_APPLE)
-    return pthread_main_np();
-#endif
+void vmprof_release_lock(void) {
+    __sync_lock_release(&spinlock);
 }
 
 void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
@@ -193,7 +173,7 @@ void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     // because these timers are based on process and system time, and as such, are thread-aware.
     // For the real timer, the signal gets delivered to the main thread, seemingly always.
     // Consequently if we want to sample multiple threads, we need to forward this signal.
-    if (signal_type == SIGALRM) {
+    if (vmprof_get_signal_type() == SIGALRM) {
         if (is_main_thread() && broadcast_signal_for_threads()) {
             __sync_lock_release(&spinlock);
             return;
@@ -235,7 +215,7 @@ void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
                 commit_buffer(fd, p);
             } else {
 #ifndef RPYTHON_VMPROF
-                fprintf(stderr, "WARNING: canceled buffer, no stack trace was written %d\n", is_enabled);
+                fprintf(stderr, "WARNING: canceled buffer, no stack trace was written\n");
 #else
                 fprintf(stderr, "WARNING: canceled buffer, no stack trace was written\n");
 #endif
@@ -256,7 +236,7 @@ int install_sigprof_handler(void)
     sa.sa_sigaction = sigprof_handler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
     if (sigemptyset(&sa.sa_mask) == -1 ||
-        sigaction(signal_type, &sa, NULL) == -1)
+        sigaction(vmprof_get_signal_type(), &sa, NULL) == -1)
         return -1;
     return 0;
 }
@@ -268,7 +248,7 @@ int remove_sigprof_handler(void)
     ign_sigint.sa_flags = 0;
     sigemptyset(&ign_sigint.sa_mask);
 
-    if (sigaction(signal_type, &ign_sigint, NULL) < 0) {
+    if (sigaction(vmprof_get_signal_type(), &ign_sigint, NULL) < 0) {
         fprintf(stderr, "Could not remove the signal handler (for profiling)\n");
         return -1;
     }
@@ -279,9 +259,9 @@ int install_sigprof_timer(void)
 {
     static struct itimerval timer;
     timer.it_interval.tv_sec = 0;
-    timer.it_interval.tv_usec = (int)profile_interval_usec;
+    timer.it_interval.tv_usec = (int)vmprof_get_profile_interval_usec();
     timer.it_value = timer.it_interval;
-    if (setitimer(itimer_type, &timer, NULL) != 0)
+    if (setitimer(vmprof_get_itimer_type(), &timer, NULL) != 0)
         return -1;
     return 0;
 }
@@ -291,7 +271,7 @@ int remove_sigprof_timer(void)
     static struct itimerval timer;
     timerclear(&(timer.it_interval));
     timerclear(&(timer.it_value));
-    if (setitimer(itimer_type, &timer, NULL) != 0) {
+    if (setitimer(vmprof_get_itimer_type(), &timer, NULL) != 0) {
         fprintf(stderr, "Could not disable the signal handler (for profiling)\n");
         return -1;
     }
@@ -300,11 +280,9 @@ int remove_sigprof_timer(void)
 
 void atfork_disable_timer(void)
 {
-    if (profile_interval_usec > 0) {
+    if (vmprof_get_profile_interval_usec() > 0) {
         remove_sigprof_timer();
-#ifndef RPYTHON_VMPROF
-        is_enabled = 0;
-#endif
+        vmprof_set_enabled(0);
     }
 }
 
@@ -317,11 +295,9 @@ void atfork_close_profile_file(void)
 }
 void atfork_enable_timer(void)
 {
-    if (profile_interval_usec > 0) {
+    if (vmprof_get_profile_interval_usec() > 0) {
         install_sigprof_timer();
-#ifndef RPYTHON_VMPROF
-        is_enabled = 1;
-#endif
+        vmprof_set_enabled(1);
     }
 }
 
@@ -348,8 +324,8 @@ int vmprof_enable(int memory, int native, int real_time)
     init_cpyprof(native);
 #endif
     assert(vmp_profile_fileno() >= 0);
-    assert(prepare_interval_usec > 0);
-    profile_interval_usec = prepare_interval_usec;
+    assert(vmprof_get_prepare_interval_usec() > 0);
+    vmprof_set_profile_interval_usec(vmprof_get_prepare_interval_usec());
     if (memory && setup_rss() == -1)
         goto error;
 #if VMPROF_UNIX
@@ -367,7 +343,7 @@ int vmprof_enable(int memory, int native, int real_time)
 
  error:
     vmp_set_profile_fileno(-1);
-    profile_interval_usec = 0;
+    vmprof_set_profile_interval_usec(0);
     return -1;
 }
 
@@ -387,7 +363,7 @@ int close_profile(void)
 int vmprof_disable(void)
 {
     vmprof_ignore_signals(1);
-    profile_interval_usec = 0;
+    vmprof_set_profile_interval_usec(0);
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
     disable_cpyprof();
 #endif
@@ -399,7 +375,7 @@ int vmprof_disable(void)
         return -1;
     }
 #ifdef VMPROF_UNIX
-    if ((signal_type == SIGALRM) && remove_threads() == -1) {
+    if ((vmprof_get_signal_type() == SIGALRM) && remove_threads() == -1) {
         return -1;
     }
 #endif

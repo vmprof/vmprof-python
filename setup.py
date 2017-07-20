@@ -17,7 +17,6 @@ else:
     extra_compile_args = []
     extra_source_files = [
        'src/symboltable.c',
-       'src/vmprof_unix.c', # yes also on windows, file will be ignored
     ]
     if sys.platform == 'win32':
         extra_source_files = [
@@ -74,6 +73,7 @@ else:
                                'src/compat.c',
                                'src/vmp_stack.c',
                                'src/vmprof_unix.c',
+                               'src/vmprof_common.c',
                                ] + extra_source_files,
                            depends=[
                                'src/vmprof_unix.h',

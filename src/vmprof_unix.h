@@ -107,8 +107,6 @@ RPY_EXTERN
 int vmprof_register_virtual_function(char *code_name, intptr_t code_uid,
                                      int auto_retry);
 
-#ifdef VMPROF_UNIX
-int broadcast_signal_for_threads(void);
-inline int is_main_thread(void);
-#endif
 
+void vmprof_aquire_lock(void);
+void vmprof_release_lock(void);
