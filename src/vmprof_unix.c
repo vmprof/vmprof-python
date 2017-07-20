@@ -1,4 +1,4 @@
-#include "vmprof_main.h"
+#include "vmprof_unix.h"
 
 #ifdef VMPROF_UNIX
 

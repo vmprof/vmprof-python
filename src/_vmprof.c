@@ -18,9 +18,9 @@ static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 #include "trampoline.h"
 #include "machine.h"
 #include "symboltable.h"
-#include "vmprof_main.h"
+#include "vmprof_unix.h"
 #else
-#include "vmprof_main_win32.h"
+#include "vmprof_win.h"
 #endif
 #include "vmp_stack.h"
 
