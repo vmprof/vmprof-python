@@ -79,3 +79,7 @@ int IS_VMPROF_EVAL(void * ptr);
 
 #endif
 
+void set_current_codes(void * to);
+int opened_profile(const char *interp_name, int memory, int proflines, int native, int real_time);
+void flush_codes(void);
+

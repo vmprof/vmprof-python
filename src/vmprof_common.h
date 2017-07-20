@@ -31,7 +31,6 @@ static pthread_t *threads = NULL;
 static size_t threads_size = 0;
 static size_t thread_count = 0;
 static size_t threads_size_step = 8;
-static struct profbuf_s *volatile current_codes;
 #endif
 
 #ifdef VMPROF_UNIX
@@ -147,7 +146,7 @@ char *vmprof_init(int fd, double interval, int memory,
         signal_type = SIGPROF;
         itimer_type = ITIMER_PROF;
     }
-    current_codes = NULL;
+    set_current_codes(NULL);
     assert(fd >= 0);
 #else
     if (memory) {
