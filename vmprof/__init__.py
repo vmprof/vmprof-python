@@ -5,8 +5,6 @@ try:
 except ImportError:
     from backports.shutil_which import which
 
-from . import cli
-
 import _vmprof
 
 from vmprof.reader import (MARKER_NATIVE_SYMBOLS, FdWrapper,

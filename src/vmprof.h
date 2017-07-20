@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef RPYTHON_VMPROF
+#include <Python.h>
+#endif
+
 #ifdef VMPROF_UNIX
 #include <unistd.h>
 #endif

@@ -74,11 +74,16 @@ else:
                                'src/vmp_stack.c',
                                'src/vmprof_unix.c',
                                'src/vmprof_common.c',
+                               'src/vmprof_mt.c',
                                ] + extra_source_files,
                            depends=[
                                'src/vmprof_unix.h',
                                'src/vmprof_mt.h',
                                'src/vmprof_common.h',
+                               'src/vmp_stack.h',
+                               'src/symboltable.h',
+                               'src/machine.h',
+                               'src/vmprof.h',
                            ],
                            extra_compile_args=extra_compile_args,
                            libraries=libraries)]

@@ -20,7 +20,7 @@
  *
  */
 
-#define _GNU_SOURCE 1
+#include "vmprof.h"
 
 #include <dlfcn.h>
 #include <pthread.h>
@@ -33,8 +33,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-
-#include "vmprof.h"
 
 #include "vmp_stack.h"
 #include "vmprof_getpc.h"

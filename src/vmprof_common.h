@@ -8,9 +8,11 @@
 #include <time.h>
 #include <stdlib.h>
 
-#ifndef VMPROF_WINDOWS
+#ifdef VMPROF_UNIX
 #include <sys/time.h>
 #include "vmprof_mt.h"
+#include <signal.h>
+#include <pthread.h>
 #endif
 
 #ifdef VMPROF_LINUX

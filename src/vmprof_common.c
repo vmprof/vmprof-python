@@ -1,26 +1,4 @@
-#pragma once
-
-#include "vmprof.h"
-#include "machine.h"
-#include "compat.h"
-
-#include <stddef.h>
-#include <time.h>
-#include <stdlib.h>
-
-#ifndef VMPROF_WINDOWS
-#include <sys/time.h>
-#include "vmprof_mt.h"
-#endif
-
-#ifdef VMPROF_LINUX
-#include <syscall.h>
-#endif
-
-#ifdef VMPROF_UNIX
-#include <pthread.h>
-#include <signal.h>
-#endif
+#include "vmprof_common.h"
 
 static volatile int is_enabled = 0;
 static long prepare_interval_usec = 0;
@@ -289,7 +267,7 @@ int broadcast_signal_for_threads(void)
     return done;
 }
 
-inline int is_main_thread(void)
+int is_main_thread(void)
 {
 #ifdef VMPROF_LINUX
     pid_t pid = getpid();
