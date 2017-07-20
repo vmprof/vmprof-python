@@ -17,10 +17,11 @@ else:
     extra_compile_args = []
     extra_source_files = [
        'src/symboltable.c',
+       'src/vmprof_unix.c', # yes also on windows, file will be ignored
     ]
     if sys.platform == 'win32':
         extra_source_files = [
-            'src/vmprof_main_win32.c',
+            'src/vmprof_win.c',
         ] # remove the native source files
         libraries = []
         extra_compile_args = ['-DVMPROF_WINDOWS=1']
@@ -72,11 +73,10 @@ else:
                                'src/machine.c',
                                'src/compat.c',
                                'src/vmp_stack.c',
-                               'src/vmprof_main.c',
+                               'src/vmprof_unix.c',
                                ] + extra_source_files,
                            depends=[
-                               'src/vmprof_main.h',
-                               'src/vmprof_main_32.h',
+                               'src/vmprof_unix.h',
                                'src/vmprof_mt.h',
                                'src/vmprof_common.h',
                            ],
