@@ -24,8 +24,6 @@
 
 #include "vmprof_mt.h"
 
-#include <signal.h>
-
 RPY_EXTERN void vmprof_ignore_signals(int ignored);
 RPY_EXTERN long vmprof_enter_signal(void);
 RPY_EXTERN long vmprof_exit_signal(void);

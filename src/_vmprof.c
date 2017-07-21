@@ -9,7 +9,6 @@
 #include <signal.h>
 
 #include "_vmprof.h"
-#include "vmprof_common.h"
 
 static destructor Original_code_dealloc = 0;
 static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;

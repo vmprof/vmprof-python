@@ -174,10 +174,11 @@ PY_STACK_FRAME_T *get_vmprof_stack(void)
 {
     struct pypy_threadlocal_s *tl;
     _OP_THREADLOCALREF_ADDR_SIGHANDLER(tl);
-    if (tl == NULL)
+    if (tl == NULL) {
         return NULL;
-    else
+    } else {
         return tl->vmprof_tl_stack;
+    }
 }
 #else
 PY_STACK_FRAME_T *get_vmprof_stack(void)
