@@ -75,6 +75,7 @@ else:
                                'src/vmprof_unix.c',
                                'src/vmprof_common.c',
                                'src/vmprof_mt.c',
+                               'src/vmprof_memory.c',
                                ] + extra_source_files,
                            depends=[
                                'src/vmprof_unix.h',
@@ -84,6 +85,7 @@ else:
                                'src/symboltable.h',
                                'src/machine.h',
                                'src/vmprof.h',
+                               'src/vmprof_memory.h',
                            ],
                            extra_compile_args=extra_compile_args,
                            libraries=libraries)]

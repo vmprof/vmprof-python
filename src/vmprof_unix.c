@@ -2,6 +2,36 @@
 
 #ifdef VMPROF_UNIX
 
+#if VMPROF_LINUX
+#include <syscall.h>
+#endif
+
+
+#include <dlfcn.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+
+#include "vmp_stack.h"
+#include "vmprof_mt.h"
+#include "vmprof_getpc.h"
+#include "vmprof_common.h"
+#include "compat.h"
+
+#if defined(__unix__)
+#include "rss_unix.h"
+#elif defined(__APPLE__)
+#include "rss_darwin.h"
+#endif
+
+
 /* value: LSB bit is 1 if signals must be ignored; all other bits
    are a counter for how many threads are currently in a signal handler */
 static long volatile signal_handler_value = 1;

@@ -1,5 +1,7 @@
 #pragma once
 
+#define _GNU_SOURCE 1
+
 #ifndef RPYTHON_VMPROF
 #include <Python.h>
 #endif

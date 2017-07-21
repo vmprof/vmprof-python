@@ -1,5 +1,8 @@
 #include "vmprof_common.h"
 
+#include <assert.h>
+#include <errno.h>
+
 static volatile int is_enabled = 0;
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;
@@ -149,7 +152,7 @@ void *volatile _PyThreadState_Current;
 
 #ifdef RPYTHON_VMPROF
 #ifndef RPYTHON_LL2CTYPES
-static PY_STACK_FRAME_T *get_vmprof_stack(void)
+PY_STACK_FRAME_T *get_vmprof_stack(void)
 {
     struct pypy_threadlocal_s *tl;
     _OP_THREADLOCALREF_ADDR_SIGHANDLER(tl);
@@ -159,7 +162,7 @@ static PY_STACK_FRAME_T *get_vmprof_stack(void)
         return tl->vmprof_tl_stack;
 }
 #else
-static PY_STACK_FRAME_T *get_vmprof_stack(void)
+PY_STACK_FRAME_T *get_vmprof_stack(void)
 {
     return 0;
 }

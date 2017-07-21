@@ -1,6 +1,8 @@
 #include "vmprof_mt.h"
 /* Support for multithreaded write() operations (implementation) */
 
+#include <assert.h>
+
 #if defined(__i386__) || defined(__amd64__)
   static inline void write_fence(void) { asm("" : : : "memory"); }
 #else
