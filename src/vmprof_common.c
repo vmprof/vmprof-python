@@ -3,6 +3,24 @@
 #include <assert.h>
 #include <errno.h>
 
+#ifdef RPYTHON_VMPROF
+#ifdef RPYTHON_LL2CTYPES
+   /* only for testing: ll2ctypes sets RPY_EXTERN from the command-line */
+
+#else
+#  include "common_header.h"
+#  include "structdef.h"
+#  include "src/threadlocal.h"
+#  include "rvmprof.h"
+#  include "forwarddecl.h"
+#endif
+#endif
+
+#ifdef VMP_SUPPORTS_NATIVE_PROFILING
+#include "vmp_stack.h" // reduces warings
+#endif
+
+
 static volatile int is_enabled = 0;
 static long prepare_interval_usec = 0;
 static long profile_interval_usec = 0;

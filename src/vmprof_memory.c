@@ -9,10 +9,13 @@
 
 static mach_port_t mach_task;
 #else
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
 /* On '''normal''' Unices we can get RSS from '/proc/<pid>/status'. */
 static int proc_file = -1;
 #endif
