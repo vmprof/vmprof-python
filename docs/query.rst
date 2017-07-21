@@ -49,7 +49,7 @@ Brand new. Subject to change!
 
 .. function:: bridges
 
-    Filter: Reduces the output to loops only
+    Filter: Reduces the output to bridges only
 
 .. function:: func(name)
 
