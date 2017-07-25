@@ -30,7 +30,8 @@
 
 /* value: LSB bit is 1 if signals must be ignored; all other bits
    are a counter for how many threads are currently in a signal handler */
-static long volatile signal_handler_value = 1;
+static long volatile signal_handler_ignore = 1;
+static long volatile signal_handler_entries = 0;
 static char atfork_hook_installed = 0;
 static volatile int spinlock;
 static jmp_buf restore_point;
@@ -39,25 +40,27 @@ static struct profbuf_s *volatile current_codes;
 
 void vmprof_ignore_signals(int ignored)
 {
-    if (!ignored) {
-        __sync_fetch_and_and(&signal_handler_value, ~1L);
-    } else {
+    if (ignored) {
         /* set the last bit, and wait until concurrently-running signal
            handlers finish */
-        while (__sync_or_and_fetch(&signal_handler_value, 1L) != 1L) {
+        __sync_add_and_fetch(&signal_handler_ignore, 1L);
+        while (signal_handler_entries != 0L) {
             usleep(1);
         }
+    } else {
+        __sync_sub_and_fetch(&signal_handler_ignore, 1L);
     }
 }
 
 long vmprof_enter_signal(void)
 {
-    return __sync_fetch_and_add(&signal_handler_value, 2L);
+    __sync_fetch_and_add(&signal_handler_entries, 1L);
+    return signal_handler_ignore;
 }
 
 long vmprof_exit_signal(void)
 {
-    return __sync_sub_and_fetch(&signal_handler_value, 2L);
+    return __sync_sub_and_fetch(&signal_handler_entries, 1L);
 }
 
 int install_pthread_atfork_hooks(void) {
@@ -96,9 +99,12 @@ int _vmprof_sample_stack(struct profbuf_s *p, PY_THREAD_STATE_T * tstate, uconte
 #else
     depth = get_stack_trace(tstate, st->stack, MAX_STACK_DEPTH-1, (intptr_t)NULL);
 #endif
+    // useful for tests (see test_stop_sampling)
+#ifndef RPYTHON_LL2CTYPES
     if (depth == 0) {
         return 0;
     }
+#endif
     st->depth = depth;
     st->stack[depth++] = tstate;
     long rss = get_current_proc_rss();
@@ -223,7 +229,7 @@ void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 
     long val = vmprof_enter_signal();
 
-    if ((val & 1) == 0) {
+    if (val == 0) {
         int saved_errno = errno;
         int fd = vmp_profile_fileno();
         assert(fd >= 0);
