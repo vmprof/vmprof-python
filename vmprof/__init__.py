@@ -7,7 +7,7 @@ except ImportError:
 
 import _vmprof
 
-import cli
+from vmprof import cli
 
 from vmprof.reader import (MARKER_NATIVE_SYMBOLS, FdWrapper,
         LogReaderState, LogReaderDumpNative)
