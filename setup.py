@@ -33,6 +33,7 @@ else:
         # it might use the regiter rbx...
         extra_compile_args += ['-g']
         extra_compile_args += ['-O2']
+        extra_source_files += ['src/vmprof_unix.c', 'src/vmprof_mt.c']
     elif sys.platform.startswith('linux'):
         libraries = ['dl','unwind']
         extra_compile_args = ['-Wno-unused']
@@ -43,6 +44,8 @@ else:
         else:
             libraries.append('unwind-x86')
         extra_source_files += [
+           'src/vmprof_mt.c',
+           'src/vmprof_unix.c',
            'src/libbacktrace/backtrace.c',
            'src/libbacktrace/state.c',
            'src/libbacktrace/elf.c',
@@ -72,9 +75,7 @@ else:
                                'src/machine.c',
                                'src/compat.c',
                                'src/vmp_stack.c',
-                               'src/vmprof_unix.c',
                                'src/vmprof_common.c',
-                               'src/vmprof_mt.c',
                                'src/vmprof_memory.c',
                                ] + extra_source_files,
                            depends=[
