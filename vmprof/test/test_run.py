@@ -79,14 +79,24 @@ def function_bar():
 
 
 def functime_foo(t=0.05, insert=False):
+    import threading
+    thread_id = threading.get_ident()
     if (insert):
-        vmprof.insert_real_time_thread()
+        thread_count = vmprof.insert_real_time_thread()
+    else:
+        thread_count = None
+    print("foo:", thread_id, thread_count, file=sys.stderr)
     return time.sleep(t)
 
 
 def functime_bar(t=0.05, remove=False):
+    import threading
+    thread_id = threading.get_ident()
     if (remove):
-        vmprof.remove_real_time_thread()
+        thread_count = vmprof.remove_real_time_thread()
+    else:
+        thread_count = None
+    print("bar:", thread_id, thread_count, file=sys.stderr)
     return time.sleep(t)
 
 
@@ -255,7 +265,6 @@ def test_vmprof_real_time():
     assert d[foo_time_name] > 0
 
 
-@py.test.mark.xfail()
 @py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
 @py.test.mark.skipif("sys.platform == 'win32'")
 @py.test.mark.parametrize("insert_foo,remove_bar", [
