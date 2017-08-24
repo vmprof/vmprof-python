@@ -291,8 +291,9 @@ def test_vmprof_real_time_threaded(insert_foo, remove_bar):
         thread.join()
     stats = prof.get_stats()
     tprof = stats.top_profile()
+    aprof = stats.all_profile()
     d = dict(tprof)
-    f = pprint.pformat(d) + '\n'
+    f = pprint.pformat(d) + '\n' + pprint.pformat(dict(aprof)) + '\n'
     sys.stderr.writelines(f)
     assert insert_foo == (foo_time_name in d)
     assert remove_bar != (bar_time_name in d)

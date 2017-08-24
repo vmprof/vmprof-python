@@ -76,6 +76,18 @@ class Stats(object):
                     self.functions[addr] = self.functions.get(addr, 0) + 1
                     current_iter[addr] = None
 
+    def all_profile(self):
+        all_functions = {}
+        for profile in self.profiles:
+            for i, addr in enumerate(profile[0]):
+                if self.profile_lines and i % 2 == 1:
+                    # this entry in the profile is a negative number indicating a line
+                    assert addr <= 0
+                    continue
+                else:
+                    all_functions[addr] = all_functions.get(addr, 0) + 1
+        return [(self._get_name(k), v) for (k, v) in six.iteritems(all_functions)]
+
     def top_profile(self):
         return [(self._get_name(k), v) for (k, v) in six.iteritems(self.functions)]
 
