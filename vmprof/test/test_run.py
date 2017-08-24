@@ -79,8 +79,11 @@ def function_bar():
 
 
 def functime_foo(t=0.05, insert=False):
-    import threading
-    thread_id = threading.get_ident()
+    if PY3K:
+        from threading import get_ident
+    else:
+        from thread import get_ident
+    thread_id = get_ident()
     if (insert):
         thread_count = vmprof.insert_real_time_thread()
     else:
@@ -90,8 +93,11 @@ def functime_foo(t=0.05, insert=False):
 
 
 def functime_bar(t=0.05, remove=False):
-    import threading
-    thread_id = threading.get_ident()
+    if PY3K:
+        from threading import get_ident
+    else:
+        from thread import get_ident
+    thread_id = get_ident()
     if (remove):
         thread_count = vmprof.remove_real_time_thread()
     else:
@@ -275,16 +281,19 @@ def test_vmprof_real_time():
 ])
 def test_vmprof_real_time_threaded(insert_foo, remove_bar):
     import threading
+    import pprint
     prof = vmprof.Profiler()
     wait = 0.5
     thread = threading.Thread(target=functime_foo, args=[wait, insert_foo])
-    with prof.measure(period=0.25, real_time=True):
+    with prof.measure(period=wait/4, real_time=True):
         thread.start()
         functime_bar(wait, remove_bar)
         thread.join()
     stats = prof.get_stats()
     tprof = stats.top_profile()
     d = dict(tprof)
+    f = pprint.pformat(d) + '\n'
+    sys.stderr.writelines(f)
     assert insert_foo == (foo_time_name in d)
     assert remove_bar != (bar_time_name in d)
 
