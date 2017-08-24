@@ -84,7 +84,7 @@ def functime_foo(t=0.05, insert=False):
     if (insert):
         thread_count = vmprof.insert_real_time_thread()
     else:
-        thread_count = -1
+        thread_count = -2
     sys.stderr.writelines("foo:%i:%i\n" % (thread_id, thread_count))
     return time.sleep(t)
 
@@ -95,7 +95,7 @@ def functime_bar(t=0.05, remove=False):
     if (remove):
         thread_count = vmprof.remove_real_time_thread()
     else:
-        thread_count = None
+        thread_count = -2
     sys.stderr.writelines("bar:%i:%i\n" % (thread_id, thread_count))
     return time.sleep(t)
 

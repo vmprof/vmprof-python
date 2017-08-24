@@ -393,7 +393,7 @@ insert_real_time_thread(PyObject *module, PyObject * noargs) {
     }
 
     vmprof_aquire_lock();
-    thread_count = insert_thread(pthread_self(), -1);
+    thread_count = insert_thread(GET_THREAD_ID(), -1);
     vmprof_release_lock();
 
     return PyLong_FromSsize_t(thread_count);
@@ -414,7 +414,7 @@ remove_real_time_thread(PyObject *module, PyObject * noargs) {
     }
 
     vmprof_aquire_lock();
-    thread_count = remove_thread(pthread_self(), -1);
+    thread_count = remove_thread(GET_THREAD_ID(), -1);
     vmprof_release_lock();
 
     return PyLong_FromSsize_t(thread_count);
