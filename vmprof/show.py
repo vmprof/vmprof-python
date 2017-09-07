@@ -134,7 +134,8 @@ class LinesPrinter(AbstractPrinter):
 
     def _show(self, tree):
         for (filename, funline, funname), line_stats in self.lines_stat(tree):
-            if self.filter is None or funname.find(self.filter) != -1:
+            if self.filter is None or self.filter in funname or \
+                                      self.filter in filename:
                 self.show_func(filename, funline, funname, line_stats)
 
     def lines_stat(self, tree):
@@ -248,7 +249,10 @@ def main():
     parser.add_argument('--lines', dest='lines', action='store_true')
     parser.set_defaults(lines=False)
 
-    parser.add_argument('--filter', dest='filter', type=str, default=None)
+    parser.add_argument('--filter', dest='filter', type=str,
+                        default=None, help="Filters the console output when "
+                        "vmprofshow is invoked with --lines. Filters by "
+                        "function names or filenames.")
 
     args = parser.parse_args()
 
