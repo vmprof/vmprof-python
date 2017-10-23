@@ -98,11 +98,10 @@ class Service(object):
                               "The upload might fail!\n")
         with open(filename, 'rb') as fd:
             url = self.get_url('/api/runtime/upload/%s/%s/add' % (filetype, rid))
-            files = { 'file': fd }
             headers = self.get_headers()
             headers['Content-Disposition'] = 'attachment; filename='+filename
             del headers['Content-Type']
-            response = requests.post(url, headers=headers, files=files)
+            response = requests.post(url, headers=headers, data=fd)
             self.stop_if_error_occured(response)
             return response
 
