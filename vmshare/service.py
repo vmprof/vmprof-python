@@ -91,8 +91,8 @@ class Service(object):
         if 'vmprof.com' in self.host:
             # not sure about nginx, what does MB mean? 1MB == 1000 byte or 1024 byte?
             # take the lower bound...
-            megabytes = os.path.getsize(filename) / 1000
-            if megabytes >= 100:
+            size = os.path.getsize(filename)
+            if size >= 100*1000*1000: # 100 MB
                 warnings.warn("WARNING: vmprof.com limits the "
                               "compressed profile file to 100 MBs. "
                               "The upload might fail!\n")
