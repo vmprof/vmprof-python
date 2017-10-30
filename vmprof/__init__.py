@@ -66,16 +66,17 @@ if IS_PYPY:
             print("Memory profiling is currently unsupported for PyPy. Running without memory statistics.")
         if warn and lines:
             print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
-        if real_time:
-            raise ValueError('real_time=True is currently not supported on PyPy.')
         native = _is_native_enabled(native)
         #
         if MAJOR >= 5 and MINOR >= 9 and PATCH >= 0:
             _vmprof.enable(fileno, period, memory, lines, native, real_time)
-        elif MAJOR >= 5 and MINOR >= 8 and PATCH >= 0:
+            return
+        if real_time:
+            raise ValueError('real_time=True requires PyPy >= 5.9')
+        if MAJOR >= 5 and MINOR >= 8 and PATCH >= 0:
             _vmprof.enable(fileno, period, memory, lines, native)
-        else:
-            _vmprof.enable(fileno, period)
+            return
+        _vmprof.enable(fileno, period)
 else:
     # CPYTHON
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, real_time=False):
