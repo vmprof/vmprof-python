@@ -35,6 +35,11 @@ matrix:
         - PYENV=3.5.3 MAC_WHEEL=1
     - os: osx
       language: generic
+      osx_image: xcode6.4 # 6.4 is OS X 10.10.x
+      env:
+        - PYENV=3.6.1 MAC_WHEEL=1
+    - os: osx
+      language: generic
       osx_image: xcode7.3 # 7.3 is OS X 10.11.x
       env:
         - PYENV=3.5.3
