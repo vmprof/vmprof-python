@@ -163,7 +163,41 @@ static void cpyprof_code_dealloc(PyObject *co)
     Original_code_dealloc(co);
 }
 
-static PyObject *enable_vmprof(PyObject* self, PyObject *args)
+
+static int pop(PyObject *kwargs, const char *kw,
+               const char *format, void *addr)
+{
+    if (kwargs == NULL)
+        return 1; /* nothing to do */
+
+    PyObject *item = PyDict_GetItemString(kwargs, kw);
+    if (item == NULL || item == Py_None)
+        /* kw not there, or it's None, nothing to do */
+        return 1;
+
+    /* pop the kw and parse it */
+    if (PyDict_DelItemString(kwargs, kw) != 0)
+        return 0;
+    if (!PyArg_Parse(item, format, addr))
+        return 0;
+    return 1;
+}
+
+/* signature:
+   enable(fd, interval, **options)
+
+   options can contain arbitrary keys; the return value is a dictionary
+   containing all options which were not understood/supported by the backend
+   (or None if you didn't pass any keyword arg)
+
+   Currently, it supports these options:
+       memory
+       lines
+       native
+       real_time
+*/
+static PyObject *enable_vmprof(PyObject *self, PyObject *args,
+                               PyObject *kwargs)
 {
     int fd;
     int memory = 0;
@@ -173,10 +207,20 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
     double interval;
     char *p_error;
 
-    if (!PyArg_ParseTuple(args, "id|iiii", &fd, &interval, &memory, &lines, &native, &real_time)) {
+    if (!PyArg_ParseTuple(args, "id", &fd, &interval))
         return NULL;
-    }
+    if (!pop(kwargs, "memory", "i", &memory))
+        return NULL;
+    if (!pop(kwargs, "lines", "i", &lines))
+        return NULL;
 
+#ifndef VMPROF_UNIX
+    if (!pop(kwargs, "native", "i", &native))
+        return NULL;
+    if (!pop(kwargs, "real_time", "i", &real_time))
+        return NULL;
+#endif
+    
     if (write(fd, NULL, 0) != 0) {
         PyErr_SetString(PyExc_ValueError, "file descriptor must be writeable");
         return NULL;
@@ -191,13 +235,6 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "vmprof is already enabled");
         return NULL;
     }
-
-#ifndef VMPROF_UNIX
-    if (real_time) {
-        PyErr_SetString(PyExc_ValueError, "real time profiling is only supported on Linux and MacOS");
-        return NULL;
-    }
-#endif
 
     vmp_profile_lines(lines);
 
@@ -219,8 +256,14 @@ static PyObject *enable_vmprof(PyObject* self, PyObject *args)
 
     vmprof_set_enabled(1);
 
-    Py_RETURN_NONE;
+    if (kwargs == NULL)
+        Py_RETURN_NONE;
+    else {
+        Py_INCREF(kwargs);
+        return kwargs;
+    }
 }
+
 
 static PyObject * vmp_is_enabled(PyObject *module, PyObject *noargs) {
     if (vmprof_is_enabled()) {
@@ -422,7 +465,8 @@ remove_real_time_thread(PyObject *module, PyObject * noargs) {
 #endif
 
 static PyMethodDef VMProfMethods[] = {
-    {"enable",  enable_vmprof, METH_VARARGS, "Enable profiling."},
+    {"enable",  (PyCFunction)enable_vmprof, METH_VARARGS | METH_KEYWORDS,
+     "Enable profiling."},
     {"disable", disable_vmprof, METH_NOARGS, "Disable profiling."},
     {"write_all_code_objects", write_all_code_objects, METH_O,
         "Write eagerly all the IDs of code objects"},
