@@ -88,7 +88,7 @@ else:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False,
                native=None, real_time=False):
         if not isinstance(period, float):
-            raise ValueError("You need to pass a float as an argument")
+            raise TypeError("'period' must be a float")
         native = _is_native_enabled(native)
         _vmprof.enable(fileno, period,
                        memory=memory,
