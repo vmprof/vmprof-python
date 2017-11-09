@@ -32,7 +32,8 @@ def disable():
         if hasattr(_vmprof, 'stop_sampling'):
             fileno = _vmprof.stop_sampling()
             if fileno >= 0:
-                # TODO does fileobj leak the fd? I dont think so, but need to check 
+                # TODO does fileobj leak the fd? I dont think so, but need to
+                # check
                 fileobj = FdWrapper(fileno)
                 l = LogReaderDumpNative(fileobj, LogReaderState())
                 l.read_all()
@@ -45,7 +46,8 @@ def disable():
 def _is_native_enabled(native):
     if os.name == "nt":
         if native:
-            raise ValueError("native profiling is only supported on Linux & Mac OS X")
+            raise ValueError("native profiling is only supported on "
+                             "Linux & Mac OS X")
         native = False
     else:
         if native is None:
@@ -53,7 +55,8 @@ def _is_native_enabled(native):
     return native
 
 if IS_PYPY:
-    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, real_time=False, warn=True):
+    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False,
+               native=None, real_time=False, warn=True):
         pypy_version_info = sys.pypy_version_info[:3]
         MAJOR = pypy_version_info[0]
         MINOR = pypy_version_info[1]
@@ -61,11 +64,14 @@ if IS_PYPY:
         if not isinstance(period, float):
             raise ValueError("You need to pass a float as an argument")
         if warn and pypy_version_info < (4, 1, 0):
-            raise Exception("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
+            raise Exception("PyPy <4.1 have various kinds of bugs, "
+                            "pass warn=False if you know what you're doing")
         if warn and memory:
-            print("Memory profiling is currently unsupported for PyPy. Running without memory statistics.")
+            print("Memory profiling is currently unsupported for PyPy. "
+                  "Running without memory statistics.")
         if warn and lines:
-            print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
+            print("Line profiling is currently unsupported for PyPy. "
+                  "Running without lines statistics.")
         native = _is_native_enabled(native)
         #
         if MAJOR >= 5 and MINOR >= 9 and PATCH >= 0:
@@ -91,50 +97,56 @@ else:
                        real_time=real_time)
 
     def sample_stack_now(skip=0):
-        """ Helper utility mostly for tests, this is considered
-            private API.
+        """
+        Helper utility mostly for tests, this is considered private API.
 
-            It will return a list of stack frames the python program currently
-            walked.
+        It will return a list of stack frames the python program currently
+        walked.
         """
         stackframes = _vmprof.sample_stack_now(skip)
         assert isinstance(stackframes, list)
         return stackframes
 
     def resolve_addr(addr):
-        """ Private API, returns the symbol name of the given address.
-            Only considers linking symbols found by dladdr.
+        """
+        Private API, returns the symbol name of the given address.
+        Only considers linking symbols found by dladdr.
         """
         return _vmprof.resolve_addr(addr)
 
 def insert_real_time_thread():
-    """ Inserts a thread into the list of threads to be sampled in real time mode.
-        When enabling real time mode, the caller thread is inserted automatically.
-        Returns the number of registered threads, or -1 if we can't insert thread.
+    """
+    Inserts a thread into the list of threads to be sampled in real time mode.
+    When enabling real time mode, the caller thread is inserted automatically.
+    Returns the number of registered threads, or -1 if we can't insert thread.
     """
     return _vmprof.insert_real_time_thread()
 
 def remove_real_time_thread():
-    """ Removes a thread from the list of threads to be sampled in real time mode.
-        When disabling in real time mode, *all* threads are removed automatically.
-        Returns the number of registered threads, or -1 if we can't remove thread.
+    """
+    Removes a thread from the list of threads to be sampled in real time mode.
+    When disabling in real time mode, *all* threads are removed automatically.
+    Returns the number of registered threads, or -1 if we can't remove thread.
     """
     return _vmprof.remove_real_time_thread()
 
 
 def is_enabled():
-    """ Indicates if vmprof has already been enabled for this process.
-        Returns True or False. None is returned if the state is unknown.
+    """
+    Indicates if vmprof has already been enabled for this process.  Returns
+    True or False. None is returned if the state is unknown.
     """
     if hasattr(_vmprof, 'is_enabled'):
         return _vmprof.is_enabled()
     raise NotImplementedError("is_enabled is not implemented on this platform")
 
 def get_profile_path():
-    """ Returns the absolute path for the file that is currently open.
-        None is returned if the backend implementation does not implement that function,
-        or profiling is not enabled.
+    """
+    Returns the absolute path for the file that is currently open.  None is
+    returned if the backend implementation does not implement that function,
+    or profiling is not enabled.
     """
     if hasattr(_vmprof, 'get_profile_path'):
         return _vmprof.get_profile_path()
-    raise NotImplementedError("get_profile_path not implemented on this platform")
+    raise NotImplementedError("get_profile_path not implemented "
+                              "on this platform")
