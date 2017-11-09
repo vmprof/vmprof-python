@@ -132,6 +132,24 @@ def test_enable_disable():
     d = dict(stats.top_profile())
     assert d[foo_full_name] > 0
 
+def test_enable_warnings(monkeypatch):
+    import _vmprof
+    # simulate a _vmprof backend which does NOT support memory and lines
+    def fake_enable(fileno, internval, **kwargs):
+        kwargs.pop('native', None)
+        kwargs.pop('real_time', None)
+        return kwargs
+    monkeypatch.setattr(_vmprof, 'enable', fake_enable)
+    with pytest.warns(vmprof.VMProfWarning) as record:
+        vmprof.enable(0, memory=True, lines=True)
+    #
+    assert len(record.list) == 1
+    w = record.pop()
+    assert str(w.message) == ('The following options are unsupported by '
+                              'this platform and/or vmprof backend: '
+                              'lines, memory')
+
+
 def test_start_end_time():
     prof = vmprof.Profiler()
     before_profile = datetime.now()

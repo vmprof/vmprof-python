@@ -1,5 +1,6 @@
 import os
 import sys
+import warnings
 try:
     from shutil import which
 except ImportError:
@@ -14,6 +15,8 @@ from vmprof.reader import (MARKER_NATIVE_SYMBOLS, FdWrapper,
 from vmprof.stats import Stats
 from vmprof.profiler import Profiler, read_profile
 
+class VMProfWarning(RuntimeWarning):
+    pass
 
 PY3  = sys.version_info[0] >= 3
 IS_PYPY = '__pypy__' in sys.builtin_module_names
@@ -43,16 +46,6 @@ def disable():
     except IOError as e:
         raise Exception("Error while writing profile: " + str(e))
 
-def _is_native_enabled(native):
-    if os.name == "nt":
-        if native:
-            raise ValueError("native profiling is only supported on "
-                             "Linux & Mac OS X")
-        native = False
-    else:
-        if native is None:
-            native = True
-    return native
 
 if IS_PYPY:
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False,
@@ -89,12 +82,16 @@ else:
                native=None, real_time=False):
         if not isinstance(period, float):
             raise TypeError("'period' must be a float")
-        native = _is_native_enabled(native)
-        _vmprof.enable(fileno, period,
-                       memory=memory,
-                       lines=lines,
-                       native=native,
-                       real_time=real_time)
+        unknown_opts = _vmprof.enable(fileno, period,
+                                      memory=memory,
+                                      lines=lines,
+                                      native=native,
+                                      real_time=real_time)
+        if unknown_opts:
+            optlist = ", ".join(sorted(unknown_opts.keys()))
+            msg = ("The following options are unsupported by this platform "
+                   "and/or vmprof backend: %s" % optlist)
+            warnings.warn(msg, VMProfWarning)
 
     def sample_stack_now(skip=0):
         """
