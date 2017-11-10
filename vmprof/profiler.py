@@ -56,7 +56,8 @@ class Profiler(object):
     def __init__(self):
         self._lib_cache = {}
 
-    def measure(self, name=None, period=0.001, memory=False, native=False, real_time=False):
+    def measure(self, name=None, period=0.001, memory=None, native=None,
+                real_time=None):
         self.ctx = ProfilerContext(name, period, memory, native, real_time)
         return self.ctx
 
