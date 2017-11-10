@@ -78,20 +78,30 @@ if IS_PYPY:
         _vmprof.enable(fileno, period)
 else:
     # CPYTHON
-    def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False,
-               native=None, real_time=False):
+
+    # note that default values are None: this way, we can detect whether the
+    # user passed an explicit value, and emit a warning if the backend does
+    # not support it
+    def enable(fileno, period=DEFAULT_PERIOD, memory=None, lines=None,
+               native=None, real_time=None):
         if not isinstance(period, float):
             raise TypeError("'period' must be a float")
-        unknown_opts = _vmprof.enable(fileno, period,
-                                      memory=memory,
-                                      lines=lines,
-                                      native=native,
-                                      real_time=real_time)
-        if unknown_opts:
-            optlist = ", ".join(sorted(unknown_opts.keys()))
-            msg = ("The following options are unsupported by this platform "
-                   "and/or vmprof backend: %s" % optlist)
-            warnings.warn(msg, VMProfWarning)
+
+        unsupported_opts = _vmprof.enable(fileno, period,
+                                          memory=memory,
+                                          lines=lines,
+                                          native=native,
+                                          real_time=real_time)
+        if unsupported_opts:
+            optlist = []
+            for key, value in unsupported_opts.iteritems():
+                if value is not None:
+                    optlist.append(key)
+            if optlist:
+                optlist = ", ".join(sorted(optlist))
+                msg = ("Unsupported option(s) on this platform/backed: %s"
+                       % optlist)
+                warnings.warn(msg, VMProfWarning, stacklevel=2)
 
     def sample_stack_now(skip=0):
         """

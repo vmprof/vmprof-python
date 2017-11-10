@@ -132,22 +132,30 @@ def test_enable_disable():
     d = dict(stats.top_profile())
     assert d[foo_full_name] > 0
 
-def test_enable_warnings(monkeypatch):
+def test_enable_warnings(monkeypatch, recwarn):
     import _vmprof
-    # simulate a _vmprof backend which does NOT support memory and lines
+    # simulate a _vmprof backend which does NOT native and real_time (like
+    # e.g. the windows one)
     def fake_enable(fileno, internval, **kwargs):
-        kwargs.pop('native', None)
-        kwargs.pop('real_time', None)
+        kwargs.pop('memory', None)
+        kwargs.pop('lines', None)
         return kwargs
     monkeypatch.setattr(_vmprof, 'enable', fake_enable)
-    with pytest.warns(vmprof.VMProfWarning) as record:
-        vmprof.enable(0, memory=True, lines=True)
-    #
-    assert len(record.list) == 1
-    w = record.pop()
-    assert str(w.message) == ('The following options are unsupported by '
-                              'this platform and/or vmprof backend: '
-                              'lines, memory')
+
+    # check that if we do NOT specify any explit value, we don't get the
+    # warning
+    recwarn.clear()
+    vmprof.enable(0)
+    assert len(recwarn.list) == 0
+
+    # check that if we specify native and real_time, we get a warning
+    recwarn.clear()
+    vmprof.enable(0, native=True, real_time=True)
+    assert len(recwarn.list) == 1
+    w = recwarn.pop(vmprof.VMProfWarning)
+    assert str(w.message) == ("Unsupported option(s) on this "
+                              "platform/backed: native, real_time")
+
 
 
 def test_start_end_time():
