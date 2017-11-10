@@ -167,10 +167,11 @@ static void cpyprof_code_dealloc(PyObject *co)
 static int pop(PyObject *kwargs, const char *kw,
                const char *format, void *addr)
 {
+    PyObject *item = NULL;
     if (kwargs == NULL)
         return 1; /* nothing to do */
 
-    PyObject *item = PyDict_GetItemString(kwargs, kw);
+    item = PyDict_GetItemString(kwargs, kw);
     if (item == NULL || item == Py_None)
         /* kw not there, or it's None, nothing to do */
         return 1;
