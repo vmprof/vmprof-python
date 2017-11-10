@@ -67,12 +67,6 @@ def function_foo():
         l = [a for a in xrange(COUNT)]
     return l
 
-def function_bar():
-    import time
-    for k in range(1000):
-        time.sleep(0.001)
-    return 1+1
-
 
 def function_bar():
     return function_foo()
@@ -203,6 +197,9 @@ def test_nested_call():
     else:
         assert foo_full_name in names
     t = stats.get_tree()
+    # XXX: this test if *VERY* fragile: if we are "too slow" to exit
+    # vmprof.enable(), vmprof takes a sample there and the loop crashes with a
+    # KeyError (which I have no clue what it means)
     while 'function_bar' not in t.name:
         t = t['']
     assert len(t.children) == 1
