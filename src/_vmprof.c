@@ -210,12 +210,12 @@ static PyObject *enable_vmprof(PyObject *self, PyObject *args,
 
     if (!PyArg_ParseTuple(args, "id", &fd, &interval))
         return NULL;
-    if (!pop(kwargs, "memory", "i", &memory))
-        return NULL;
     if (!pop(kwargs, "lines", "i", &lines))
         return NULL;
 
 #ifdef VMPROF_UNIX
+    if (!pop(kwargs, "memory", "i", &memory))
+        return NULL;
     if (!pop(kwargs, "native", "i", &native))
         return NULL;
     if (!pop(kwargs, "real_time", "i", &real_time))

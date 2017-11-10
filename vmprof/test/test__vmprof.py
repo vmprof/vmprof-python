@@ -12,17 +12,18 @@ def test_enable(tmpdir):
 def test_enable_options(tmpdir):
     prof = tmpdir.join('a.vmprof')
     with prof.open('w+b') as f:
-        ret = _vmprof.enable(f.fileno(), 0.004, memory=True, lines=True)
+        ret = _vmprof.enable(f.fileno(), 0.004, lines=True)
         _vmprof.disable()
     assert ret == {}
 
 def test_enable_options_unix_only(tmpdir):
     prof = tmpdir.join('a.vmprof')
     with prof.open('w+b') as f:
-        ret = _vmprof.enable(f.fileno(), 0.004, native=True, real_time=True)
+        ret = _vmprof.enable(f.fileno(), 0.004, memory=True, native=True,
+                             real_time=True)
         _vmprof.disable()
     if sys.platform == 'win32':
-        assert ret == {'native': True, 'real_time': True}
+        assert ret == {'memory': True, 'native': True, 'real_time': True}
     else:
         assert ret == {}
 
