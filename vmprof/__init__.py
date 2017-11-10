@@ -94,7 +94,7 @@ else:
                                           real_time=real_time)
         if unsupported_opts:
             optlist = []
-            for key, value in unsupported_opts.iteritems():
+            for key, value in unsupported_opts.items():
                 if value is not None:
                     optlist.append(key)
             if optlist:
