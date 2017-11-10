@@ -214,7 +214,7 @@ static PyObject *enable_vmprof(PyObject *self, PyObject *args,
     if (!pop(kwargs, "lines", "i", &lines))
         return NULL;
 
-#ifndef VMPROF_UNIX
+#ifdef VMPROF_UNIX
     if (!pop(kwargs, "native", "i", &native))
         return NULL;
     if (!pop(kwargs, "real_time", "i", &real_time))
