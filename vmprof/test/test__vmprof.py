@@ -14,16 +14,19 @@ def enable_and_disable(fname, *args, **kwargs):
             _vmprof.stop_sampling()
             _vmprof.disable()
 
+@pytest.mark.skip
 def test_enable(tmpdir):
     prof = tmpdir.join('a.vmprof')
     ret = enable_and_disable(prof, 0.004)
     assert ret is None
 
+@pytest.mark.skip
 def test_enable_options(tmpdir):
     prof = tmpdir.join('a.vmprof')
     ret = enable_and_disable(prof, 0.004, lines=True)
     assert ret == {}
 
+@pytest.mark.skip
 def test_enable_options_unix_only(tmpdir):
     prof = tmpdir.join('a.vmprof')
     ret = enable_and_disable(prof, 0.004, memory=True, native=True,
@@ -33,6 +36,7 @@ def test_enable_options_unix_only(tmpdir):
     else:
         assert ret == {}
 
+@pytest.mark.skip
 def test_enable_options_unknown(tmpdir):
     prof = tmpdir.join('a.vmprof')
     ret = enable_and_disable(prof, 0.004, foo=1, bar=2)
