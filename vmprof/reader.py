@@ -143,11 +143,15 @@ class LogReader(object):
         self.addr_size = addr_size
 
     def read_static_header(self):
-        assert self.read_word() == 0 # header count
-        assert self.read_word() == 3 # header size
-        assert self.read_word() == 0
+        r = self.read_word()
+        assert r == 0 # header count
+        r = self.read_word()
+        assert r == 3 # header size
+        r = self.read_word()
+        assert r == 0
         self.state.period = self.read_word()
-        assert self.read_word() in (0, 1)
+        r = self.read_word()
+        assert r in (0, 1)
 
     def read_header(self):
         s = self.state
