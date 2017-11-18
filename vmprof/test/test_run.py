@@ -398,13 +398,13 @@ class TestNative(object):
     def setup_class(cls):
         ffi = FFI()
         ffi.cdef("""
-        void native_gzipgzipgzip();
+        void native_gzipgzipgzip(void);
         """)
         source = """
         #include "zlib.h"
         unsigned char input[100];
         unsigned char output[100];
-        void native_gzipgzipgzip() {
+        void native_gzipgzipgzip(void) {
             z_stream defstream;
             defstream.zalloc = Z_NULL;
             defstream.zfree = Z_NULL;
@@ -429,7 +429,7 @@ class TestNative(object):
         # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
         ffi.set_source("vmprof.test._test_native_gzip", source, include_dirs=['src'],
                        define_macros=[('_CFFI_USE_EMBEDDING',1),('_PY_TEST',1)], libraries=libs,
-                       extra_compile_args=['-g', '-O0'])
+                       extra_compile_args=['-Werror', '-g', '-O0'])
 
         ffi.compile(verbose=True)
         from vmprof.test import _test_native_gzip as clib

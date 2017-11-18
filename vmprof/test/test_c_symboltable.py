@@ -23,8 +23,8 @@ if sys.platform != 'win32':
     {
         *name = gname;
         *src = gsrc;
-        gname[0] = '\x00';
-        gsrc[0] = '\x00';
+        gname[0] = 0;
+        gsrc[0] = 0;
         return vmp_resolve_addr(&vmp_resolve_addr, gname, 64,
                                 lineno, gsrc, 128);
     }
@@ -32,8 +32,8 @@ if sys.platform != 'win32':
     {
         *name = gname;
         *src = gsrc;
-        gname[0] = '\x00';
-        gsrc[0] = '\x00';
+        gname[0] = 0;
+        gsrc[0] = 0;
         return vmp_resolve_addr(&abs, gname, 64,
                                 lineno, gsrc, 128);
     }
@@ -57,7 +57,7 @@ if sys.platform != 'win32':
 
     extra_compile = []
     if sys.platform.startswith("linux"):
-        extra_compile = ['-DVMPROF_LINUX', '-DVMPROF_UNIX']
+        extra_compile = ['-DVMPROF_LINUX', '-DVMPROF_UNIX', '-Werror', '-g']
 
     # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
     ffi.set_source("vmprof.test._test_symboltable", source, include_dirs=includes,
