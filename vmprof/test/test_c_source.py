@@ -10,7 +10,7 @@ class TestStack(object):
     def setup_class(cls):
         stack_ffi = FFI()
         stack_ffi.cdef("""
-        typedef uint64_t ptr_t;
+        typedef intptr_t ptr_t;
         int vmp_binary_search_ranges(ptr_t ip, ptr_t * l, int count);
         int vmp_ignore_ip(ptr_t ip);
         int vmp_ignore_symbol_count(void);
@@ -28,7 +28,7 @@ class TestStack(object):
             stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
                                  define_macros=[('_CFFI_USE_EMBEDDING',1), ('PY_TEST',1),
                                                 ('VMP_SUPPORTS_NATIVE_PROFILING',1)],
-                                 libraries=libs, extra_compile_args=['-g'])
+                                 libraries=libs, extra_compile_args=['-Werror', '-g'])
 
         stack_ffi.compile(verbose=True)
         from vmprof.test import _test_stack as clib
