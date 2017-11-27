@@ -510,7 +510,6 @@ teardown:
 static const char * vmprof_error = NULL;
 static void * libhandle = NULL;
 
-
 #ifdef VMPROF_LINUX
 #define LIBUNWIND "libunwind.so"
 #ifdef __i386__
@@ -525,9 +524,19 @@ static void * libhandle = NULL;
 int vmp_native_enable(void) {
 #ifdef VMPROF_LINUX
     if (libhandle == NULL) {
+        // on linux, the wheel includes the libunwind shared object.
+        libhandle = dlopen(NULL, RTLD_LAZY | RTLD_LOCAL);
+        if (libhandle != NULL) {
+            if (dlsym(libhandle, U_PREFIX PREFIX "_getcontext") != NULL) {
+                goto loaded_libunwind;
+            }
+            libhandle = NULL;
+        }
+
         if ((libhandle = dlopen(LIBUNWIND, RTLD_LAZY | RTLD_LOCAL)) == NULL) {
             goto bail_out;
         }
+loaded_libunwind:
         if ((unw_get_reg = dlsym(libhandle, UL_PREFIX PREFIX "_get_reg")) == NULL) {
             goto bail_out;
         }
