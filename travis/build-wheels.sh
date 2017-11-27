@@ -1,15 +1,13 @@
 #!/bin/bash
 set -e -x
 
-rm -rf /opt/python/cp26-cp26m
-rm -rf /opt/python/cp26-cp26mu
-
 bash /io/travis/build-libunwind.sh
 
 # Compile wheels
-for PYBIN in /opt/python/*/bin; do
-    ${PYBIN}/pip install -r /io/dev_requirements.txt
-    ${PYBIN}/pip wheel /io/ -w wheels/
+for PYV in "cp27-cp27m" "cp27-cp27mu" "cp34-cp34m" "cp35-cp35m" "cp36-cp36m"
+do
+    /opt/python/${PYV}/bin/pip install -r /io/dev_requirements.txt
+    /opt/python/${PYV}/bin/pip wheel /io/ -w wheels/
 done
 
 # Bundle external shared libraries into the wheels
