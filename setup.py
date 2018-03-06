@@ -2,6 +2,7 @@ from setuptools import setup, find_packages, Extension
 from distutils.command.build_py import build_py
 import os, sys
 import subprocess
+import platform
 
 IS_PYPY = '__pypy__' in sys.builtin_module_names
 
@@ -39,10 +40,15 @@ else:
         extra_compile_args = ['-Wno-unused']
         extra_compile_args += ['-DVMPROF_LINUX=1']
         extra_compile_args += ['-DVMPROF_UNIX=1']
-        if sys.maxsize == 2**63-1:
-            libraries.append('unwind-x86_64')
+        if platform.machine().startswith("arm"):
+            libraries.append('unwind-arm')
+        elif platform.machine().startswith("x86"):
+            if sys.maxsize == 2**63-1:
+                libraries.append('unwind-x86_64')
+            else:
+                libraries.append('unwind-x86')
         else:
-            libraries.append('unwind-x86')
+            raise NotImplementedError
         extra_source_files += [
            'src/vmprof_mt.c',
            'src/vmprof_unix.c',

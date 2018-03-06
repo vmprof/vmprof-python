@@ -27,6 +27,7 @@ Setting up development can be done using the following commands:
 	$ source vmprof3/bin/activate
 	$ python setup.py develop
 
+You need to install python development packages. In case of e.g. Debian or Ubuntu the package you need is `python3-dev` and `libunwind-dev`.
 Now it is time to write a test and implement your feature. If you want
 your changes to affect vmprof.com, head over to
 https://github.com/vmprof/vmprof-server and follow the setup instructions.
