@@ -121,6 +121,14 @@ Module level functions
 * ``vmprof.read_profile(filename)`` - read vmprof data from
   ``filename`` and return ``Stats`` instance.
 
+  ``start/stop_sampling()`` - Disables or starts the sampling of vmprof. This
+  is useful to remove certain program parts from the profile. Be aware that
+  those program parts still can be in the profile if that code is reached
+  from another point in your program. In addition note that unix and windows
+  implementation behave differntly. Unix will increment/decrement a counter,
+  whereas windows has only two states for the counter (0 and 1).
+  This may change in future.
+
 ``Stats`` object
 ----------------
 
