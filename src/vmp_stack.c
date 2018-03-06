@@ -16,7 +16,7 @@
 
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
 
-#ifdef VMPROF_LINUX
+#if defined(VMPROF_LINUX) || defined(VMPROF_BSD)
 #include "unwind/vmprof_unwind.h"
 typedef mcontext_t unw_context_t;
 

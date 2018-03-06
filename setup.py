@@ -12,6 +12,13 @@ class vmprof_build(build_py, object):
 
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
 
+def _supported_unix():
+    if sys.platform.startswith('linux'):
+        return 'linux'
+    if sys.platform.startswith('freebsd'):
+        return 'bsd'
+    return False
+
 if IS_PYPY:
     ext_modules = [] # built-in
 else:
@@ -35,14 +42,19 @@ else:
         extra_compile_args += ['-g']
         extra_compile_args += ['-O2']
         extra_source_files += ['src/vmprof_unix.c', 'src/vmprof_mt.c']
-    elif sys.platform.startswith('linux'):
+    elif _supported_unix():
         libraries = ['dl','unwind']
         extra_compile_args = ['-Wno-unused']
-        extra_compile_args += ['-DVMPROF_LINUX=1']
+        if _supported_unix() == 'linux':
+            extra_compile_args += ['-DVMPROF_LINUX=1']
+        if _supported_unix() == 'bsd':
+            libraries = ['unwind']
+            extra_compile_args += ['-DVMPROF_BSD=1']
+            extra_compile_args += ['-I/usr/local/include']
         extra_compile_args += ['-DVMPROF_UNIX=1']
         if platform.machine().startswith("arm"):
             libraries.append('unwind-arm')
-        elif platform.machine().startswith("x86"):
+        elif platform.machine().startswith("x86") or platform.machine().startswith("amd64"):
             if sys.maxsize == 2**63-1:
                 libraries.append('unwind-x86_64')
             else:
