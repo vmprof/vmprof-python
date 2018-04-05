@@ -68,7 +68,7 @@ if IS_PYPY:
             print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
         native = _is_native_enabled(native)
         #
-        if MAJOR >= 5 and MINOR >= 9 and PATCH >= 0:
+        if (MAJOR, MINOR, PATCH) >= (5, 9, 0):
             _vmprof.enable(fileno, period, memory, lines, native, real_time)
             return
         if real_time:
