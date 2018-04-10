@@ -7,19 +7,16 @@ Frequently Asked Questions
   If the symbol has been exported in the shared object (on linux), ``dladdr`` might still be able to extract
   the function name even if no debugging information has been attached.
 
-* **Is it possible to just profile a short part of my profile?**: Yes here an example how you could do just that:
+* **Is it possible to just profile a part of my program?**: Yes here an example how you could do just that::
 
-  ```
-  with open('test.prof', 'w+b') as fd:
+    with open('test.prof', 'w+b') as fd:
       vmprof.enable(fd.fileno())
       my_function_or_program()
       vmprof.disable()
 
-  ```
+  Upload it later to vmprof.com if you choose to inspect it further::
 
-  And upload it later when your program finishes.
-
-  $ python -m vmprof.upload test.prof
+      $ python -m vmprof.upload test.prof
 
 
 
