@@ -54,13 +54,15 @@ else:
         extra_compile_args += ['-DVMPROF_UNIX=1']
         if platform.machine().startswith("arm"):
             libraries.append('unwind-arm')
-        elif platform.machine().startswith("x86") or platform.machine().startswith("amd64"):
+        elif platform.machine().startswith("x86") or \
+             platform.machine().startswith("amd64") or \
+             platform.machine().startswith("i686"):
             if sys.maxsize == 2**63-1:
                 libraries.append('unwind-x86_64')
             else:
                 libraries.append('unwind-x86')
         else:
-            raise NotImplementedError
+            raise NotImplementedError("platform {} is not supported".format(platform.machine()))
         extra_source_files += [
            'src/vmprof_mt.c',
            'src/vmprof_unix.c',
