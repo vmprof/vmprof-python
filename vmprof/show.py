@@ -232,13 +232,13 @@ def main():
         '--prune_percent',
         type=float,
         default=0,
-        help="The indention per level within the call graph.")
+        help="Prune output of a profile stats node below specified CPU samples.")
 
     parser.add_argument(
         '--prune_level',
         type=int,
         default=None,
-        help='Prune output of a profile stats node when CPU.')
+        help='Prune output of a profile stats node below specified depth.')
 
     parser.add_argument(
         '--indent',
