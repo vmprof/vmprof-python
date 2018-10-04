@@ -43,7 +43,7 @@ class Stats(object):
 
     def find_addrs_containing_name(self, part):
         for adr, name in self.adr_dict.items():
-            n, symbol, _, _ = name.split(':')
+            n, symbol, _, _ = name.split(':', 3)
             if part in symbol:
                 yield adr
 
@@ -51,7 +51,7 @@ class Stats(object):
         name = self.adr_dict.get(addr, None)
         if not name:
             return None
-        lang, symbol, line, file = name.split(':')
+        lang, symbol, line, file = name.split(':', 3)
         return lang, symbol, line, file
 
     def getargv(self):
