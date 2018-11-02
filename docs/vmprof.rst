@@ -92,6 +92,7 @@ After ``-m vmprof`` you can specify some options:
 
 Example `config.ini` file::
 
+  [global]
   web-url = vmprof.com
   web-auth = ffb7d4bee2d6436bbe97e4d191bf7d23f85dfeb2
   period = 0.1
