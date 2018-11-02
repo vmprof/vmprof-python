@@ -77,7 +77,7 @@ After ``-m vmprof`` you can specify some options:
 * ``--web-auth`` - auth token for user name support in the server.
 
 * ``-p period`` - float that gives you how often the profiling happens
-  (the max is about 300 Hz, rather don't touch it). This is in microseconds, the default is 0.00099
+  (the max is about 300 Hz, rather don't touch it). This is in seconds, the default is 0.99.
 
 * ``-n`` - enable all C frames, only useful if you have a debug build of
   PyPy or CPython.
