@@ -89,7 +89,10 @@ def functime_foo(t=0.05, insert=False):
     else:
         thread_count = -2
     sys.stderr.writelines("foo:%i:%i\n" % (thread_id, thread_count))
-    return time.sleep(t)
+    # HACK: sleep many times, hopefully giving the profiler a chance to grab our stack trace
+    for i in range(10):
+        time.sleep(t / 10)
+    return
 
 
 def functime_bar(t=0.05, remove=False):
@@ -103,7 +106,10 @@ def functime_bar(t=0.05, remove=False):
     else:
         thread_count = -2
     sys.stderr.writelines("bar:%i:%i\n" % (thread_id, thread_count))
-    return time.sleep(t)
+    # HACK: sleep many times, hopefully giving the profiler a chance to grab our stack trace
+    for i in range(10):
+        time.sleep(t / 10)
+    return
 
 
 foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
