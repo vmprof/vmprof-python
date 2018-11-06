@@ -89,9 +89,7 @@ def functime_foo(t=0.05, insert=False):
     else:
         thread_count = -2
     sys.stderr.writelines("foo:%i:%i\n" % (thread_id, thread_count))
-    # HACK: sleep many times, hopefully giving the profiler a chance to grab our stack trace
-    for i in range(10):
-        time.sleep(t / 10)
+    time.sleep(t)
     return
 
 
@@ -106,9 +104,7 @@ def functime_bar(t=0.05, remove=False):
     else:
         thread_count = -2
     sys.stderr.writelines("bar:%i:%i\n" % (thread_id, thread_count))
-    # HACK: sleep many times, hopefully giving the profiler a chance to grab our stack trace
-    for i in range(10):
-        time.sleep(t / 10)
+    time.sleep(t)
     return
 
 
@@ -289,9 +285,9 @@ def test_vmprof_real_time_threaded(insert_foo, remove_bar):
     import threading
     import pprint
     prof = vmprof.Profiler()
-    wait = 10.0
+    wait = 0.5
     thread = threading.Thread(target=functime_foo, args=[wait, insert_foo])
-    with prof.measure(period=wait/999, real_time=True):
+    with prof.measure(period=wait/5, real_time=True):
         thread.start()
         functime_bar(wait, remove_bar)
         thread.join()
