@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import argparse
+import sys
 from six.moves import configparser
 
 
@@ -60,7 +61,7 @@ def build_argparser():
     )
     parser.add_argument(
         '--no-native', '-n',
-        default=False,
+        default=not sys.platform.startswith('linux'),
         action='store_true',
         help='Disable native profiling for this run'
     )
