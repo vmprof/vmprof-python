@@ -69,7 +69,7 @@ script:
 
 notifications:
   irc:
-    channels: irc.freenode.org#baroque-dev
+    channels: irc.freenode.org#pypy-dev
     template:
     - "%{repository}@%{branch}: %{message} (%{build_url})"
     use_notice: true
