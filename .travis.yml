@@ -60,7 +60,6 @@ addons:
     - libdwarf-dev
     - libelfg0-dev
     - libunwind8-dev
-    - wget
 
 install:
   - bash ./travis/install.sh
