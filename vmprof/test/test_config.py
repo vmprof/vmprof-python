@@ -41,7 +41,7 @@ web-url = example.com
     assert args.period == 5.0
     assert args.web is False
     assert args.web_url == "example.com"
-    assert args.no_native == False
+    assert args.mem == False
 
 
 def test_parser_without_section():
