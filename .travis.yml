@@ -5,8 +5,10 @@ cache: apt
 
 env:
   global:
-    - secure: "ncdGAp+fZp2yqQVOOPozAuXjqmHbUasTIxNlqpbQXbG5kZvnCVdqxCsYb+2jupolUQ6g8ANgHEZnSz3tPCVB33JqDQLN8AQ0TdR6FzsFEARVHgmFpzpZbPh2gjJd9JRGfHgt0+2outnhQdEhwXfNxs+HsIR33G8WloHkVLhIWtc="
-    - secure: "ZyCsnqo5ViDuqLHM+fPuKTG3SzAahZZxgzsqpOj6JKS+SvMgmeaK4F2RBYdOtsSI2Z2I9MpOvEOMZVaLf39mObz4si4c09PVkCnKYK4vTegobEdpR05Hx8AezgKffaLO6qGVm4EZSHu/PpdUYcDjdexI9Grp4Li//upSk3ynvp8="
+    - PYPI_USERNAME=pypy.wheelbuilder
+
+    # PYPI_PASSWORD
+    - secure: "a5GdswXPW9TWytW5BfA5QZkdyrzgebecUNcbEmEXYkGPGp7rTFKVnRShD8+9YqH7swaZi9Xz/4YzBrZIkcXS0M+FJPo9sGYIccobZQ+KAlqbIE3N7cuWNLStqJDAj41BK9xxDtdKutJ95q+8iO9BLx+Iw6Y62EN4+a4d3WbuoZ4="
 
 matrix:
   include:
