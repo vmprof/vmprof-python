@@ -60,7 +60,7 @@ else:
             else:
                 libraries.append('unwind-x86')
         else:
-            raise NotImplementedError
+            raise NotImplementedError("unknown platform.machine(): %s" % platform.machine())
         extra_source_files += [
            'src/vmprof_mt.c',
            'src/vmprof_unix.c',
