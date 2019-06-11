@@ -93,7 +93,7 @@ static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, vo
 
         // NOTE: the profiling overhead can be reduced by storing co_lnotab in the dump and
         // moving this computation to the reader instead of doing it here.
-        result[*depth] = (void*) PyFrame_GetLineNumber(frame);
+        result[*depth] = (void*) (int64_t) PyFrame_GetLineNumber(frame);
         *depth = *depth + 1;
     }
     result[*depth] = (void*)CODE_ADDR_TO_UID(FRAME_CODE(frame));
