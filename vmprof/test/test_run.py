@@ -79,15 +79,33 @@ def function_bar():
 
 
 def functime_foo(t=0.05, insert=False):
+    if PY3K:
+        from threading import get_ident
+    else:
+        from thread import get_ident
+    thread_id = get_ident()
     if (insert):
-        vmprof.insert_real_time_thread()
-    return time.sleep(t)
+        thread_count = vmprof.insert_real_time_thread()
+    else:
+        thread_count = -2
+    sys.stderr.writelines("foo:%i:%i\n" % (thread_id, thread_count))
+    time.sleep(t)
+    return
 
 
 def functime_bar(t=0.05, remove=False):
+    if PY3K:
+        from threading import get_ident
+    else:
+        from thread import get_ident
+    thread_id = get_ident()
     if (remove):
-        vmprof.remove_real_time_thread()
-    return time.sleep(t)
+        thread_count = vmprof.remove_real_time_thread()
+    else:
+        thread_count = -2
+    sys.stderr.writelines("bar:%i:%i\n" % (thread_id, thread_count))
+    time.sleep(t)
+    return
 
 
 foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
@@ -255,7 +273,6 @@ def test_vmprof_real_time():
     assert d[foo_time_name] > 0
 
 
-@py.test.mark.xfail()
 @py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
 @py.test.mark.skipif("sys.platform == 'win32'")
 @py.test.mark.parametrize("insert_foo,remove_bar", [
@@ -266,16 +283,20 @@ def test_vmprof_real_time():
 ])
 def test_vmprof_real_time_threaded(insert_foo, remove_bar):
     import threading
+    import pprint
     prof = vmprof.Profiler()
     wait = 0.5
     thread = threading.Thread(target=functime_foo, args=[wait, insert_foo])
-    with prof.measure(period=0.25, real_time=True):
+    with prof.measure(period=wait/5, real_time=True):
         thread.start()
         functime_bar(wait, remove_bar)
         thread.join()
     stats = prof.get_stats()
     tprof = stats.top_profile()
+    aprof = stats.all_profile()
     d = dict(tprof)
+    f = pprint.pformat(d) + '\n' + pprint.pformat(dict(aprof)) + '\n'
+    sys.stderr.writelines(f)
     assert insert_foo == (foo_time_name in d)
     assert remove_bar != (bar_time_name in d)
 

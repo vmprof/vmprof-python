@@ -21,6 +21,17 @@
 
 #ifdef VMPROF_LINUX
 #include <syscall.h>
+#define THREAD_ID pid_t
+#define GET_THREAD_ID() ((pid_t) syscall(SYS_gettid))
+#define THREAD_EQUALS(thread_one, thread_two) (thread_one == thread_two)
+#define THREAD_SIGNAL(pid, tid, signal) syscall(SYS_tgkill, pid, tid, signal)
+#else
+#ifdef VMPROF_UNIX
+#define THREAD_ID pthread_t
+#define GET_THREAD_ID() ((pthread_t) pthread_self())
+#define THREAD_EQUALS(thread_one, thread_two) pthread_equal(thread_one, thread_two)
+#define THREAD_SIGNAL(pid, tid, signal) pthread_kill(tid, signal)
+#endif
 #endif
 
 #ifdef VMPROF_BSD
@@ -29,11 +40,16 @@
 
 #define MAX_FUNC_NAME 1024
 
+#ifdef VMPROF_LINUX
+#else
+#define THREAD_ID_TYPE
+#endif
+
 #ifdef VMPROF_UNIX
 
-ssize_t search_thread(pthread_t tid, ssize_t i);
-ssize_t insert_thread(pthread_t tid, ssize_t i);
-ssize_t remove_thread(pthread_t tid, ssize_t i);
+ssize_t search_thread(THREAD_ID tid, ssize_t i);
+ssize_t insert_thread(THREAD_ID tid, ssize_t i);
+ssize_t remove_thread(THREAD_ID tid, ssize_t i);
 ssize_t remove_threads(void);
 
 #endif

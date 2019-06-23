@@ -31,7 +31,7 @@ static long profile_interval_usec = 0;
 #ifdef VMPROF_UNIX
 static int signal_type = SIGPROF;
 static int itimer_type = ITIMER_PROF;
-static pthread_t *threads = NULL;
+static THREAD_ID *threads = NULL;
 static size_t threads_size = 0;
 static size_t thread_count = 0;
 static size_t threads_size_step = 8;
@@ -224,19 +224,19 @@ intptr_t vmprof_get_traceback(void *stack, void *ucontext,
 
 #ifdef VMPROF_UNIX
 
-ssize_t search_thread(pthread_t tid, ssize_t i)
+ssize_t search_thread(THREAD_ID tid, ssize_t i)
 {
     if (i < 0)
         i = 0;
     while ((size_t)i < thread_count) {
-        if (pthread_equal(threads[i], tid))
+        if (THREAD_EQUALS(threads[i], tid))
             return i;
         i++;
     }
     return -1;
 }
 
-ssize_t insert_thread(pthread_t tid, ssize_t i)
+ssize_t insert_thread(THREAD_ID tid, ssize_t i)
 {
     assert(signal_type == SIGALRM);
     i = search_thread(tid, i);
@@ -244,15 +244,15 @@ ssize_t insert_thread(pthread_t tid, ssize_t i)
         return -1;
     if (thread_count == threads_size) {
         threads_size += threads_size_step;
-        threads = realloc(threads, sizeof(pid_t) * threads_size);
+        threads = realloc(threads, sizeof(THREAD_ID) * threads_size);
         assert(threads != NULL);
-        memset(threads + thread_count, 0, sizeof(pid_t) * threads_size_step);
+        memset(threads + thread_count, 0, sizeof(THREAD_ID) * threads_size_step);
     }
     threads[thread_count++] = tid;
     return thread_count;
 }
 
-ssize_t remove_thread(pthread_t tid, ssize_t i)
+ssize_t remove_thread(THREAD_ID tid, ssize_t i)
 {
     assert(signal_type == SIGALRM);
     if (thread_count == 0)
@@ -283,13 +283,14 @@ int broadcast_signal_for_threads(void)
 {
     int done = 1;
     size_t i = 0;
-    pthread_t self = pthread_self();
-    pthread_t tid;
+    THREAD_ID self = GET_THREAD_ID();
+    THREAD_ID tid;
+    pid_t pid = getpid();
     while (i < thread_count) {
         tid = threads[i];
-        if (pthread_equal(tid, self)) {
+        if (THREAD_EQUALS(tid, self)) {
             done = 0;
-        } else if (pthread_kill(tid, SIGALRM)) {
+        } else if (THREAD_SIGNAL(pid, tid, SIGALRM)) {
             remove_thread(tid, i);
         }
         i++;
