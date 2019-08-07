@@ -81,13 +81,22 @@ def function_bar():
 def functime_foo(t=0.05, insert=False):
     if (insert):
         vmprof.insert_real_time_thread()
-    return time.sleep(t)
+    sleep_retry_eintr(t)
 
 
 def functime_bar(t=0.05, remove=False):
     if (remove):
         vmprof.remove_real_time_thread()
-    return time.sleep(t)
+    sleep_retry_eintr(t)
+
+
+def sleep_retry_eintr(t):
+    start = time.time()
+    remaining = t
+    while remaining > 0:
+        time.sleep(remaining)
+        elapsed = time.time() - start
+        remaining = t - elapsed
 
 
 foo_full_name = "py:function_foo:%d:%s" % (function_foo.__code__.co_firstlineno,
@@ -255,7 +264,6 @@ def test_vmprof_real_time():
     assert d[foo_time_name] > 0
 
 
-@py.test.mark.xfail()
 @py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
 @py.test.mark.skipif("sys.platform == 'win32'")
 @py.test.mark.parametrize("insert_foo,remove_bar", [
