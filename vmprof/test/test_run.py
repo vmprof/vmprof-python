@@ -288,6 +288,36 @@ def test_vmprof_real_time_threaded(insert_foo, remove_bar):
     assert remove_bar != (bar_time_name in d)
 
 
+@py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
+@py.test.mark.skipif("sys.platform == 'win32'")
+@py.test.mark.parametrize("insert_foo,remove_bar", [
+    (False, False),
+    (False,  True),
+    ( True, False),
+    ( True,  True),
+])
+def test_insert_other_real_time_thread(insert_foo, remove_bar):
+    import threading
+    prof = vmprof.Profiler()
+    wait = 0.5
+    # This test is the same as above, except that we manually add/remove
+    # all threads explicitly by id from the main thread.
+    thread = threading.Thread(target=functime_foo, args=[wait, False])
+    with prof.measure(period=0.25, real_time=True):
+        thread.start()
+        if insert_foo:
+            vmprof.insert_real_time_thread(thread.ident)
+        if remove_bar:
+            vmprof.remove_real_time_thread(threading.current_thread().ident)
+        functime_bar(wait, False)
+        thread.join()
+    stats = prof.get_stats()
+    tprof = stats.top_profile()
+    d = dict(tprof)
+    assert insert_foo == (foo_time_name in d)
+    assert remove_bar != (bar_time_name in d)
+
+
 
 if GZIP:
     def test_gzip_problem():

@@ -383,8 +383,17 @@ static PyObject * vmp_get_profile_path(PyObject *module, PyObject *noargs) {
 
 #ifdef VMPROF_UNIX
 static PyObject *
-insert_real_time_thread(PyObject *module, PyObject * noargs) {
+insert_real_time_thread(PyObject *module, PyObject * args) {
     ssize_t thread_count;
+    pthread_t thread_id;
+
+    if (!PyArg_ParseTuple(args, "|k", &thread_id)) {
+        return NULL;
+    }
+
+    if (!thread_id) {
+        thread_id = pthread_self();
+    }
 
     if (!vmprof_is_enabled()) {
         PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
@@ -397,15 +406,24 @@ insert_real_time_thread(PyObject *module, PyObject * noargs) {
     }
 
     vmprof_aquire_lock();
-    thread_count = insert_thread(pthread_self(), -1);
+    thread_count = insert_thread(thread_id, -1);
     vmprof_release_lock();
 
     return PyLong_FromSsize_t(thread_count);
 }
 
 static PyObject *
-remove_real_time_thread(PyObject *module, PyObject * noargs) {
+remove_real_time_thread(PyObject *module, PyObject * args) {
     ssize_t thread_count;
+    pthread_t thread_id;
+
+    if (!PyArg_ParseTuple(args, "|k", &thread_id)) {
+        return NULL;
+    }
+
+    if (!thread_id) {
+        thread_id = pthread_self();
+    }
 
     if (!vmprof_is_enabled()) {
         PyErr_SetString(PyExc_ValueError, "vmprof is not enabled");
@@ -445,9 +463,9 @@ static PyMethodDef VMProfMethods[] = {
 #ifdef VMPROF_UNIX
     {"get_profile_path", vmp_get_profile_path, METH_NOARGS,
         "Profile path the profiler logs to."},
-    {"insert_real_time_thread", insert_real_time_thread, METH_NOARGS,
+    {"insert_real_time_thread", insert_real_time_thread, METH_VARARGS,
         "Insert a thread into the real time profiling list."},
-    {"remove_real_time_thread", remove_real_time_thread, METH_NOARGS,
+    {"remove_real_time_thread", remove_real_time_thread, METH_VARARGS,
         "Remove a thread from the real time profiling list."},
 #endif
     {NULL, NULL, 0, NULL}        /* Sentinel */
