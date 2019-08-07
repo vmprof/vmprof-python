@@ -102,19 +102,21 @@ else:
         """
         return _vmprof.resolve_addr(addr)
 
-def insert_real_time_thread():
+def insert_real_time_thread(thread_id=0):
     """ Inserts a thread into the list of threads to be sampled in real time mode.
         When enabling real time mode, the caller thread is inserted automatically.
         Returns the number of registered threads, or -1 if we can't insert thread.
+        Inserts the current thread if thread_id is not provided.
     """
-    return _vmprof.insert_real_time_thread()
+    return _vmprof.insert_real_time_thread(thread_id)
 
-def remove_real_time_thread():
+def remove_real_time_thread(thread_id=0):
     """ Removes a thread from the list of threads to be sampled in real time mode.
         When disabling in real time mode, *all* threads are removed automatically.
         Returns the number of registered threads, or -1 if we can't remove thread.
+        Removes the current thread if thread_id is not provided.
     """
-    return _vmprof.remove_real_time_thread()
+    return _vmprof.remove_real_time_thread(thread_id)
 
 
 def is_enabled():
