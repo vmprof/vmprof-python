@@ -406,11 +406,11 @@ def read_header(fileobj, buffer_so_far=None):
 
 
 def test_line_profiling():
-    tmpfile = tempfile.NamedTemporaryFile(delete=False)
-    vmprof.enable(tmpfile.fileno(), lines=True, native=False)  # enable lines profiling
-    function_foo()
-    vmprof.disable()
-    tmpfile.close()
+    filename = "/Users/palpant/test.vmprof"
+    with open(filename, "wb+") as fd:
+        vmprof.enable(fd.fileno(), lines=True, native=False)  # enable lines profiling
+        function_foo()
+        vmprof.disable()
 
     def walk(tree):
         assert len(tree.lines) >= len(tree.children)
@@ -418,7 +418,7 @@ def test_line_profiling():
         for v in six.itervalues(tree.children):
                 walk(v)
 
-    stats = read_profile(tmpfile.name)
+    stats = read_profile(filename)
     walk(stats.get_tree())
 
 def test_vmprof_show():
