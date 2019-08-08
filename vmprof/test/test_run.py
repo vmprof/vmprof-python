@@ -255,7 +255,6 @@ def test_vmprof_real_time():
     assert d[foo_time_name] > 0
 
 
-@py.test.mark.xfail()
 @py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
 @py.test.mark.skipif("sys.platform == 'win32'")
 @py.test.mark.parametrize("insert_foo,remove_bar", [
