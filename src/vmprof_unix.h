@@ -53,6 +53,7 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 void segfault_handler(int arg);
 int _vmprof_sample_stack(struct profbuf_s *p, PY_THREAD_STATE_T * tstate, ucontext_t * uc);
 void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext);
+void sigalrm_handler(int sig_nr, siginfo_t* info, void *ucontext);
 
 
 /* *************************************************************
@@ -60,10 +61,13 @@ void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext);
  * *************************************************************
  */
 
+
 int install_sigprof_handler(void);
 int remove_sigprof_handler(void);
-int install_sigprof_timer(void);
-int remove_sigprof_timer(void);
+int install_sigalrm_handler(void);
+int remove_sigalrm_handler(void);
+int install_timer(void);
+int remove_timer(void);
 void atfork_disable_timer(void);
 void atfork_enable_timer(void);
 void atfork_close_profile_file(void);

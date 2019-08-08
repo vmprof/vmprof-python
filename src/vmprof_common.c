@@ -281,20 +281,16 @@ ssize_t remove_threads(void)
 
 int broadcast_signal_for_threads(void)
 {
-    int done = 1;
     size_t i = 0;
-    pthread_t self = pthread_self();
     pthread_t tid;
     while (i < thread_count) {
         tid = threads[i];
-        if (pthread_equal(tid, self)) {
-            done = 0;
-        } else if (pthread_kill(tid, SIGALRM)) {
+        if (pthread_kill(tid, SIGPROF)) {
             remove_thread(tid, i);
         }
         i++;
     }
-    return done;
+    return 0;
 }
 
 int is_main_thread(void)

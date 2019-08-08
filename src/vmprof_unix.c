@@ -170,6 +170,19 @@ void vmprof_release_lock(void) {
     __sync_lock_release(&spinlock);
 }
 
+void sigalrm_handler(int sig_nr, siginfo_t* info, void *ucontext)
+{
+    // SIGNAL ABUSE AHEAD
+    // On linux, the prof timer will deliver the signal to the thread which triggered the timer,
+    // because these timers are based on process and system time, and as such, are thread-aware.
+    // For the real timer, the signal gets delivered to the main thread, seemingly always.
+    // Consequently if we want to sample multiple threads, we need to forward this signal.
+    // This sigalrm handler broadcasts SIGPROF to all registered threads to trigger stack sampling.
+    if (vmprof_get_signal_type() == SIGALRM && is_main_thread()) {
+        broadcast_signal_for_threads();
+    }
+}
+
 void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
 {
     int commit;
@@ -196,20 +209,6 @@ void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     // get_current_thread_state returns a sane result
     while (__sync_lock_test_and_set(&spinlock, 1)) {
     }
-
-#ifdef VMPROF_UNIX
-    // SIGNAL ABUSE AHEAD
-    // On linux, the prof timer will deliver the signal to the thread which triggered the timer,
-    // because these timers are based on process and system time, and as such, are thread-aware.
-    // For the real timer, the signal gets delivered to the main thread, seemingly always.
-    // Consequently if we want to sample multiple threads, we need to forward this signal.
-    if (vmprof_get_signal_type() == SIGALRM) {
-        if (is_main_thread() && broadcast_signal_for_threads()) {
-            __sync_lock_release(&spinlock);
-            return;
-        }
-    }
-#endif
 
     prevhandler = signal(SIGSEGV, &segfault_handler);
     int fault_code = setjmp(restore_point);
@@ -266,8 +265,9 @@ int install_sigprof_handler(void)
     sa.sa_sigaction = sigprof_handler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
     if (sigemptyset(&sa.sa_mask) == -1 ||
-        sigaction(vmprof_get_signal_type(), &sa, NULL) == -1)
+        sigaction(SIGPROF, &sa, NULL) == -1)
         return -1;
+
     return 0;
 }
 
@@ -278,14 +278,43 @@ int remove_sigprof_handler(void)
     ign_sigint.sa_flags = 0;
     sigemptyset(&ign_sigint.sa_mask);
 
-    if (sigaction(vmprof_get_signal_type(), &ign_sigint, NULL) < 0) {
+    if (sigaction(SIGPROF, &ign_sigint, NULL) < 0) {
         fprintf(stderr, "Could not remove the signal handler (for profiling)\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int install_sigalrm_handler(void)
+{
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = sigalrm_handler;
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+    if (sigemptyset(&sa.sa_mask) == -1 ||
+        sigaction(SIGALRM, &sa, NULL) == -1) {
         return -1;
     }
     return 0;
 }
 
-int install_sigprof_timer(void)
+int remove_sigalrm_handler(void)
+{
+    struct sigaction ign_sigint, prev;
+    ign_sigint.sa_handler = SIG_IGN;
+    ign_sigint.sa_flags = 0;
+    sigemptyset(&ign_sigint.sa_mask);
+
+    if (sigaction(SIGALRM, &ign_sigint, NULL) < 0) {
+        fprintf(stderr, "Could not remove the signal handler (for profiling)\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int install_timer(void)
 {
     static struct itimerval timer;
     timer.it_interval.tv_sec = 0;
@@ -296,7 +325,7 @@ int install_sigprof_timer(void)
     return 0;
 }
 
-int remove_sigprof_timer(void)
+int remove_timer(void)
 {
     static struct itimerval timer;
     timerclear(&(timer.it_interval));
@@ -311,7 +340,7 @@ int remove_sigprof_timer(void)
 void atfork_disable_timer(void)
 {
     if (vmprof_get_profile_interval_usec() > 0) {
-        remove_sigprof_timer();
+        remove_timer();
         vmprof_set_enabled(0);
     }
 }
@@ -326,7 +355,7 @@ void atfork_close_profile_file(void)
 void atfork_enable_timer(void)
 {
     if (vmprof_get_profile_interval_usec() > 0) {
-        install_sigprof_timer();
+        install_timer();
         vmprof_set_enabled(1);
     }
 }
@@ -366,7 +395,14 @@ int vmprof_enable(int memory, int native, int real_time)
         goto error;
     if (install_sigprof_handler() == -1)
         goto error;
-    if (install_sigprof_timer() == -1)
+    /* When using real-time profiling, we also register a handler for SIGALRM,
+     * which will broadcast SIGPROF to all registered threads.
+     */
+    if (real_time) {
+        if (install_sigalrm_handler() == -1)
+            goto error;
+    }
+    if (install_timer() == -1)
         goto error;
     signal_handler_ignore = 0;
     return 0;
@@ -398,15 +434,17 @@ int vmprof_disable(void)
     disable_cpyprof();
 #endif
 
-    if (remove_sigprof_timer() == -1) {
+    if (remove_timer() == -1) {
         return -1;
     }
     if (remove_sigprof_handler() == -1) {
         return -1;
     }
 #ifdef VMPROF_UNIX
-    if ((vmprof_get_signal_type() == SIGALRM) && remove_threads() == -1) {
-        return -1;
+    if (vmprof_get_signal_type() == SIGALRM) {
+        if (remove_threads() == -1 || remove_sigalrm_handler() == -1) {
+            return -1;
+        }
     }
 #endif
     flush_codes();
