@@ -48,4 +48,5 @@ int prepare_concurrent_bufs(void);
 struct profbuf_s *reserve_buffer(int fd);
 void commit_buffer(int fd, struct profbuf_s *buf);
 void cancel_buffer(struct profbuf_s *buf);
+int flush_buffers(int fd);
 int shutdown_concurrent_bufs(int fd);
