@@ -318,6 +318,32 @@ def test_insert_other_real_time_thread(insert_foo, remove_bar):
     assert remove_bar != (bar_time_name in d)
 
 
+@py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
+@py.test.mark.skipif("sys.platform == 'win32'")
+def test_vmprof_real_time_many_threads():
+    import threading
+    prof = vmprof.Profiler()
+    wait = 0.5
+
+    # 12 is chosen to force multiple reallocs of the thread_size_step.
+    n_threads = 12
+    threads = []
+    for _ in range(n_threads):
+        thread = threading.Thread(target=functime_foo, args=[wait, True])
+        threads.append(thread)
+
+    with prof.measure(period=0.1, real_time=True):
+        for thread in threads:
+            thread.start()
+        functime_bar(wait, False)
+        for thread in threads:
+            thread.join()
+    stats = prof.get_stats()
+    tprof = stats.top_profile()
+    d = dict(tprof)
+    assert foo_time_name in d
+    assert bar_time_name in d
+
 
 if GZIP:
     def test_gzip_problem():
