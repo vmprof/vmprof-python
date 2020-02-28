@@ -1,5 +1,5 @@
 sudo: required
-dist: trusty
+dist: xenial
 language: python
 cache: apt
 
@@ -17,9 +17,10 @@ matrix:
         - docker
       env:
         - BUILD_LINUX_WHEEL=1 UPLOAD_SDIST=1
-    - python: 3.4
     - python: 3.5
     - python: 3.6
+    - python: 3.7
+    - python: 3.8
     - os: osx
       language: generic
       osx_image: xcode6.4 # 6.4 is OS X 10.10.x
@@ -29,7 +30,7 @@ matrix:
       language: generic
       osx_image: xcode6.4 # 6.4 is OS X 10.10.x
       env:
-        - PYENV=3.4.6 MAC_WHEEL=1
+        - PYENV=3.7.6 MAC_WHEEL=1
     - os: osx
       language: generic
       osx_image: xcode6.4 # 6.4 is OS X 10.10.x
@@ -60,8 +61,8 @@ addons:
     packages:
     - python-dev
     - libdwarf-dev
-    - libelfg0-dev
-    - libunwind8-dev
+    - libelf-dev
+    - libunwind-dev
 
 install:
   - bash ./travis/install.sh

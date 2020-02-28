@@ -19,4 +19,4 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
 fi
 
 pip install .
-pip install -r test_requirements.txt
+pip install --upgrade -r test_requirements.txt
