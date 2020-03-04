@@ -29,8 +29,8 @@ def build_argparser():
     parser.add_argument(
         '--period', '-p',
         type=float,
-        default=0.001,
-        help='Sampling period (in microseconds)'
+        default=0.00099,
+        help='Sampling period (in seconds)'
     )
 
     parser.add_argument(

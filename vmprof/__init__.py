@@ -59,7 +59,7 @@ if IS_PYPY:
         MINOR = pypy_version_info[1]
         PATCH = pypy_version_info[2]
         if not isinstance(period, float):
-            raise ValueError("You need to pass a float as an argument")
+            raise ValueError("period must be a float, not %s" % type(period))
         if warn and pypy_version_info < (4, 1, 0):
             raise Exception("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
         if warn and memory:
@@ -81,7 +81,7 @@ else:
     # CPYTHON
     def enable(fileno, period=DEFAULT_PERIOD, memory=False, lines=False, native=None, real_time=False):
         if not isinstance(period, float):
-            raise ValueError("You need to pass a float as an argument")
+            raise ValueError("period must be a float, not %s" % type(period))
         native = _is_native_enabled(native)
         _vmprof.enable(fileno, period, memory, lines, native, real_time)
 

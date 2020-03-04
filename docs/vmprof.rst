@@ -76,8 +76,10 @@ After ``-m vmprof`` you can specify some options:
 
 * ``--web-auth`` - auth token for user name support in the server.
 
-* ``-p period`` - float that gives you how often the profiling happens
-  (the max is about 300 Hz, rather don't touch it).
+* ``-p period`` - seconds between profile runs, sets the profiling frequency.
+  The value must be between 1e-6 and 1.0, and should not result in a round
+  number when converted to Hz to avoid aliasing problems. Default is 0.00099
+  which results in ~1kHz.
 
 * ``-n`` - enable all C frames, only useful if you have a debug build of
   PyPy or CPython.
@@ -95,7 +97,7 @@ Example `config.ini` file::
   [global]
   web-url = vmprof.com
   web-auth = ffb7d4bee2d6436bbe97e4d191bf7d23f85dfeb2
-  period = 0.1
+  period = 0.0099
 
 .. _`vmprof-server`: https://github.com/vmprof/vmprof-server
 .. _`server`: http://vmprof.com
