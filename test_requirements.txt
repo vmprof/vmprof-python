@@ -6,3 +6,4 @@ pytest
 hypothesis
 colorama
 pytz
+attrs

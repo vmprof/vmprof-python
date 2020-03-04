@@ -371,7 +371,7 @@ class Trace(object):
 
 def iter_ranges(numbers):
     if len(numbers) == 0:
-        raise StopIteration
+        return
     numbers.sort()
     first = numbers[0]
     last = numbers[0]
@@ -382,7 +382,7 @@ def iter_ranges(numbers):
                 last = i
                 first = i
             else:
-                raise StopIteration
+                return
         else:
             last = i
     yield range(first, last+1)
