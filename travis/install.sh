@@ -3,7 +3,6 @@
 set -e
 
 if [[ "$(uname -s)" == 'Darwin' ]]; then
-    brew update || brew update
     git clone --depth 1 https://github.com/yyuu/pyenv.git ~/.pyenv
     PYENV_ROOT="$HOME/.pyenv"
     PATH="$PYENV_ROOT/bin:$PATH"
@@ -12,6 +11,7 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
     pyenv global $PYENV
     pyenv rehash
     echo "python version $(python --version)"
+    # these are noisy, turn off echo
     python -m pip install --user virtualenv
 
     python -m virtualenv ~/.venv

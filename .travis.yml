@@ -23,26 +23,6 @@ matrix:
     - python: 3.8
     - os: osx
       language: generic
-      osx_image: xcode6.4 # 6.4 is OS X 10.10.x
-      env:
-        - PYENV=2.7.13 MAC_WHEEL=1
-    - os: osx
-      language: generic
-      osx_image: xcode6.4 # 6.4 is OS X 10.10.x
-      env:
-        - PYENV=3.7.6 MAC_WHEEL=1
-    - os: osx
-      language: generic
-      osx_image: xcode6.4 # 6.4 is OS X 10.10.x
-      env:
-        - PYENV=3.5.3 MAC_WHEEL=1
-    - os: osx
-      language: generic
-      osx_image: xcode6.4 # 6.4 is OS X 10.10.x
-      env:
-        - PYENV=3.6.1 MAC_WHEEL=1
-    - os: osx
-      language: generic
       osx_image: xcode7.3 # 7.3 is OS X 10.11.x
       env:
         - PYENV=3.5.3
@@ -56,6 +36,26 @@ matrix:
       osx_image: xcode8.2 # 8.2 is macOS 10.12.x
       env:
         - PYENV=3.6.1
+    - os: osx
+      language: generic
+      osx_image: xcode9.4
+      env:
+        - PYENV=2.7.13 MAC_WHEEL=1
+    - os: osx
+      language: generic
+      osx_image: xcode9.4
+      env:
+        - PYENV=3.7.6 MAC_WHEEL=1
+    - os: osx
+      language: generic
+      osx_image: xcode9.4
+      env:
+        - PYENV=3.5.3 MAC_WHEEL=1
+    - os: osx
+      language: generic
+      osx_image: xcode9.4
+      env:
+        - PYENV=3.6.1 MAC_WHEEL=1
 addons:
   apt:
     packages:
