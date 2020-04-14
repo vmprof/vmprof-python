@@ -4,7 +4,7 @@ set -e -x
 bash /io/travis/build-libunwind.sh
 
 # Compile wheels
-for PYV in "cp27-cp27m" "cp27-cp27mu" "cp34-cp34m" "cp35-cp35m" "cp36-cp36m"
+for PYV in "cp27-cp27m" "cp27-cp27mu" "cp34-cp34m" "cp35-cp35m" "cp36-cp36m" "cp38-cp38m"
 do
     /opt/python/${PYV}/bin/pip install -r /io/dev_requirements.txt
     /opt/python/${PYV}/bin/pip wheel /io/ -w wheels/
