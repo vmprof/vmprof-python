@@ -10,10 +10,9 @@ Supported platform combinations (all combinations are supported):
 CPython should be tested on both TeamCity and Travis, PyPy is more
 patchy since there is never a new enough version on either. Since PyPy
 only exercises the pure python part, please test it each time you change
-and interface between _vmprof and vmprof.
+and interface between `_vmprof` and `vmprof`.
 
-Signals
-=======
+## Signals
 
 On OS X and Linux we handle signal handlers. This means that we have
 to be very very careful at what we can and cannot do. Notably, we can't
