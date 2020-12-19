@@ -15,7 +15,7 @@ class Stats(object):
             self.profile_lines = state.profile_lines
             self.profile_memory = state.profile_memory
         else:
-            # unkown, for tests only
+            # unknown, for tests only
             self.profile_lines = False
             self.profile_memory = False
         self.generate_top()
