@@ -66,7 +66,7 @@ class PrettyPrinter(AbstractPrinter):
         """
         assert(prune_percent is None or (prune_percent >= 0 and prune_percent <= 100))
         assert(prune_level is None or (prune_level >= 0 and prune_level <= 1000))
-        assert(indent is None or (indent >= 0 and indent <= 4))
+        assert(indent is None or (indent >= 0 and indent <= 8))
         self._prune_percent = prune_percent or 0.
         self._prune_level = prune_level or 1000
         self._indent = indent or 2
@@ -85,6 +85,11 @@ class PrettyPrinter(AbstractPrinter):
     def _print_tree(self, tree):
         total = float(tree.count)
 
+        if self._indent:
+            level_indent = "|" + "." * (self._indent-1)
+        else:
+            level_indent = ""
+
         def print_node(parent, node, level):
             parent_name = parent.name if parent else None
 
@@ -101,7 +106,7 @@ class PrettyPrinter(AbstractPrinter):
                     block_type, funname, funline, filename = node.name.split(':')
 
                     p2 = color(funname, color.BLUE, bold=True)
-                    p2b = color(('.' * level * self._indent), color.BLUE)
+                    p2b = color(level_indent * level, color.BLUE)
 
                     p3 = []
                     if os.path.dirname(filename):
@@ -113,11 +118,11 @@ class PrettyPrinter(AbstractPrinter):
                 elif parts == 1:
                     block_type, funname = node.name.split(':')
                     p2 = color("JIT code", color.RED, bold=True)
-                    p2b = color('.' * level * self._indent, color.RED, bold=False)
+                    p2b = color(level_indent * level, color.RED, bold=False)
                     p3 = color(funname, color.WHITE, bold=False)
                 else:
                     p2 = color(node.name, color.WHITE)
-                    p2b = color(('.' * level * self._indent), color.WHITE)
+                    p2b = color(level_indent * level, color.WHITE)
                     p3 = "<unknown>"
 
                 p1 = color("{:>5}%".format(perc), color.WHITE, bold=True)
