@@ -202,7 +202,7 @@ class FlatPrinter(AbstractPrinter):
                 print(
                         f'{percent:10.3f} - '
                         f'{ndescr.block_type}:{ndescr.funname}:'
-                        f'{ndescr.funline}:{ndescr.filename}')
+                        f'{ndescr.filename}:{ndescr.funline}')
 
 
 class LinesPrinter(AbstractPrinter):
