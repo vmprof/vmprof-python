@@ -155,7 +155,7 @@ in the total.)
 
 Sometimes it may also be desirable to get timings *inclusive* of called functions:
 ```
-vmprofshow vmprof_cpuburn.dat flat --include-callees                                                                                                                                                                                                                                                                                                                                                                 andreask_work@dunkel 15:31
+$ vmprofshow vmprof_cpuburn.dat flat --include-callees                                                                                                                                                                                                                                                                                                                                                                 andreask_work@dunkel 15:31
    100.000% - <native symbol 0x7f0dce8cca80>:-:0
    100.000% - test:cpuburn.py:36
    100.000% - burn:cpuburn.py:27
