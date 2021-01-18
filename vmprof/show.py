@@ -203,9 +203,12 @@ class FlatPrinter(AbstractPrinter):
 
             if percent >= self.percent_cutoff:
                 print(
-                        f'{percent:10.3f}% - '
-                        f'{color(ndescr.funname, color.WHITE, bold=True)}:'
-                        f'{ndescr.filename}:{ndescr.funline}')
+                        '{percent:10.3f}% - {funcname}:{filename}:{funline}'
+                        .format(
+                            percent=percent,
+                            funcname=color(ndescr.funname, color.WHITE, bold=True),
+                            filename=ndescr.filename,
+                            funline=ndescr.funline))
 
 
 class LinesPrinter(AbstractPrinter):
