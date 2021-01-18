@@ -58,4 +58,4 @@ if __name__ == '__main__':
     vmprof.disable()
 
     print("\nProfile written to {}.".format(PROFILE_FILE))
-    print("To view the profile, run: vmprofshow {}".format(PROFILE_FILE))
+    print("To view the profile, run: vmprofshow {} tree".format(PROFILE_FILE))
