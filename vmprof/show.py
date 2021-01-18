@@ -158,7 +158,8 @@ class FlatPrinter(AbstractPrinter):
     A per-function pretty-printer of vmprof profiles.
     """
 
-    def __init__(self, no_native, percent_cutoff):
+    def __init__(self, include_callees, no_native, percent_cutoff):
+        self.include_callees = include_callees
         self.no_native = no_native
         self.percent_cutoff = percent_cutoff
 
@@ -178,9 +179,11 @@ class FlatPrinter(AbstractPrinter):
             if self.no_native and ndescr.block_type == 'n':
                 return
 
-            mycount = node.count - sum(
-                    0 if parse_block_name(ch.name)[0] == 'n' and self.no_native
-                    else ch.count
+            mycount = node.count
+            if not self.include_callees:
+                mycount = mycount - sum(
+                        0 if parse_block_name(ch.name)[0] == 'n' and self.no_native
+                        else ch.count
 
                     for ch in six.itervalues(node.children))
 
@@ -332,6 +335,7 @@ def main():
     parser_lines.set_defaults(mode='lines')
 
     parser_flat = subp.add_parser("flat")
+    parser_flat.add_argument('--include-callees', action="store_true")
     parser_flat.add_argument('--no-native', action="store_true")
     parser_flat.add_argument('--percent-cutoff', type=float, default=0)
     parser_flat.set_defaults(mode='flat')
@@ -348,6 +352,7 @@ def main():
         pp = LinesPrinter(filter=args.filter)
     elif mode == 'flat':
         pp = FlatPrinter(
+                include_callees=args.include_callees,
                 no_native=args.no_native,
                 percent_cutoff=args.percent_cutoff)
     elif mode == 'tree':
