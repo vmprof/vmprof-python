@@ -89,7 +89,7 @@ $ python -m vmprof --lines -o <output-file> <your program> <your program args>
 
 Or pass `lines=True` argument to `vmprof.enable` function, when calling vmprof from code.
 
-To see line statistics for all functions add the `--lines` argument to `vmprofshow`:
+To see line statistics for all functions use the  `lines` mode of `vmprofshow`:
 ```console
 $ vmprofshow <output-file> lines
 ```
