@@ -23,9 +23,9 @@ On Windows this means you need Microsoft Visual C++ Compiler for your Python ver
 
 Setting up development can be done using the following commands:
 
-        $ virtualenv -p /usr/bin/python3 vmprof3
-        $ source vmprof3/bin/activate
-        $ python setup.py develop
+    $ virtualenv -p /usr/bin/python3 vmprof3
+    $ source vmprof3/bin/activate
+    $ python setup.py develop
 
 You need to install python development packages. In case of e.g. Debian or Ubuntu the package you need is `python3-dev` and `libunwind-dev`.
 Now it is time to write a test and implement your feature. If you want
