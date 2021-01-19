@@ -115,6 +115,7 @@ Line #     Hits   % Hits  Line Contents
 ```
 
 ### "Flattened" output
+`vmprofshow` also has a `flat` mode.
 
 While the tree-based and line-based output styles for `vmprofshow` give a good
 view of where time is spent when viewed from the 'root' of the call graph,
