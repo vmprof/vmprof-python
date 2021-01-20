@@ -8,6 +8,7 @@ import sys
 import tokenize
 import vmprof
 import argparse
+from collections import namedtuple
 
 from vmprof.stats import EmptyProfileFile
 
@@ -91,8 +92,6 @@ class PrettyPrinter(AbstractPrinter):
             level_indent = ""
 
         def print_node(parent, node, level):
-            parent_name = parent.name if parent else None
-
             perc = round(100. * float(node.count) / total, 1)
             if parent and parent.count:
                 perc_of_parent = round(100. * float(node.count) / float(parent.count), 1)
@@ -131,6 +130,85 @@ class PrettyPrinter(AbstractPrinter):
                 print("{} {} {}  {}  {}".format(p1, p2b, p2, p4, p3))
 
         self._walk_tree(None, tree, 0, print_node)
+
+
+NodeDescr = namedtuple(
+        'NodeDescr',
+        ['block_type', 'funname', 'funline', 'filename'])
+
+
+def parse_block_name(node_name):
+    nparts = node_name.count(':')+1
+
+    block_type = None
+    funline = None
+    filename = None
+    if nparts == 4:
+        block_type, funname, funline, filename = node_name.split(':')
+    elif nparts == 2:
+        block_type, funname = node_name.split(':')
+    else:
+        funname = node_name
+
+    return NodeDescr(block_type, funname, funline, filename)
+
+
+class FlatPrinter(AbstractPrinter):
+    """
+    A per-function pretty-printer of vmprof profiles.
+    """
+
+    def __init__(self, include_callees, no_native, percent_cutoff):
+        self.include_callees = include_callees
+        self.no_native = no_native
+        self.percent_cutoff = percent_cutoff
+
+    def _show(self, tree):
+        self._print_tree(tree)
+
+    def _walk_tree(self, parent, node, callback):
+        callback(parent, node)
+        for c in six.itervalues(node.children):
+            self._walk_tree(node, c, callback)
+
+    def _print_tree(self, tree):
+        func_id_to_count = {}
+
+        def collect_node(parent, node):
+            ndescr = parse_block_name(node.name)
+            if self.no_native and ndescr.block_type == 'n':
+                return
+
+            mycount = node.count
+            if not self.include_callees:
+                mycount = mycount - sum(
+                        0 if parse_block_name(ch.name)[0] == 'n' and self.no_native
+                        else ch.count
+
+                    for ch in six.itervalues(node.children))
+
+            func_id_to_count[ndescr] = func_id_to_count.get(ndescr, 0) + mycount
+
+        self._walk_tree(None, tree, collect_node)
+
+        cost_list = sorted(
+                func_id_to_count.items(),
+                key=(lambda item: item[1]),
+                reverse=True)
+
+        total = float(tree.count)
+
+        for ndescr, count in cost_list:
+            percent = count/total*100
+
+            if percent >= self.percent_cutoff:
+                print(
+                        '{percent:10.3f}% - {funcname}:{filename}:{funline}'
+                        .format(
+                            percent=percent,
+                            funcname=color(ndescr.funname, color.WHITE, bold=True),
+                            filename=ndescr.filename,
+                            funline=ndescr.funline))
 
 
 class LinesPrinter(AbstractPrinter):
@@ -232,42 +310,61 @@ class LinesPrinter(AbstractPrinter):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("profile")
+    subp = parser.add_subparsers()
 
-    parser.add_argument(
+    parser_tree = subp.add_parser("tree")
+    parser_tree.add_argument(
         '--prune_percent',
         type=float,
         default=0,
         help="Prune output of a profile stats node below specified CPU samples.")
-
-    parser.add_argument(
+    parser_tree.add_argument(
         '--prune_level',
         type=int,
         default=None,
         help='Prune output of a profile stats node below specified depth.')
-
-    parser.add_argument(
+    parser_tree.add_argument(
         '--indent',
         type=int,
         default=2,
         help='The indention per level within the call graph.')
+    parser_tree.set_defaults(mode='tree')
 
-    parser.add_argument('--lines', dest='lines', action='store_true')
-    parser.set_defaults(lines=False)
-
-    parser.add_argument('--filter', dest='filter', type=str,
+    parser_lines = subp.add_parser("lines")
+    parser_lines.add_argument('--filter', dest='filter', type=str,
                         default=None, help="Filters the console output when "
                         "vmprofshow is invoked with --lines. Filters by "
                         "function names or filenames.")
+    parser_lines.set_defaults(mode='lines')
+
+    parser_flat = subp.add_parser("flat")
+    parser_flat.add_argument('--include-callees', action="store_true")
+    parser_flat.add_argument('--no-native', action="store_true")
+    parser_flat.add_argument('--percent-cutoff', type=float, default=0)
+    parser_flat.set_defaults(mode='flat')
 
     args = parser.parse_args()
 
-    if args.lines:
+    mode = getattr(args, 'mode', None)
+    if mode is None:
+        parser. print_usage()
+        import sys
+        sys.exit(1)
+
+    if mode == 'lines':
         pp = LinesPrinter(filter=args.filter)
-    else:
+    elif mode == 'flat':
+        pp = FlatPrinter(
+                include_callees=args.include_callees,
+                no_native=args.no_native,
+                percent_cutoff=args.percent_cutoff)
+    elif mode == 'tree':
         pp = PrettyPrinter(
             prune_percent=args.prune_percent,
             prune_level=args.prune_level,
             indent=args.indent)
+    else:
+        raise ValueError("invalid value for 'mode'")
 
     pp.show(args.profile)
 
