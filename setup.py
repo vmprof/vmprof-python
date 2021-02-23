@@ -61,6 +61,8 @@ else:
                 libraries.append('unwind-x86_64')
             else:
                 libraries.append('unwind-x86')
+        elif platform.machine() == 'aarch64':
+            libraries.append('unwind-aarch64')
         else:
             raise NotImplementedError("unknown platform.machine(): %s" %
                                       platform.machine())

@@ -1,3 +1,4 @@
+import platform
 import sys
 import pytest
 import vmprof
@@ -23,7 +24,9 @@ class TestStack(object):
             source = fd.read().decode()
             libs = [] #['unwind', 'unwind-x86_64']
             if sys.platform.startswith('linux'):
-                libs = ['unwind', 'unwind-x86_64']
+                libs = ['unwind']
+            if platform.machine() == 'x86_64':
+                libs.append('unwind-x86_64')
             # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
             stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
                                  define_macros=[('_CFFI_USE_EMBEDDING',1), ('PY_TEST',1),
