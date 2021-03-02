@@ -17,6 +17,6 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
     python -m virtualenv ~/.venv
     source ~/.venv/bin/activate
 fi
-
+pip install --upgrade pip
 pip install .
 pip install --upgrade -r test_requirements.txt
