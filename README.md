@@ -75,6 +75,9 @@ $ vmprofshow vmprof_cpuburn.dat tree
   0.0% ........ JIT code  0.0%  0x7fa7dba583b0
 ```
 
+There is also an option ``--html`` to emit the same information as HTML to view
+in a browser. In this case, the tree branches can be interactively expanded and
+collapsed.
 
 ### Line-based output
 
