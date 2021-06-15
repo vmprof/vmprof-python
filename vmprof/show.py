@@ -48,6 +48,7 @@ class AbstractPrinter(object):
         except EmptyProfileFile as e:
             print("No stack trace has been recorded (profile is empty)!")
 
+
 class PrettyPrinter(AbstractPrinter):
     """
     A pretty print for vmprof profile files.
@@ -83,53 +84,102 @@ class PrettyPrinter(AbstractPrinter):
         for c in six.itervalues(node.children):
             self._walk_tree(node, c, level, callback)
 
-    def _print_tree(self, tree):
-        total = float(tree.count)
+    color = color
+
+    def _print_node(self, parent, node, level, total):
+        color = self.color
+        perc = round(100. * float(node.count) / total, 1)
+        if parent and parent.count:
+            perc_of_parent = round(100. * float(node.count) / float(parent.count), 1)
+        else:
+            perc_of_parent = 100.
 
         if self._indent:
             level_indent = "|" + "." * (self._indent-1)
         else:
             level_indent = ""
 
-        def print_node(parent, node, level):
-            perc = round(100. * float(node.count) / total, 1)
-            if parent and parent.count:
-                perc_of_parent = round(100. * float(node.count) / float(parent.count), 1)
+        if perc >= self._prune_percent:
+            parts = node.name.count(':')
+
+            if parts == 3:
+                block_type, funname, funline, filename = node.name.split(':')
+
+                p2 = color(funname, color.BLUE, bold=True)
+                indent = color(level_indent * level, color.BLUE)
+
+                p3 = []
+                if os.path.dirname(filename):
+                    p3.append(color(os.path.dirname(filename) + '/', color.WHITE))
+                p3.append(color(os.path.basename(filename), color.WHITE, bold=True) + ":")
+                p3.append(color("{}".format(funline), color.WHITE))
+                p3 = ''.join(p3)
+
+            elif parts == 1:
+                block_type, funname = node.name.split(':')
+                p2 = color("JIT code", color.RED, bold=True)
+                indent = color(level_indent * level, color.RED, bold=False)
+                p3 = color(funname, color.WHITE, bold=False)
             else:
-                perc_of_parent = 100.
+                p2 = color(node.name, color.WHITE)
+                indent = color(level_indent * level, color.WHITE)
+                p3 = color("<unknown>", color.WHITE)
 
-            if perc >= self._prune_percent:
-                parts = node.name.count(':')
+            p1 = color("{:>5}%".format(perc), color.WHITE, bold=True)
+            p4 = color("{}%".format(perc_of_parent), color.WHITE, bold=True)
 
-                if parts == 3:
-                    block_type, funname, funline, filename = node.name.split(':')
+            self._print_line(p1, indent, "{}  {}  {}".format(p2, p4, p3))
 
-                    p2 = color(funname, color.BLUE, bold=True)
-                    p2b = color(level_indent * level, color.BLUE)
+    def _print_line(self, leader, indent, ln):
+        print("{} {} {}".format(leader, indent, ln))
 
-                    p3 = []
-                    if os.path.dirname(filename):
-                        p3.append(color(os.path.dirname(filename) + '/', color.WHITE))
-                    p3.append(color(os.path.basename(filename), color.WHITE, bold=True) + ":")
-                    p3.append(color("{}".format(funline), color.WHITE))
-                    p3 = ''.join(p3)
+    def _print_tree(self, tree):
+        from functools import partial
+        self._walk_tree(
+                None, tree, 0,
+                partial(self._print_node, total=float(tree.count)))
 
-                elif parts == 1:
-                    block_type, funname = node.name.split(':')
-                    p2 = color("JIT code", color.RED, bold=True)
-                    p2b = color(level_indent * level, color.RED, bold=False)
-                    p3 = color(funname, color.WHITE, bold=False)
-                else:
-                    p2 = color(node.name, color.WHITE)
-                    p2b = color(level_indent * level, color.WHITE)
-                    p3 = "<unknown>"
 
-                p1 = color("{:>5}%".format(perc), color.WHITE, bold=True)
-                p4 = color("{}%".format(perc_of_parent), color.WHITE, bold=True)
+class html_color(six.text_type):
+    RED = 'red'
+    WHITE = 'black'
+    BLUE = 'blue'
+    BOLD = 'bold'
 
-                print("{} {} {}  {}  {}".format(p1, p2b, p2, p4, p3))
+    def __new__(cls, content, color, bold=False):
+        from html import escape
+        content = escape(content)
+        if bold:
+            content = "<b>{}</b>".format(content)
+        if color:
+            content = "<span style='color: {}'>{}</span>".format(color, content)
+        return content
 
-        self._walk_tree(None, tree, 0, print_node)
+
+class HTMLPrettyPrinter(PrettyPrinter):
+    def _show(self, tree):
+        print("<!doctype html>")
+        print("<body>")
+        print("<style>")
+        print("  details { margin-left: 3em; }")
+        print("</style>")
+        self._print_tree(tree)
+        print("</body>")
+
+    def _walk_tree(self, parent, node, level, callback):
+        print("<details>")
+        callback(parent, node, level)
+        level += 1
+        if level > self._prune_level:
+            return
+        for c in six.itervalues(node.children):
+            self._walk_tree(node, c, level, callback)
+        print("</details>")
+
+    def _print_line(self, leader, indent, ln):
+        print("<summary><tt>{} {}</tt><br></summary>".format(leader, ln))
+
+    color = html_color
 
 
 NodeDescr = namedtuple(
@@ -307,6 +357,7 @@ class LinesPrinter(AbstractPrinter):
             stream.write("\n")
         stream.write("\n")
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("profile")
@@ -314,10 +365,14 @@ def main():
 
     parser_tree = subp.add_parser("tree")
     parser_tree.add_argument(
+        '--html',
+        action="store_true",
+        help='Output the tree as interactive HTML.')
+    parser_tree.add_argument(
         '--prune_percent',
         type=float,
         default=0,
-        help="Prune output of a profile stats node below specified CPU samples.")
+        help='Prune output of a profile stats node below specified CPU samples.')
     parser_tree.add_argument(
         '--prune_level',
         type=int,
@@ -359,7 +414,11 @@ def main():
                 no_native=args.no_native,
                 percent_cutoff=args.percent_cutoff)
     elif mode == 'tree':
-        pp = PrettyPrinter(
+        if args.html:
+            cls = HTMLPrettyPrinter
+        else:
+            cls = PrettyPrinter
+        pp = cls(
             prune_percent=args.prune_percent,
             prune_level=args.prune_level,
             indent=args.indent)
