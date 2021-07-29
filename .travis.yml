@@ -56,6 +56,8 @@ matrix:
       osx_image: xcode9.4
       env:
         - PYENV=3.6.1 MAC_WHEEL=1
+    - os: linux
+      arch: ppc64le
 addons:
   apt:
     packages:
