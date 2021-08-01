@@ -58,8 +58,9 @@ matrix:
     #     - PYENV=3.6.1 MAC_WHEEL=1
     - os: linux
       arch: ppc64le
+      python: 3.6
       env:
-        - PYENV=3.8.7
+        - PYENV=3.6.12
 addons:
   apt:
     packages:
