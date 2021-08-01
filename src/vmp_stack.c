@@ -575,7 +575,7 @@ loaded_libunwind:
 #define PREFIX
 #define USCORE
 #else
-#define USCORE _
+#define USCORE "_"
 #endif
         if ((unw_getcontext = dlsym(libhandle, U_PREFIX PREFIX USCORE "getcontext")) == NULL) {
             goto bail_out;
