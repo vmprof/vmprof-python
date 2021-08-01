@@ -12,15 +12,15 @@ env:
 
 matrix:
   include:
-    - python: 2.7
-      services:
-        - docker
-      env:
-        - BUILD_LINUX_WHEEL=1 UPLOAD_SDIST=1
-    - python: 3.5
-    - python: 3.6
-    - python: 3.7
-    - python: 3.8
+    # - python: 2.7
+    #   services:
+    #     - docker
+    #   env:
+    #     - BUILD_LINUX_WHEEL=1 UPLOAD_SDIST=1
+    # - python: 3.5
+    # - python: 3.6
+    # - python: 3.7
+    # - python: 3.8
     # - os: osx
     #   language: generic
     #   osx_image: xcode7.3 # 7.3 is OS X 10.11.x
