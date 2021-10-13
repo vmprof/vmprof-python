@@ -16,6 +16,7 @@ jobs:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-20.04, windows-2019, macos-10.15]
 
@@ -25,9 +26,10 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.1.3
         env:
-          CIBW_BEFORE_BUILD_LINUX: yum install libunwind-devel elfutils-libelf-devel libdwarf-devel
+          CIBW_BEFORE_BUILD_LINUX: yum install -y libunwind-devel elfutils-libelf-devel libdwarf-devel
           CIBW_BEFORE_TEST: pip install -r test_requirements.txt
-          CIBW_TEST_COMMAND: pytest {package}/vmprof && pytest {package}/jitlog
+          CIBW_TEST_COMMAND: cd {package} && pytest vmprof && pytest jitlog
+          CIBW_TEST_COMMAND_WINDOWS: cd /d {package} && pytest vmprof && pytest jitlog
 
       #- uses: actions/upload-artifact@v2
       #  with:
