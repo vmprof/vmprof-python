@@ -1,88 +1,37 @@
 sudo: required
-dist: xenial
+dist: focal
 language: python
 cache: apt
 
 env:
   global:
     - PYPI_USERNAME=pypy.wheelbuilder
+    - CIBW_SKIP="pp* *-win32 *-manylinux_i686"
+    - CIBW_BEFORE_BUILD_LINUX="yum install -y libunwind-devel elfutils-libelf-devel libdwarf-devel"
+    - CIBW_BEFORE_TEST="pip install -r test_requirements.txt"
+    - CIBW_TEST_COMMAND="cd {package} && pytest vmprof && pytest jitlog"
+    -  CIBW_TEST_COMMAND_WINDOWS="cd /d {package} && pytest vmprof && pytest jitlog"
 
     # PYPI_PASSWORD
     - secure: "a5GdswXPW9TWytW5BfA5QZkdyrzgebecUNcbEmEXYkGPGp7rTFKVnRShD8+9YqH7swaZi9Xz/4YzBrZIkcXS0M+FJPo9sGYIccobZQ+KAlqbIE3N7cuWNLStqJDAj41BK9xxDtdKutJ95q+8iO9BLx+Iw6Y62EN4+a4d3WbuoZ4="
 
-matrix:
+jobs:
   include:
-    - python: 2.7
-      services:
-        - docker
-      env:
-        - BUILD_LINUX_WHEEL=1 UPLOAD_SDIST=1
-    - python: 3.5
-    - python: 3.6
-    - python: 3.7
-    - python: 3.8
-    - os: linux
+    - services: docker
+      arch: arm64
+    - services: docker
       arch: ppc64le
-      python: 3.8
-      env:
-        - PYENV=3.8.12
-    - os: osx
-      language: generic
-      osx_image: xcode7.3 # 7.3 is OS X 10.11.x
-      env:
-        - PYENV=3.5.3
-    - os: osx
-      language: generic
-      osx_image: xcode8.2 # 8.2 is macOS 10.12.x
-      env:
-        - PYENV=3.5.3
-    - os: osx
-      language: generic
-      osx_image: xcode8.2 # 8.2 is macOS 10.12.x
-      env:
-        - PYENV=3.6.1
-    - os: osx
-      language: generic
-      osx_image: xcode9.4
-      env:
-        - PYENV=2.7.13 MAC_WHEEL=1
-    - os: osx
-      language: generic
-      osx_image: xcode9.4
-      env:
-        - PYENV=3.7.6 MAC_WHEEL=1
-    - os: osx
-      language: generic
-      osx_image: xcode9.4
-      env:
-        - PYENV=3.5.3 MAC_WHEEL=1
-    - os: osx
-      language: generic
-      osx_image: xcode9.4
-      env:
-        - PYENV=3.6.1 MAC_WHEEL=1
-addons:
-  apt:
-    packages:
-    - python-dev
-    - libdwarf-dev
-    - libelf-dev
-    - libunwind-dev
+    - services: docker
+      arch: s390x
 
 install:
-  - bash ./travis/install.sh
+  - python3 -m pip install cibuildwheel==2.1.3
 
 script:
-  - bash ./travis/script.sh
+  # build the wheels, put them into './wheelhouse'
+  # The environment variables above are passed into the docker
+  # which builds and tests the code
+  - python3 -m cibuildwheel --output-dir wheelhouse
 
-notifications:
-  irc:
-    channels: irc.freenode.org#pypy
-    template:
-    - "%{repository}@%{branch}: %{message} (%{build_url})"
-    use_notice: true
-    on_success: always
-    on_failure: always
-  email:
-    on_success: change
-    on_failure: change
+
+
