@@ -19,10 +19,12 @@ jobs:
   include:
     - services: docker
       arch: arm64
-    - services: docker
-      arch: ppc64le
-    - services: docker
-      arch: s390x
+    #- services: docker
+    #  no libunwind-devel
+    #  arch: ppc64le
+    #- services: docker
+    #  no libunwind-devel
+    #  arch: s390x
 
 install:
   - python3 -m pip install cibuildwheel==2.1.3
