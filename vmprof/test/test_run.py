@@ -60,18 +60,12 @@ else:
 if '__pypy__' in sys.builtin_module_names:
     COUNT = 100000
 else:
-    COUNT = 100
+    COUNT = 10000
 
 def function_foo():
     for k in range(1000):
         l = [a for a in xrange(COUNT)]
-        l = [a for a in xrange(COUNT)]
-        l = [a for a in xrange(COUNT)]
-        l = [a for a in xrange(COUNT)]
-        l = [a for a in xrange(COUNT)]
-        l = [a for a in xrange(COUNT)]
-        del(l)
-    # return l
+    return l
 
 def function_bar():
     import time
@@ -209,7 +203,7 @@ def test_multithreaded():
     finished = []
 
     def f():
-        for k in range(10000):
+        for k in range(1000):
             l = [a for a in xrange(COUNT)]
         finished.append("foo")
 
