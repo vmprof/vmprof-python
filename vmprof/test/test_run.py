@@ -63,7 +63,7 @@ else:
     COUNT = 100
 
 def function_foo():
-    for k in range(10000):
+    for k in range(7000):
         l = [a for a in xrange(COUNT)]
         del(l)
     # return l
@@ -204,9 +204,8 @@ def test_multithreaded():
     finished = []
 
     def f():
-        for k in range(1000):
+        for k in range(10000):
             l = [a for a in xrange(COUNT)]
-            del(l)
         finished.append("foo")
 
     threads = [threading.Thread(target=f), threading.Thread(target=f)]
