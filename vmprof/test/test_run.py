@@ -63,7 +63,12 @@ else:
     COUNT = 100
 
 def function_foo():
-    for k in range(7000):
+    for k in range(1000):
+        l = [a for a in xrange(COUNT)]
+        l = [a for a in xrange(COUNT)]
+        l = [a for a in xrange(COUNT)]
+        l = [a for a in xrange(COUNT)]
+        l = [a for a in xrange(COUNT)]
         l = [a for a in xrange(COUNT)]
         del(l)
     # return l
