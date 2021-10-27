@@ -63,7 +63,7 @@ else:
     COUNT = 1000
 
 def function_foo():
-    for k in range(10):
+    for k in range(1000):
         l = [a for a in xrange(COUNT)]
     return l
 
