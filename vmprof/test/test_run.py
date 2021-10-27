@@ -60,10 +60,10 @@ else:
 if '__pypy__' in sys.builtin_module_names:
     COUNT = 100000
 else:
-    COUNT = 400
+    COUNT = 100
 
 def function_foo():
-    for k in range(1000):
+    for k in range(10000):
         l = [a for a in xrange(COUNT)]
     return l
 
