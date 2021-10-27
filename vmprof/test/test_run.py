@@ -65,7 +65,8 @@ else:
 def function_foo():
     for k in range(10000):
         l = [a for a in xrange(COUNT)]
-    return l
+        del(l)
+    # return l
 
 def function_bar():
     import time
@@ -205,6 +206,7 @@ def test_multithreaded():
     def f():
         for k in range(1000):
             l = [a for a in xrange(COUNT)]
+            del(l)
         finished.append("foo")
 
     threads = [threading.Thread(target=f), threading.Thread(target=f)]
