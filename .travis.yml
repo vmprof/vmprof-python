@@ -23,9 +23,9 @@ matrix:
     - python: 3.8
     - os: linux
       arch: ppc64le
-      python: 3.6
+      python: 3.8
       env:
-        - PYENV=3.6.12
+        - PYENV=3.8.12
     - os: osx
       language: generic
       osx_image: xcode7.3 # 7.3 is OS X 10.11.x
