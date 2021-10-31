@@ -6,7 +6,12 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
     source ~/.venv/bin/activate
 fi
 
-py.test vmprof/ -vrs
+if [[ "$(uname -m)" == 'ppc64le' ]]; then
+    # Disabled due to memory restrictions on Travis ppc64le CI
+    EXTRA_OPTS='-k not test_basic and not test_read_bit_by_bit and not test_enable_disable and not test_start_end_time and not test_nested_call and not test_line_profiling and not test_vmprof_show'
+fi
+
+py.test vmprof/ -vrs "$EXTRA_OPTS"
 py.test jitlog/ -vrs
 
 if [[ -n "$TRAVIS_TAG" ]]; then

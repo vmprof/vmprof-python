@@ -500,6 +500,7 @@ class TestNative(object):
         cls.lib = clib.lib
         cls.ffi = clib.ffi
 
+    @py.test.mark.skipif("PY3K and os.uname().machine == 'ppc64le'")
     def test_gzip_call(self):
         p = vmprof.Profiler()
         with p.measure(native=True):
