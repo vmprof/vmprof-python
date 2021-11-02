@@ -10,7 +10,10 @@ env:
     - CIBW_BEFORE_BUILD_LINUX="yum install -y libunwind-devel elfutils-libelf-devel libdwarf-devel"
     - CIBW_BEFORE_TEST="pip install -r test_requirements.txt"
     - CIBW_TEST_COMMAND="cd {package} && pytest vmprof && pytest jitlog"
-    -  CIBW_TEST_COMMAND_WINDOWS="cd /d {package} && pytest vmprof && pytest jitlog"
+    - CIBW_TEST_COMMAND_WINDOWS="cd /d {package} && pytest vmprof && pytest jitlog"
+    - CIBW_MANYLINUX_X86_64_IMAGE=manylinux2014
+    - CIBW_MANYLINUX_AARCH64_IMAGE=manylinux2014
+    - CIBW_MANYLINUX_PPC64LE_IMAGE=manylinux2014
 
     # PYPI_PASSWORD
     - secure: "a5GdswXPW9TWytW5BfA5QZkdyrzgebecUNcbEmEXYkGPGp7rTFKVnRShD8+9YqH7swaZi9Xz/4YzBrZIkcXS0M+FJPo9sGYIccobZQ+KAlqbIE3N7cuWNLStqJDAj41BK9xxDtdKutJ95q+8iO9BLx+Iw6Y62EN4+a4d3WbuoZ4="
@@ -19,9 +22,8 @@ jobs:
   include:
     - services: docker
       arch: arm64
-    #- services: docker
-    #  no libunwind-devel
-    #  arch: ppc64le
+    - services: docker
+      arch: ppc64le
     #- services: docker
     #  no libunwind-devel
     #  arch: s390x
