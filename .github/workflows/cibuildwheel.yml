@@ -33,7 +33,7 @@ jobs:
           CIBW_BEFORE_BUILD_LINUX: yum install -y libunwind-devel elfutils-libelf-devel libdwarf-devel
           CIBW_BEFORE_TEST: pip install -r test_requirements.txt
           CIBW_TEST_COMMAND: cd {package} && pytest vmprof jitlog
-          CIBW_TEST_COMMAND_WINDOWS: cd /d {package} && pytest vmprof jitlog
+          CIBW_TEST_COMMAND_WINDOWS: cd /d {package} && pytest vmprof jitlog -vv
 
       - uses: actions/upload-artifact@v2
         with:
