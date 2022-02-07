@@ -1,5 +1,6 @@
 """ Test the actual run
 """
+import os
 import py
 import sys
 import tempfile
@@ -56,6 +57,10 @@ if sys.version_info.major == 3:
     PY3K = True
 else:
     PY3K = False
+if hasattr(os, 'uname') and os.uname().machine == 'ppc64le':
+    PPC64LE = True
+else:
+    PPC64LE = False
 
 if '__pypy__' in sys.builtin_module_names:
     COUNT = 100000
@@ -500,7 +505,7 @@ class TestNative(object):
         cls.lib = clib.lib
         cls.ffi = clib.ffi
 
-    @py.test.mark.skipif("PY3K and os.uname().machine == 'ppc64le'")
+    @py.test.mark.skipif("PY3K and PPC64LE")
     def test_gzip_call(self):
         p = vmprof.Profiler()
         with p.measure(native=True):
