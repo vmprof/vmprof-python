@@ -531,6 +531,8 @@ class TestNative(object):
                     found = walk(child)
                     if found:
                         return True
+                    print('failed to find desired node in', child.name)
+
 
         parent = stats.get_tree()
         assert walk(parent)

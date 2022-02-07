@@ -100,7 +100,7 @@ def read_resop(ctx, trace, fileobj):
     op = FlatOp(opnum, opname, args, result, None, -1, failargs=failargs)
     trace.add_instr(op)
 
-TOKEN_REGEX = re.compile("TargetToken\((\d+)\)")
+TOKEN_REGEX = re.compile(r"TargetToken\((\d+)\)")
 
 @mark_parser(
     1,
