@@ -1,5 +1,6 @@
 """ Test the actual run
 """
+import os
 import py
 import sys
 import tempfile
