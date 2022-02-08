@@ -23,15 +23,18 @@ class TestStack(object):
         with open("src/vmp_stack.c", "rb") as fd:
             source = fd.read().decode()
             libs = [] #['unwind', 'unwind-x86_64']
+            library_dirs = []
             if sys.platform.startswith('linux'):
                 libs = ['unwind']
+                library_dirs = ['/usr/local/lib']
                 if platform.machine() == 'x86_64':
                     libs.append('unwind-x86_64')
             # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
             stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
                                  define_macros=[('_CFFI_USE_EMBEDDING',1), ('PY_TEST',1),
                                                 ('VMP_SUPPORTS_NATIVE_PROFILING',1)],
-                                 libraries=libs, extra_compile_args=['-Werror', '-g'])
+                                 libraries=libs, library_dirs=library_dirs,
+                                 extra_compile_args=['-Werror', '-g'])
 
         stack_ffi.compile(verbose=True)
         from vmprof.test import _test_stack as clib
