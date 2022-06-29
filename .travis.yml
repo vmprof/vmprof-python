@@ -7,10 +7,11 @@ env:
   global:
     - PYPI_USERNAME=pypy.wheelbuilder
     - CIBW_SKIP="pp* *-win32 *-manylinux_i686"
+    - CIBW_PROJECT_REQUIRES_PYTHON=">3.6"
     - CIBW_BEFORE_BUILD_LINUX="yum install -y libunwind-devel elfutils-libelf-devel libdwarf-devel"
     - CIBW_BEFORE_TEST="pip install -r test_requirements.txt"
     - CIBW_TEST_COMMAND="cd {package} && pytest vmprof && pytest jitlog"
-    - CIBW_TEST_COMMAND_WINDOWS="cd /d {package} && pytest vmprof && pytest jitlog"
+    - CIBW_TEST_COMMAND_WINDOWS="cd /d {package} && pytest vmprof jitlog -vv"
     - CIBW_MANYLINUX_X86_64_IMAGE=manylinux2014
     - CIBW_MANYLINUX_AARCH64_IMAGE=manylinux2014
     - CIBW_MANYLINUX_PPC64LE_IMAGE=manylinux2014
