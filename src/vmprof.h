@@ -75,7 +75,7 @@ int IS_VMPROF_EVAL(void * ptr);
 #define PY_EVAL_RETURN_T PyObject
 #define PY_THREAD_STATE_T PyThreadState
 #define FRAME_STEP(f) f->f_back
-#define FRAME_CODE(f) f->f_code
+#define FRAME_CODE(f) f->f_frame->f_code
 
 #if CPYTHON_HAS_FRAME_EVALUATION
 #define IS_VMPROF_EVAL(PTR) PTR == (void*)_PyEval_EvalFrameDefault

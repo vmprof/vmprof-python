@@ -488,7 +488,7 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 #endif
         return 0;
     }
-    frame = current->frame;
+    frame = current->cframe;
 #endif
     if (frame == NULL) {
 #if DEBUG

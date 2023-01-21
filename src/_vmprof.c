@@ -112,7 +112,7 @@ static int _look_for_code_object(PyObject *o, void * param)
         /* as a special case, recursively look for and add code
            objects found in the co_consts.  The problem is that code
            objects are not created as GC-aware in CPython, so we need
-           to hack like this to hope to find most of them. 
+           to hack like this to hope to find most of them.
         */
         i = PyTuple_Size(co->co_consts);
         while (i > 0) {
@@ -298,7 +298,7 @@ sample_stack_now(PyObject *module, PyObject * args)
         vmprof_ignore_signals(0);
         return NULL;
     }
-    entry_count = vmp_walk_and_record_stack(tstate->frame, m, SINGLE_BUF_SIZE/sizeof(void*)-1, (int)skip, 0);
+    entry_count = vmp_walk_and_record_stack(tstate->cframe, m, SINGLE_BUF_SIZE/sizeof(void*)-1, (int)skip, 0);
 
     for (i = 0; i < entry_count; i++) {
         routine_ip = m[i];

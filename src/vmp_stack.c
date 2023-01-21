@@ -14,6 +14,8 @@
 #include "vmprof.h"
 #include "compat.h"
 
+#include "internal/pycore_frame.h"
+
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
 
 #if defined(VMPROF_LINUX) || defined(VMPROF_BSD)
