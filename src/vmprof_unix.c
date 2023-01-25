@@ -488,7 +488,11 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 #endif
         return 0;
     }
+    #if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
     frame = current->cframe;
+    #else
+    frame = current->frame;
+    #endif
 #endif
     if (frame == NULL) {
 #if DEBUG

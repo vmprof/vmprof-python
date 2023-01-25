@@ -298,7 +298,11 @@ sample_stack_now(PyObject *module, PyObject * args)
         vmprof_ignore_signals(0);
         return NULL;
     }
+    #if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
     entry_count = vmp_walk_and_record_stack(tstate->cframe, m, SINGLE_BUF_SIZE/sizeof(void*)-1, (int)skip, 0);
+    #else
+    entry_count = vmp_walk_and_record_stack(tstate->frame, m, SINGLE_BUF_SIZE/sizeof(void*)-1, (int)skip, 0);
+    #endif
 
     for (i = 0; i < entry_count; i++) {
         routine_ip = m[i];
