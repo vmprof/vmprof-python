@@ -104,10 +104,9 @@ static PY_STACK_FRAME_T * _write_python_stack_entry(PY_STACK_FRAME_T * frame, vo
         result[*depth] = (void*) (int64_t) PyFrame_GetLineNumber(frame);
         *depth = *depth + 1;
     }
-    #if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
-    if (!_PyFrame_IsIncomplete(frame))
-    #endif
-        result[*depth] = (void*)CODE_ADDR_TO_UID(FRAME_CODE(frame));
+    PyCodeObject* frame_code = FRAME_CODE(frame);
+    result[*depth] = (void*)CODE_ADDR_TO_UID(frame_code);
+    Py_DECREF(frame_code);
     *depth = *depth + 1;
 #else
 

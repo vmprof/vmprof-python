@@ -267,6 +267,15 @@ write_all_code_objects(PyObject *module, PyObject * seen_code_ids)
 }
 
 
+#if PY_VERSION_HEX < 0x030900B1 /* < 3.9 */
+static inline PyFrameObject* PyThreadState_GetFrame(PyThreadState *tstate)
+{
+    Py_XINCREF(tstate->frame);
+    return tstate->frame;
+}
+#endif
+
+
 
 static PyObject *
 sample_stack_now(PyObject *module, PyObject * args)
@@ -298,11 +307,12 @@ sample_stack_now(PyObject *module, PyObject * args)
         vmprof_ignore_signals(0);
         return NULL;
     }
-    #if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
-    entry_count = vmp_walk_and_record_stack(tstate->cframe, m, SINGLE_BUF_SIZE/sizeof(void*)-1, (int)skip, 0);
-    #else
-    entry_count = vmp_walk_and_record_stack(tstate->frame, m, SINGLE_BUF_SIZE/sizeof(void*)-1, (int)skip, 0);
-    #endif
+
+    PyFrameObject* frame = PyThreadState_GetFrame(tstate);
+    entry_count = vmp_walk_and_record_stack(frame, m, SINGLE_BUF_SIZE/sizeof(void*)-1, (int)skip, 0);
+
+    Py_XDECREF(frame);
+
 
     for (i = 0; i < entry_count; i++) {
         routine_ip = m[i];
