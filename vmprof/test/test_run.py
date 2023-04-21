@@ -1,7 +1,7 @@
 """ Test the actual run
 """
 import os
-import py
+import pytest
 import sys
 import tempfile
 import time
@@ -10,7 +10,6 @@ import time
 import pytz
 import vmprof
 import six
-import pytest
 from cffi import FFI
 from datetime import datetime
 import requests
@@ -203,7 +202,7 @@ def test_nested_call():
 
 def test_multithreaded():
     if '__pypy__' in sys.builtin_module_names:
-        py.test.skip("not supported on pypy just yet")
+        pytest.skip("not supported on pypy just yet")
     import threading
     finished = []
 
@@ -242,7 +241,7 @@ def test_multithreaded():
 
 def test_memory_measurment():
     if not sys.platform.startswith('linux') or '__pypy__' in sys.builtin_module_names:
-        py.test.skip("unsupported platform")
+        pytest.skip("unsupported platform")
     def function_foo():
         all = []
         for k in range(1000):
@@ -258,7 +257,7 @@ def test_memory_measurment():
     prof.get_stats()
 
 
-@py.test.mark.skipif("sys.platform == 'win32'")
+@pytest.mark.skipif("sys.platform == 'win32'")
 def test_vmprof_real_time():
     prof = vmprof.Profiler()
     with prof.measure(real_time=True):
@@ -269,9 +268,9 @@ def test_vmprof_real_time():
     assert d[foo_time_name] > 0
 
 
-@py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
-@py.test.mark.skipif("sys.platform == 'win32'")
-@py.test.mark.parametrize("insert_foo,remove_bar", [
+@pytest.mark.skipif("'__pypy__' in sys.builtin_module_names")
+@pytest.mark.skipif("sys.platform == 'win32'")
+@pytest.mark.parametrize("insert_foo,remove_bar", [
     (False, False),
     (False,  True),
     ( True, False),
@@ -293,9 +292,9 @@ def test_vmprof_real_time_threaded(insert_foo, remove_bar):
     assert remove_bar != (bar_time_name in d)
 
 
-@py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
-@py.test.mark.skipif("sys.platform == 'win32'")
-@py.test.mark.parametrize("insert_foo,remove_bar", [
+@pytest.mark.skipif("'__pypy__' in sys.builtin_module_names")
+@pytest.mark.skipif("sys.platform == 'win32'")
+@pytest.mark.parametrize("insert_foo,remove_bar", [
     (False, False),
     (False,  True),
     ( True, False),
@@ -323,8 +322,8 @@ def test_insert_other_real_time_thread(insert_foo, remove_bar):
     assert remove_bar != (bar_time_name in d)
 
 
-@py.test.mark.skipif("'__pypy__' in sys.builtin_module_names")
-@py.test.mark.skipif("sys.platform == 'win32'")
+@pytest.mark.skipif("'__pypy__' in sys.builtin_module_names")
+@pytest.mark.skipif("sys.platform == 'win32'")
 def test_vmprof_real_time_many_threads():
     import threading
     prof = vmprof.Profiler()
@@ -359,7 +358,7 @@ if GZIP:
         # ensure that the gzip process really tries to write
         # to the gzip proc that was killed
         function_foo()
-        with py.test.raises(Exception) as exc_info:
+        with pytest.raises(Exception) as exc_info:
             vmprof.disable()
             assert "Error while writing profile" in str(exc_info)
         tmpfile.close()
@@ -462,7 +461,7 @@ def test_vmprof_show():
     pp = PrettyPrinter()
     pp.show(tmpfile.name)
 
-@py.test.mark.skipif("sys.platform == 'win32'")
+@pytest.mark.skipif("sys.platform == 'win32'")
 class TestNative(object):
     def setup_class(cls):
         ffi = FFI()
@@ -505,7 +504,7 @@ class TestNative(object):
         cls.lib = clib.lib
         cls.ffi = clib.ffi
 
-    @py.test.mark.skipif("PY3K and PPC64LE")
+    @pytest.mark.skipif("PY3K and PPC64LE")
     def test_gzip_call(self):
         p = vmprof.Profiler()
         with p.measure(native=True):

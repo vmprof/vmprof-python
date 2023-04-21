@@ -1,4 +1,3 @@
-import py
 import os
 import sys
 import pytest
@@ -66,7 +65,7 @@ if sys.platform != 'win32':
 
     ffi.compile(verbose=True)
 
-@py.test.mark.skipif("sys.platform == 'win32'")
+@pytest.mark.skipif("sys.platform == 'win32'")
 class TestSymbolTable(object):
     def setup_class(cls):
         from vmprof.test import _test_symboltable as clib
