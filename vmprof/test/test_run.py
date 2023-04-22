@@ -23,6 +23,8 @@ from vmprof.reader import (gunzip, MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
 from vmshare.binary import read_string, read_word, read_addr
 from vmprof.stats import Stats
 
+IS_PYPY = '__pypy__' in sys.builtin_module_names
+
 class BufferTooSmallError(Exception):
     def get_buf(self):
         return b"".join(self.args[0])
@@ -435,6 +437,7 @@ def read_header(fileobj, buffer_so_far=None):
                         profile_lines)
 
 
+@pytest.mark.skipif("IS_PYPY")
 def test_line_profiling():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
     vmprof.enable(tmpfile.fileno(), lines=True, native=False)  # enable lines profiling
@@ -504,7 +507,7 @@ class TestNative(object):
         cls.lib = clib.lib
         cls.ffi = clib.ffi
 
-    @pytest.mark.skipif("PY3K and PPC64LE")
+    @pytest.mark.skipif("IS_PYPY")
     def test_gzip_call(self):
         p = vmprof.Profiler()
         with p.measure(native=True):
