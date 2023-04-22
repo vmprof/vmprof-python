@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: 'pypy-3.7'
+          python-version: 'pypy-3.9'
 
       - name: Install system libraries
         run: sudo apt install -y libunwind-dev libelf-dev libdwarf-dev
