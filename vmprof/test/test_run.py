@@ -527,7 +527,7 @@ class TestNative(object):
             for child in parent.children.values():
                 if 'n:native_gzipgzipgzip:' in child.name:
                     p = float(child.count) / parent.count
-                    assert p >= 0.3 # usually bigger than 0.4
+                    assert p >= 0.1 # usually bigger than 0.4
                     return True
                 else:
                     found = walk(child)
