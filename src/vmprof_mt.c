@@ -161,21 +161,39 @@ void cancel_buffer(struct profbuf_s *buf)
     profbuf_state[i] = PROFBUF_UNUSED;
 }
 
+int flush_buffers(int fd)
+{
+    if (!__sync_bool_compare_and_swap(&profbuf_write_lock, 0, 1)) {
+        return -1;
+    }
+
+    int i;
+    for (i = 0; i < MAX_NUM_BUFFERS; i++) {
+        while (profbuf_state[i] == PROFBUF_READY) {
+            if (_write_single_ready_buffer(fd, i) < 0) {
+                profbuf_write_lock = 0;
+                return -1;
+            }
+        }
+    }
+
+    profbuf_write_lock = 0;
+    return 0;
+}
+
 int shutdown_concurrent_bufs(int fd)
 {
     /* no signal handler can be running concurrently here, because we
        already did vmprof_ignore_signals(1) */
     assert(profbuf_write_lock == 0);
-    profbuf_write_lock = 2;
 
     /* last attempt to flush buffers */
-    int i;
-    for (i = 0; i < MAX_NUM_BUFFERS; i++) {
-        while (profbuf_state[i] == PROFBUF_READY) {
-            if (_write_single_ready_buffer(fd, i) < 0)
-                return -1;
-        }
+    int flushed = flush_buffers(fd);
+    if (flushed != 0) {
+      return flushed;
     }
+
+    profbuf_write_lock = 2;
     unprepare_concurrent_bufs();
     return 0;
 }

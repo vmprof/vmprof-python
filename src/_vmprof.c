@@ -369,6 +369,24 @@ start_sampling(PyObject *module, PyObject *noargs)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+vmp_flush_buffers(PyObject *module, PyObject *noargs)
+{
+    int ret = 0;
+
+#ifdef VMPROF_UNIX
+    int fd = vmp_profile_fileno();
+    ret = flush_buffers(fd);
+    if (ret != 0) {
+        return PyLong_NEW(ret);
+    }
+
+    ret = fsync(fd);
+#endif
+
+    return PyLong_NEW(ret);
+}
+
 #ifdef VMPROF_UNIX
 static PyObject * vmp_get_profile_path(PyObject *module, PyObject *noargs) {
     PyObject * o;
@@ -471,7 +489,9 @@ static PyMethodDef VMProfMethods[] = {
     {"stop_sampling", stop_sampling, METH_NOARGS,
         "Blocks signals to occur and returns the file descriptor"},
     {"start_sampling", start_sampling, METH_NOARGS,
-        "Unblocks vmprof signals. After compeltion vmprof will sample again"},
+        "Unblocks vmprof signals. After completion vmprof will sample again"},
+    {"flush_buffers", vmp_flush_buffers, METH_NOARGS,
+        "Flushes all pending buffers to the file descriptor"},
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
     {"resolve_addr", resolve_addr, METH_VARARGS,
         "Returns the name of the given address"},
