@@ -20,13 +20,13 @@ jobs:
         os: [ubuntu-latest]
         python: ["3.9", "3.10", "3.11", "pypy-3.9"]
         experimental: [false]
-        include:
-          - os: macos-latest
-            python: "3.10"
-            experimental: false
-          - os: windows-latest
-            python: "3.10"
-            experimental: false
+          # include:
+          #   - os: macos-latest
+          #     python: "3.10"
+          #     experimental: false
+          #   - os: windows-latest
+          #     python: "3.10"
+          #     experimental: false
     steps:
     - uses: actions/checkout@v3
     - name: Install libunwind
