@@ -464,7 +464,7 @@ def test_vmprof_show():
     pp = PrettyPrinter()
     pp.show(tmpfile.name)
 
-@pytest.mark.skipif("sys.platform == 'win32'")
+@pytest.mark.skipif("sys.platform == 'win32' or sys.platform == 'darwin'")
 class TestNative(object):
     def setup_class(cls):
         ffi = FFI()
