@@ -2,9 +2,9 @@ name: test
 
 on:
   push:
-    branches: [master]
+    branches: [master, unstuck-vmprof]
   pull_request:
-    branches: [master]
+    branches: [master, unstuck-vmprof]
   workflow_dispatch:
 
 jobs:
