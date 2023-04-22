@@ -121,6 +121,7 @@ setup(
         'pytz',
         'colorama',
     ] + extra_install_requires,
+    python_requires='>=3.6, <=3.10',
     tests_require=['pytest','cffi','hypothesis'],
     entry_points = {
         'console_scripts': [
