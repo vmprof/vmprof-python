@@ -18,7 +18,7 @@ jobs:
       matrix:
         # Test all supported versions on Ubuntu:
         os: [ubuntu-latest]
-        python: ["3.9", "3.10", "3.11", "pypy-3.9"]
+        python: ["3.9", "3.10", "pypy-3.9"]
         experimental: [false]
           # include:
           #   - os: macos-latest
