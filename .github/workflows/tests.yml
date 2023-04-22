@@ -29,6 +29,10 @@ jobs:
             experimental: false
     steps:
     - uses: actions/checkout@v3
+    - name: Install libunwind
+      run: |
+        apt install libunwind-dev
+        pkg-config libunwind --cflags --libs-only-l
     - name: Set up Python ${{ matrix.python }}
       uses: actions/setup-python@v4
       with:
