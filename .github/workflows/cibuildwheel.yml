@@ -68,8 +68,8 @@ jobs:
         run: |
           FAILED=false
           pypy -m pip install -r test_requirements.txt
-          pypy -m pytest vmprof || FAILED=true
-          pypy -m pytest jitlog || FAILED=true
+          pypy -m pytest vmprof -v || FAILED=true
+          pypy -m pytest jitlog -v || FAILED=true
           if [ "FAILED" == true ]; then exit 1; fi
           # Uh-oh. packaging.tags does not support a pp3-none-any wheel tag.
           # The wheel name is something like
@@ -81,5 +81,5 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          path: ./wheelhouse/*.whl
+          path: vmprof*.whl
 
