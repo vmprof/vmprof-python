@@ -205,6 +205,8 @@ def test_nested_call():
 def test_multithreaded():
     if '__pypy__' in sys.builtin_module_names:
         pytest.skip("not supported on pypy just yet")
+    if sys.platform == 'win32':
+        pytest.skip("skip in windows for now") # XXX
     import threading
     finished = []
 

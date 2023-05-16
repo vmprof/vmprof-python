@@ -14,7 +14,7 @@ jobs:
       pull-requests: write
     name: ${{ matrix.os }} - ${{ matrix.python }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         # Test all supported versions on Ubuntu:
         os: [ubuntu-latest]
