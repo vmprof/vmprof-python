@@ -117,6 +117,7 @@ bar_time_name = "py:functime_bar:%d:%s" % (functime_bar.__code__.co_firstlineno,
 
 GZIP = False
 
+@pytest.mark.skipif("sys.platform == 'win32'")
 def test_basic():
     tmpfile = tempfile.NamedTemporaryFile(delete=False)
     vmprof.enable(tmpfile.fileno())
