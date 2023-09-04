@@ -168,6 +168,7 @@ def test_start_end_time():
     assert before_profile <= after_profile
     assert before_profile <= e
 
+@pytest.mark.skipif("sys.platform == 'win32'")
 def test_nested_call():
     prof = vmprof.Profiler()
     with prof.measure():
