@@ -475,6 +475,14 @@ int vmprof_register_virtual_function(char *code_name, intptr_t code_uid,
     return 0;
 }
 
+#if PY_VERSION_HEX < 0x030900B1 /* < 3.9 */
+static inline PyFrameObject* PyThreadState_GetFrame(PyThreadState *tstate)
+{
+    Py_XINCREF(tstate->frame);
+    return tstate->frame;
+}
+#endif
+
 int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, intptr_t pc)
 {
     PY_STACK_FRAME_T * frame;
@@ -488,7 +496,7 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 #endif
         return 0;
     }
-    frame = current->frame;
+    frame = PyThreadState_GetFrame(current);
 #endif
     if (frame == NULL) {
 #if DEBUG
@@ -496,5 +504,10 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 #endif
         return 0;
     }
-    return vmp_walk_and_record_stack(frame, result, max_depth, 1, pc);
+
+    int res = vmp_walk_and_record_stack(frame, result, max_depth, 1, pc);
+
+    Py_XDECREF(frame);
+
+    return res;
 }
