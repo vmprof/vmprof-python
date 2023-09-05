@@ -52,22 +52,6 @@ else:
             extra_compile_args += ['-DVMPROF_BSD=1']
             extra_compile_args += ['-I/usr/local/include']
         extra_compile_args += ['-DVMPROF_UNIX=1']
-        if platform.machine().startswith("arm"):
-            libraries.append('unwind-arm')
-        elif (platform.machine().startswith("x86") or
-              platform.machine().startswith("i686") or
-              platform.machine().startswith("amd64")):
-            if sys.maxsize == 2**63-1:
-                libraries.append('unwind-x86_64')
-            else:
-                libraries.append('unwind-x86')
-        elif platform.machine() == 'aarch64':
-            libraries.append('unwind-aarch64')
-        elif platform.machine() == 'ppc64le':
-            libraries.append('unwind-ppc64')
-        else:
-            raise NotImplementedError("unknown platform.machine(): %s" %
-                                      platform.machine())
         extra_source_files += [
            'src/vmprof_mt.c',
            'src/vmprof_unix.c',
@@ -137,6 +121,7 @@ setup(
         'pytz',
         'colorama',
     ] + extra_install_requires,
+    python_requires='>=3.6, <3.11',
     tests_require=['pytest','cffi','hypothesis'],
     entry_points = {
         'console_scripts': [

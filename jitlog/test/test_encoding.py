@@ -1,12 +1,12 @@
 # coding: utf-8
 import sys
-import py
+import pytest
 from jitlog.objects import (TraceForest, MergePoint, FlatOp)
 from jitlog import constants as const
 
 PY3 = sys.version_info[0] >= 3
 
-@py.test.mark.parametrize('encoding,text,decoded,bom',
+@pytest.mark.parametrize('encoding,text,decoded,bom',
     [('ascii',   b'a!1%$', u'a!1%$', None),
      ('utf-8',   b"\x41\xE2\x89\xA2\xCE\x91\x2E", u'A≢Α.', None),
      ('latin-1', b'\xDCber', u'Über', None),

@@ -29,16 +29,18 @@ DEFAULT_PERIOD = 0.00099
 def disable():
     try:
         # fish the file descriptor that is still open!
-        if hasattr(_vmprof, 'stop_sampling'):
-            fileno = _vmprof.stop_sampling()
-            if fileno >= 0:
-                # TODO does fileobj leak the fd? I dont think so, but need to check 
-                fileobj = FdWrapper(fileno)
-                l = LogReaderDumpNative(fileobj, LogReaderState())
-                l.read_all()
-                if hasattr(_vmprof, 'write_all_code_objects'):
-                    _vmprof.write_all_code_objects(l.dedup)
-        _vmprof.disable()
+        try:
+            if hasattr(_vmprof, 'stop_sampling'):
+                fileno = _vmprof.stop_sampling()
+                if fileno >= 0:
+                    # TODO does fileobj leak the fd? I dont think so, but need to check
+                    fileobj = FdWrapper(fileno)
+                    l = LogReaderDumpNative(fileobj, LogReaderState())
+                    l.read_all()
+                    if hasattr(_vmprof, 'write_all_code_objects'):
+                        _vmprof.write_all_code_objects(l.dedup)
+        finally:
+            _vmprof.disable()
     except IOError as e:
         raise Exception("Error while writing profile: " + str(e))
 

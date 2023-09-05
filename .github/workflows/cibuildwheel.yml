@@ -1,12 +1,12 @@
-name: Test
+name: build-wheels
 
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ master ]
+    branches: [ master, unstuck-vmprof ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, unstuck-vmprof ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -18,24 +18,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
+        os: [ubuntu-20.04, windows-2019, macos-latest]
 
     steps:
       # Note: the action happens inside a docker image
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.1.3
+        uses: pypa/cibuildwheel@v2.11.4
         env:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_MANYLINUX_I686_IMAGE: manylinux2014
-          CIBW_SKIP: "pp* *-win32 *-manylinux_i686"
+          CIBW_SKIP: "pp* *-win32 *-manylinux_i686 *musllinux*"
           CIBW_BEFORE_BUILD_LINUX: yum install -y libunwind-devel elfutils-libelf-devel libdwarf-devel
           CIBW_BEFORE_TEST: pip install -r test_requirements.txt
-          CIBW_TEST_COMMAND: cd {package} && pytest vmprof jitlog
+          CIBW_TEST_COMMAND: cd {package} && pytest vmprof jitlog -vv
           CIBW_TEST_COMMAND_WINDOWS: cd /d {package} && pytest vmprof jitlog -vv
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
 
@@ -48,10 +48,10 @@ jobs:
 
     steps:
       # Note: not inside a docker
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
         with:
-          python-version: 'pypy-3.7'
+          python-version: 'pypy-3.9'
 
       - name: Install system libraries
         run: sudo apt install -y libunwind-dev libelf-dev libdwarf-dev
@@ -68,8 +68,8 @@ jobs:
         run: |
           FAILED=false
           pypy -m pip install -r test_requirements.txt
-          pypy -m pytest vmprof || FAILED=true
-          pypy -m pytest jitlog || FAILED=true
+          pypy -m pytest vmprof -v || FAILED=true
+          pypy -m pytest jitlog -v || FAILED=true
           if [ "FAILED" == true ]; then exit 1; fi
           # Uh-oh. packaging.tags does not support a pp3-none-any wheel tag.
           # The wheel name is something like
@@ -79,7 +79,7 @@ jobs:
           # Once https://github.com/pypa/packaging/pull/466 goes in, uncomment
           # mv vmprof*-{py3,pp3}-none-any.whl 
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
-          path: ./wheelhouse/*.whl
+          path: vmprof*.whl
 

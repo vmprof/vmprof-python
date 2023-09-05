@@ -1,0 +1,50 @@
+name: test
+
+on:
+  push:
+    branches: [master, unstuck-vmprof]
+  pull_request:
+    branches: [master, unstuck-vmprof]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    permissions:
+      pull-requests: write
+    name: ${{ matrix.os }} - ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test all supported versions on Ubuntu:
+        os: [ubuntu-latest]
+        python: ["3.9", "3.10", "pypy-3.9"]
+        experimental: [false]
+          # include:
+          #   - os: macos-latest
+          #     python: "3.10"
+          #     experimental: false
+          #   - os: windows-latest
+          #     python: "3.10"
+          #     experimental: false
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install libunwind
+      run: |
+        sudo apt install -y libunwind-dev
+        pkg-config libunwind --cflags --libs-only-l
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install
+      run: |
+        python -m pip install --upgrade pip setuptools
+        python -m pip install -e .
+        python -m pip install -r test_requirements.txt
+    - name: Display Python version
+      run: python -c "import sys; print(sys.version)"
+    - name: Run Tests
+      id: vmprof
+      run: python -m pytest -v vmprof jitlog
+

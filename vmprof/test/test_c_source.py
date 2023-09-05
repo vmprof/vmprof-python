@@ -5,8 +5,10 @@ import vmprof
 from cffi import FFI
 from array import array
 
+IS_PYPY = '__pypy__' in sys.builtin_module_names
+
 sample = None
-@pytest.mark.skipif("sys.platform == 'win32'")
+@pytest.mark.skipif("sys.platform == 'win32' or IS_PYPY")
 class TestStack(object):
     def setup_class(cls):
         stack_ffi = FFI()

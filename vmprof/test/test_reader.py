@@ -1,5 +1,5 @@
 
-import struct, py
+import struct, pytest
 from vmprof import reader
 from vmprof.reader import (FileReadError, MARKER_HEADER)
 from vmprof.test.test_run import (read_one_marker, read_header,
@@ -41,7 +41,7 @@ def test_fileobj_wrapper():
     f1 = FileObj([b"123456"])
     fw = FileObjWrapper(f1)
     assert fw.read(4) == b"1234"
-    exc = py.test.raises(BufferTooSmallError, fw.read, 4)
+    exc = pytest.raises(BufferTooSmallError, fw.read, 4)
     f1.write(b"789")
     fw = FileObjWrapper(f1, exc.value.get_buf())
     assert fw.read(3) == b'123'
