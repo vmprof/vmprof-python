@@ -90,14 +90,23 @@ int vmprof_snapshot_thread(DWORD thread_id, PY_WIN_THREAD_STATE *tstate, prof_st
     ResumeThread(hThread);
     return depth;
 #else
+   #if PY_VERSION_HEX < 0x030b0000 /* < 3.11 */
     depth = vmp_walk_and_record_stack(tstate->frame, stack->stack,
                                       MAX_STACK_DEPTH, 0, 0);
-    stack->depth = depth;
-    stack->stack[depth++] = (void*)((ULONG_PTR)thread_id);
-    stack->count = 1;
-    stack->marker = MARKER_STACKTRACE;
-    ResumeThread(hThread);
-    return depth;
+#else
+    PyFrameObject *frame = PyThreadState_GetFrame(tstate);/* im not sure there */
+    depth = vmp_walk_and_record_stack(frame, stack->stack,
+                                      MAX_STACK_DEPTH, 0, 0);
+    Py_XDECREF(frame); /* im not sure here either */
+#endif
+
+stack->depth = depth;
+stack->stack[depth++] = (void*)((ULONG_PTR)thread_id);
+stack->count = 1;
+stack->marker = MARKER_STACKTRACE;
+ResumeThread(hThread);
+return depth;
+   
 #endif
 
 #endif
