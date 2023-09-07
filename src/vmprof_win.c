@@ -53,6 +53,14 @@ int vmp_write_all(const char *buf, size_t bufsize)
     return 0;
 }
 
+#if PY_VERSION_HEX < 0x030900B1 /* < 3.9 */
+static inline PyFrameObject* PyThreadState_GetFrame(PyThreadState *tstate)
+{
+    Py_XINCREF(tstate->frame);
+    return tstate->frame;
+}
+#endif
+
 HANDLE write_mutex;
 
 #include "vmprof_common.h"
@@ -90,23 +98,16 @@ int vmprof_snapshot_thread(DWORD thread_id, PY_WIN_THREAD_STATE *tstate, prof_st
     ResumeThread(hThread);
     return depth;
 #else
-   #if PY_VERSION_HEX < 0x030b0000 /* < 3.11 */
-    depth = vmp_walk_and_record_stack(tstate->frame, stack->stack,
-                                      MAX_STACK_DEPTH, 0, 0);
-#else
-    PyFrameObject *frame = PyThreadState_GetFrame(tstate);/* im not sure there */
+    PyFrameObject* frame = PyThreadState_GetFrame(tstate);
     depth = vmp_walk_and_record_stack(frame, stack->stack,
                                       MAX_STACK_DEPTH, 0, 0);
-    Py_XDECREF(frame); /* im not sure here either */
-#endif
-
-stack->depth = depth;
-stack->stack[depth++] = (void*)((ULONG_PTR)thread_id);
-stack->count = 1;
-stack->marker = MARKER_STACKTRACE;
-ResumeThread(hThread);
-return depth;
-   
+    Py_XDECREF(frame);
+    stack->depth = depth;
+    stack->stack[depth++] = (void*)((ULONG_PTR)thread_id);
+    stack->count = 1;
+    stack->marker = MARKER_STACKTRACE;
+    ResumeThread(hThread);
+    return depth;
 #endif
 
 #endif
