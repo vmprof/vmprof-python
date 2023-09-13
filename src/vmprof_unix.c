@@ -496,7 +496,18 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 #endif
         return 0;
     }
+    /*  in cp3.11 PyThreadState_GetFrame calls _PyThreadState_GET wich may return null if we dont hold the gil.
+        this sometimes deadlocks when there is more than one thread. */
+#if PY_VERSION_HEX >= 0x030B0000 /* < 3.11 */
+    PyGILState_STATE gilstate = PyGILState_Ensure(); 
+#endif
     frame = PyThreadState_GetFrame(current);
+
+#if PY_VERSION_HEX >= 0x030B0000 /* < 3.11 */
+    PyGILState_Release(gilstate); 
+#endif
+
+
 #endif
     if (frame == NULL) {
 #if DEBUG

@@ -169,7 +169,6 @@ def test_start_end_time():
     assert before_profile <= e
 
 @pytest.mark.skipif("sys.platform == 'win32'")
-@pytest.mark.skip("seems to crash")
 def test_nested_call():
     prof = vmprof.Profiler()
     with prof.measure():
@@ -205,7 +204,7 @@ def test_nested_call():
     else:
         assert len(t[''].children) == 0
 
-@pytest.mark.skip("seems to crash")
+@pytest.mark.skip("seems to deadlock")
 def test_multithreaded():
     if '__pypy__' in sys.builtin_module_names:
         pytest.skip("not supported on pypy just yet")
@@ -266,7 +265,6 @@ def test_memory_measurment():
 
 
 @pytest.mark.skipif("sys.platform == 'win32'")
-@pytest.mark.skip("seems to crash")
 def test_vmprof_real_time():
     prof = vmprof.Profiler()
     with prof.measure(real_time=True):
@@ -279,7 +277,6 @@ def test_vmprof_real_time():
 
 @pytest.mark.skipif("'__pypy__' in sys.builtin_module_names")
 @pytest.mark.skipif("sys.platform == 'win32'")
-@pytest.mark.skip("seems to crash")
 @pytest.mark.parametrize("insert_foo,remove_bar", [
     (False, False),
     (False,  True),
@@ -304,7 +301,6 @@ def test_vmprof_real_time_threaded(insert_foo, remove_bar):
 
 @pytest.mark.skipif("'__pypy__' in sys.builtin_module_names")
 @pytest.mark.skipif("sys.platform == 'win32'")
-@pytest.mark.skip("seems to crash")
 @pytest.mark.parametrize("insert_foo,remove_bar", [
     (False, False),
     (False,  True),
@@ -518,7 +514,7 @@ class TestNative(object):
         cls.ffi = clib.ffi
 
     @pytest.mark.skipif("IS_PYPY")
-    @pytest.mark.skip("seems to crash")
+    @pytest.mark.skip("seems to deadlock sometimes")
     def test_gzip_call(self):
         p = vmprof.Profiler()
         with p.measure(native=True):

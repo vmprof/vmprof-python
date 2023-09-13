@@ -98,7 +98,17 @@ int vmprof_snapshot_thread(DWORD thread_id, PY_WIN_THREAD_STATE *tstate, prof_st
     ResumeThread(hThread);
     return depth;
 #else
-    PyFrameObject* frame = PyThreadState_GetFrame(tstate);
+    /*  in cp3.11 PyThreadState_GetFrame calls _PyThreadState_GET wich may return null if we dont hold the gil.
+        this does seem to deadlock often. */
+#if PY_VERSION_HEX >= 0x030B0000 /* < 3.11 */
+    PyGILState_STATE gilstate = PyGILState_Ensure(); 
+#endif
+    PY_STACK_FRAME_T* frame = PyThreadState_GetFrame(tstate);
+
+#if PY_VERSION_HEX >= 0x030B0000 /* < 3.11 */
+    PyGILState_Release(gilstate); 
+#endif
+
     depth = vmp_walk_and_record_stack(frame, stack->stack,
                                       MAX_STACK_DEPTH, 0, 0);
     Py_XDECREF(frame);
