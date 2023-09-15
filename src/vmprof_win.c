@@ -1,5 +1,10 @@
 #include "vmprof_win.h"
 
+#if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
+#include "internal/pycore_frame.h"
+#include "populate_frames.h"
+#endif
+
 volatile int thread_started = 0;
 volatile int enabled = 0;
 
@@ -98,20 +103,19 @@ int vmprof_snapshot_thread(DWORD thread_id, PY_WIN_THREAD_STATE *tstate, prof_st
     ResumeThread(hThread);
     return depth;
 #else
-    /*  in cp3.11 PyThreadState_GetFrame calls _PyThreadState_GET wich may return null if we dont hold the gil.
-        this does seem to deadlock often. */
-#if PY_VERSION_HEX >= 0x030B0000 /* < 3.11 */
-    PyGILState_STATE gilstate = PyGILState_Ensure(); 
-#endif
-    PY_STACK_FRAME_T* frame = PyThreadState_GetFrame(tstate);
 
 #if PY_VERSION_HEX >= 0x030B0000 /* < 3.11 */
-    PyGILState_Release(gilstate); 
+    _PyInterpreterFrame * frame = unsafe_PyThreadState_GetInterpreterFrame(tstate);
+#else
+    PY_STACK_FRAME_T * frame = PyThreadState_GetFrame(tstate);
 #endif
 
     depth = vmp_walk_and_record_stack(frame, stack->stack,
                                       MAX_STACK_DEPTH, 0, 0);
+
+#if PY_VERSION_HEX < 0x030B0000 /* < 3.11 */
     Py_XDECREF(frame);
+#endif
     stack->depth = depth;
     stack->stack[depth++] = (void*)((ULONG_PTR)thread_id);
     stack->count = 1;

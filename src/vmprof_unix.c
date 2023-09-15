@@ -1,5 +1,9 @@
 #include "vmprof_unix.h"
 
+#if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
+#include "populate_frames.h"
+#endif
+
 #ifdef VMPROF_UNIX
 
 #if VMPROF_LINUX
@@ -485,7 +489,12 @@ static inline PyFrameObject* PyThreadState_GetFrame(PyThreadState *tstate)
 
 int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, intptr_t pc)
 {
+#if PY_VERSION_HEX >= 0x030B0000 /* < 3.11, no pypy 3.11 at the moment*/ 
+    _PyInterpreterFrame * frame;
+#else
     PY_STACK_FRAME_T * frame;
+#endif
+
 #ifdef RPYTHON_VMPROF
     // do nothing here,
     frame = (PY_STACK_FRAME_T*)current;
@@ -496,17 +505,12 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 #endif
         return 0;
     }
-    /*  in cp3.11 PyThreadState_GetFrame calls _PyThreadState_GET wich may return null if we dont hold the gil.
-        this sometimes deadlocks when there is more than one thread. */
 #if PY_VERSION_HEX >= 0x030B0000 /* < 3.11 */
-    PyGILState_STATE gilstate = PyGILState_Ensure(); 
-#endif
+    frame = unsafe_PyThreadState_GetInterpreterFrame(current);
+#else
     frame = PyThreadState_GetFrame(current);
-
-#if PY_VERSION_HEX >= 0x030B0000 /* < 3.11 */
-    PyGILState_Release(gilstate); 
 #endif
-
+   
 
 #endif
     if (frame == NULL) {
@@ -518,7 +522,9 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 
     int res = vmp_walk_and_record_stack(frame, result, max_depth, 1, pc);
 
+#if PY_VERSION_HEX < 0x030B0000 /* < 3.11 */
     Py_XDECREF(frame);
+#endif
 
     return res;
 }

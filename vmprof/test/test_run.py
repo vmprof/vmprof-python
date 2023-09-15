@@ -204,7 +204,6 @@ def test_nested_call():
     else:
         assert len(t[''].children) == 0
 
-@pytest.mark.skip("seems to deadlock")
 def test_multithreaded():
     if '__pypy__' in sys.builtin_module_names:
         pytest.skip("not supported on pypy just yet")
@@ -514,7 +513,6 @@ class TestNative(object):
         cls.ffi = clib.ffi
 
     @pytest.mark.skipif("IS_PYPY")
-    @pytest.mark.skip("seems to deadlock sometimes")
     def test_gzip_call(self):
         p = vmprof.Profiler()
         with p.measure(native=True):

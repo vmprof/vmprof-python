@@ -11,6 +11,12 @@
 #include "_vmprof.h"
 #include "vmprof_common.h"
 
+
+#if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
+#include "internal/pycore_frame.h"
+#include "populate_frames.h"
+#endif
+
 static destructor Original_code_dealloc = 0;
 static PyObject* (*_default_eval_loop)(PyFrameObject *, int) = 0;
 
@@ -308,7 +314,12 @@ sample_stack_now(PyObject *module, PyObject * args)
         return NULL;
     }
 
+#if PY_VERSION_HEX >= 0x030B0000 /* < 3.11, no pypy 3.11 at the moment*/ 
+    _PyInterpreterFrame *  frame = unsafe_PyThreadState_GetInterpreterFrame(tstate);
+#else
     PyFrameObject* frame = PyThreadState_GetFrame(tstate);
+#endif
+
     entry_count = vmp_walk_and_record_stack(frame, m, SINGLE_BUF_SIZE/sizeof(void*)-1, (int)skip, 0);
 
     Py_XDECREF(frame);
