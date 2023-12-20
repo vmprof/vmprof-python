@@ -78,6 +78,8 @@ else:
         raise NotImplementedError("platform '%s' is not supported!" % sys.platform)
     extra_compile_args.append('-I src/')
     extra_compile_args.append('-I src/libbacktrace')
+    if sys.version_info[:2] == (3,11):
+        extra_source_files += ['src/populate_frames.c']
     ext_modules = [Extension('_vmprof',
                            sources=[
                                'src/_vmprof.c',
@@ -121,7 +123,7 @@ setup(
         'pytz',
         'colorama',
     ] + extra_install_requires,
-    python_requires='>=3.6, <3.11',
+    python_requires='>=3.6, <3.12',
     tests_require=['pytest','cffi','hypothesis'],
     entry_points = {
         'console_scripts': [
