@@ -77,7 +77,7 @@ jobs:
           # when it should be
           # vmprof-0.4.15-pp3-none-any.whl
           # Once https://github.com/pypa/packaging/pull/466 goes in, uncomment
-          # mv vmprof*-{py3,pp3}-none-any.whl 
+          mv vmprof*-{py3,pp3}-none-any.whl 
 
       - uses: actions/upload-artifact@v3
         with:
