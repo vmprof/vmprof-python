@@ -54,7 +54,7 @@ jobs:
           python-version: 'pypy-3.9'
 
       - name: Install system libraries
-        run: sudo apt install -y libunwind-dev libelf-dev libdwarf-dev
+        run: sudo apt install -y libunwind-dev libelf-dev libdwarf-dev rename
 
       - name: Build wheel
         run: |
@@ -71,13 +71,11 @@ jobs:
           pypy -m pytest vmprof -v || FAILED=true
           pypy -m pytest jitlog -v || FAILED=true
           if [ "FAILED" == true ]; then exit 1; fi
-          # Uh-oh. packaging.tags does not support a pp3-none-any wheel tag.
           # The wheel name is something like
           # vmprof-0.4.15-py3-none-any.whl
           # when it should be
           # vmprof-0.4.15-pp3-none-any.whl
-          # Once https://github.com/pypa/packaging/pull/466 goes in, uncomment
-          # mv vmprof*-{py3,pp3}-none-any.whl 
+          rename 's/py3/pp3/' vmprof-*.whl
 
       - uses: actions/upload-artifact@v3
         with:
