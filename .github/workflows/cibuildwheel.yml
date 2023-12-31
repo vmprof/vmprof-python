@@ -54,7 +54,7 @@ jobs:
           python-version: 'pypy-3.9'
 
       - name: Install system libraries
-        run: sudo apt install -y libunwind-dev libelf-dev libdwarf-dev
+        run: sudo apt install -y libunwind-dev libelf-dev libdwarf-dev rename
 
       - name: Build wheel
         run: |
