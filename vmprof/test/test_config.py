@@ -61,3 +61,10 @@ no-native = True
 
     assert test_file == args.config.name
     assert args.no_native == True
+
+
+def test_parser_with_m_switch():
+    args = cli.parse_args(['-m', 'example'])
+
+    assert args.module
+    assert args.program == 'example'

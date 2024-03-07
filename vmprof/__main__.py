@@ -56,9 +56,12 @@ def main():
         _jitlog.enable(fd)
     # invoke the user program:
     try:
-        sys.argv = [args.program] + args.args
-        sys.path.insert(0, os.path.dirname(args.program))
-        runpy.run_path(args.program, run_name='__main__')
+        sys.argv[1:] = args.args
+        if args.module:
+            runpy.run_module(args.program, run_name='__main__', alter_sys=True)
+        else:
+            sys.path.insert(0, os.path.dirname(args.program))
+            runpy.run_path(args.program, run_name='__main__')
     except BaseException as e:
         if not isinstance(e, (KeyboardInterrupt, SystemExit)):
             raise

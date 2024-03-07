@@ -11,6 +11,12 @@ def build_argparser():
         prog="vmprof"
     )
     parser.add_argument(
+        '-m',
+        dest='module',
+        action='store_true',
+        help='Run module as a script'
+    )
+    parser.add_argument(
         'program',
         help='program'
     )
