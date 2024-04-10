@@ -1,4 +1,3 @@
-six
 requests
 backports.shutil_which
 cffi

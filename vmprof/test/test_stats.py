@@ -2,7 +2,6 @@ import json
 import zlib
 
 import pytest
-import six
 
 import vmprof
 from vmprof.stats import Node, Stats, JittedCode, AssemblerCode

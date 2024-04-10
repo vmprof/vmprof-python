@@ -2,7 +2,6 @@ from __future__ import print_function
 import os
 import struct
 import sys
-from six.moves import xrange
 import io
 import gzip
 import datetime
@@ -208,12 +207,12 @@ class LogReader(object):
             kinds_and_pcs = self.read_addresses(depth * 2)
             # kinds_and_pcs is a list of [kind1, pc1, kind2, pc2, ...]
             return [wrap_kind(kinds_and_pcs[i], kinds_and_pcs[i+1])
-                    for i in xrange(0, len(kinds_and_pcs), 2)]
+                    for i in range(0, len(kinds_and_pcs), 2)]
         else:
             trace = self.read_addresses(depth)
 
             if self.state.profile_lines:
-                for i in xrange(0, len(trace), 2):
+                for i in range(0, len(trace), 2):
                     # In the line profiling mode even items in the trace are line numbers.
                     # Every line number corresponds to the following frame, represented by an address.
                     trace[i] = -trace[i]

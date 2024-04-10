@@ -1,4 +1,3 @@
-import six
 from vmprof.reader import AssemblerCode, JittedCode, NativeCode
 
 class EmptyProfileFile(Exception):
@@ -58,7 +57,7 @@ class Stats(object):
         return self.meta.get('argv', '')
 
     def getmeta(self, key, default):
-        return self.meta.get(key, default) 
+        return self.meta.get(key, default)
 
     def display(self, no):
         prof = self.profiles[no][0]
@@ -77,7 +76,7 @@ class Stats(object):
                     current_iter[addr] = None
 
     def top_profile(self):
-        return [(self._get_name(k), v) for (k, v) in six.iteritems(self.functions)]
+        return [(self._get_name(k), v) for (k, v) in self.functions.items()]
 
     def _get_name(self, addr):
         if self.adr_dict is not None:
@@ -203,7 +202,7 @@ class Node(object):
         return json.dumps(self._serialize())
 
     def _serialize(self):
-        chld = [ch._serialize() for ch in six.itervalues(self.children)]
+        chld = [ch._serialize() for ch in self.children.items()]
         # if we don't make str() of addr here, JS does its
         # int -> float -> int losy convertion without
         # any warning
@@ -211,21 +210,21 @@ class Node(object):
 
     def _rec_count(self):
         c = 1
-        for x in six.itervalues(self.children):
+        for x in self.children.values():
             c += x._rec_count()
         return c
 
     def walk(self, callback):
         callback(self)
-        for c in six.itervalues(self.children):
+        for c in self.children.values():
             c.walk(callback)
 
     def cumulative_meta(self, d=None):
         if d is None:
             d = {}
-        for c in six.itervalues(self.children):
+        for c in self.children.values():
             c.cumulative_meta(d)
-        for k, v in six.iteritems(self.meta):
+        for k, v in self.meta.items():
             d[k] = d.get(k, 0) + v
         return d
 
@@ -241,7 +240,7 @@ class Node(object):
         if self._self_count is not None:
             return self._self_count
         self._self_count = self.count
-        for elem in six.itervalues(self.children):
+        for elem in self.children.values():
             self._self_count -= elem.count
         return self._self_count
 

@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import inspect
 import linecache
 import os
-import six
 import sys
 import tokenize
 import vmprof
@@ -13,7 +12,7 @@ from collections import namedtuple
 from vmprof.stats import EmptyProfileFile
 
 
-class color(six.text_type):
+class color(str):
     RED = '\033[31m'
     WHITE = '\033[37m'
     BLUE = '\033[94m'
@@ -21,8 +20,7 @@ class color(six.text_type):
     END = '\033[0m'
 
     def __new__(cls, content, color, bold=False):
-        return six.text_type.__new__(
-            cls, "%s%s%s%s" % (color, cls.BOLD if bold else "", content, cls.END))
+        return "%s%s%s%s" % (color, cls.BOLD if bold else "", content, cls.END)
 
 class AbstractPrinter(object):
     def show(self, profile):
@@ -81,7 +79,7 @@ class PrettyPrinter(AbstractPrinter):
         level += 1
         if level > self._prune_level:
             return
-        for c in six.itervalues(node.children):
+        for c in node.children.values():
             self._walk_tree(node, c, level, callback)
 
     color = color
@@ -140,7 +138,7 @@ class PrettyPrinter(AbstractPrinter):
                 partial(self._print_node, total=float(tree.count)))
 
 
-class html_color(six.text_type):
+class html_color(str):
     RED = 'red'
     WHITE = 'black'
     BLUE = 'blue'
@@ -172,7 +170,7 @@ class HTMLPrettyPrinter(PrettyPrinter):
         level += 1
         if level > self._prune_level:
             return
-        for c in six.itervalues(node.children):
+        for c in node.children.values():
             self._walk_tree(node, c, level, callback)
         print("</details>")
 
@@ -218,7 +216,7 @@ class FlatPrinter(AbstractPrinter):
 
     def _walk_tree(self, parent, node, callback):
         callback(parent, node)
-        for c in six.itervalues(node.children):
+        for c in node.children.values():
             self._walk_tree(node, c, callback)
 
     def _print_tree(self, tree):
@@ -235,7 +233,7 @@ class FlatPrinter(AbstractPrinter):
                         0 if parse_block_name(ch.name)[0] == 'n' and self.no_native
                         else ch.count
 
-                    for ch in six.itervalues(node.children))
+                    for ch in node.children.values())
 
             func_id_to_count[ndescr] = func_id_to_count.get(ndescr, 0) + mycount
 
@@ -284,15 +282,15 @@ class LinesPrinter(AbstractPrinter):
                 # only python supported for line profiling
                 if block_type == 'py':
                     lines = d.setdefault((filename, int(funline), funname), {})
-                    for l, cnt in six.iteritems(node.lines):
+                    for l, cnt in node.lines.items():
                         lines[l] = lines.get(l, 0) + cnt
 
-            for c in six.itervalues(node.children):
+            for c in node.children.values():
                 walk(c, d)
 
         walk(tree, funcs)
 
-        return six.iteritems(funcs)
+        return funcs.items()
 
     def show_func(self, filename, start_lineno, func_name, timings, stream=None, stripzeros=False):
         """ Show results for a single function.
@@ -305,7 +303,7 @@ class LinesPrinter(AbstractPrinter):
         total_hits = 0.0
 
         linenos = []
-        for lineno, nhits in six.iteritems(timings):
+        for lineno, nhits in timings.items():
             total_hits += nhits
             linenos.append(lineno)
 
@@ -338,7 +336,7 @@ class LinesPrinter(AbstractPrinter):
             # Fake empty lines so we can see the timings, if not the code.
             nlines = max(linenos) - min(min(linenos), start_lineno) + 1
             sublines = [''] * nlines
-        for lineno, nhits in six.iteritems(timings):
+        for lineno, nhits in timings.items():
             d[lineno] = (nhits, '%5.1f' % (100* nhits / total_hits))
         linenos = range(start_lineno, start_lineno + len(sublines))
         empty = ('', '')

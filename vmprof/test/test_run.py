@@ -9,7 +9,6 @@ import gzip
 import time
 import pytz
 import vmprof
-import six
 from cffi import FFI
 from datetime import datetime
 import requests
@@ -453,8 +452,8 @@ def test_line_profiling():
     def walk(tree):
         assert len(tree.lines) >= len(tree.children)
 
-        for v in six.itervalues(tree.children):
-                walk(v)
+        for v in tree.children.values():
+            walk(v)
 
     stats = read_profile(tmpfile.name)
     walk(stats.get_tree())
