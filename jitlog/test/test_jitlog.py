@@ -12,8 +12,6 @@ from vmprof.test.test_reader import FileObj
 from vmprof.test.test_run import FileObjWrapper, BufferTooSmallError
 import vmprof
 
-PY3 = sys.version_info[0] >= 3
-
 def construct_forest(fileobj, version=1, forest=None):
     if forest is None:
         forest = TraceForest(version)
@@ -160,15 +158,12 @@ def test_merge_point_encode():
         assert binary == partb + parta
 
 def test_iter_ranges():
-    r = lambda a,b: list(range(a,b))
-    if PY3:
-        r = range
     assert list(iter_ranges([])) == []
-    assert list(iter_ranges([1])) == [r(1,2)]
-    assert list(iter_ranges([5,7])) == [r(5,8)]
-    assert list(iter_ranges([14,25,100])) == [r(14,26),r(100,101)]
-    assert list(iter_ranges([-1,2])) == [r(-1,2+1)]
-    assert list(iter_ranges([0,1,100,101,102,300,301])) == [r(0,2),r(100,103),r(300,302)]
+    assert list(iter_ranges([1])) == [range(1,2)]
+    assert list(iter_ranges([5,7])) == [range(5,8)]
+    assert list(iter_ranges([14,25,100])) == [range(14,26),range(100,101)]
+    assert list(iter_ranges([-1,2])) == [range(-1,2+1)]
+    assert list(iter_ranges([0,1,100,101,102,300,301])) == [range(0,2),range(100,103),range(300,302)]
 
 def test_read_jitlog_counter():
     forest = TraceForest(1)

@@ -12,8 +12,6 @@ import jitlog
 import gzip
 import warnings
 
-PY3 = sys.version_info[0] >= 3
-
 class ServiceException(Exception):
     pass
 

@@ -4,8 +4,6 @@ import pytest
 from jitlog.objects import (TraceForest, MergePoint, FlatOp)
 from jitlog import constants as const
 
-PY3 = sys.version_info[0] >= 3
-
 @pytest.mark.parametrize('encoding,text,decoded,bom',
     [('ascii',   b'a!1%$', u'a!1%$', None),
      ('utf-8',   b"\x41\xE2\x89\xA2\xCE\x91\x2E", u'A≢Α.', None),
@@ -30,7 +28,4 @@ def test_merge_point_extract_source_code(encoding,text,decoded,bom,tmpdir):
     trace.add_instr(MergePoint({0x1: str(file), 0x2: 2}))
     forest.extract_source_code_lines()
     line = forest.source_lines[str(file)][2]
-    if PY3:
-        assert line == (0, "print(\"" + decoded + "\")")
-    else:
-        assert line == (0, "print(\"" + text + "\")")
+    assert line == (0, "print(\"" + decoded + "\")")

@@ -6,9 +6,6 @@ import io
 import gzip
 import datetime
 
-PY3  = sys.version_info[0] >= 3
-
-
 MARKER_STACKTRACE = b'\x01'
 MARKER_VIRTUAL_IP = b'\x02'
 MARKER_TRAILER = b'\x03'
@@ -104,20 +101,19 @@ class LogReader(object):
     def detect_file_sizes(self):
         self.fileobj.seek(0, os.SEEK_SET)
         firstbytes = self.read(8)
-        three = '\x03' if not PY3 else 3
         little = None
-        if firstbytes[4] == three:
+        if firstbytes[4] == 3:
             little = True
             self.setup_once(little_endian=little, word_size=4, addr_size=4)
-        elif firstbytes[7] == three:
+        elif firstbytes[7] == 3:
             little = False
             self.setup_once(little_endian=little, word_size=4, addr_size=4)
         else:
             firstbytes = self.read(8)
-            if firstbytes[0] == three:
+            if firstbytes[0] == 3:
                 little = True
                 self.setup_once(little_endian=little, word_size=8, addr_size=8)
-            elif firstbytes[7] == three:
+            elif firstbytes[7] == 3:
                 little = False
                 self.setup_once(little_endian=little, word_size=8, addr_size=8)
             else:
@@ -171,8 +167,7 @@ class LogReader(object):
         s.interp_name = fileobj.read(lgt)
         if s.interp_name == b'pypy':
             s.profile_rpython = True
-        if PY3:
-            s.interp_name = s.interp_name.decode()
+        s.interp_name = s.interp_name.decode()
 
     def read_addr(self):
         if self.addr_size == 8:
@@ -195,10 +190,9 @@ class LogReader(object):
 
     def read_string(self):
         cnt = self.read_word()
-        bytes = self.read(cnt)
-        if PY3:
-            return bytes.decode('utf-8')
-        return bytes
+        result = self.read(cnt)
+        result = result.decode('utf-8')
+        return result
 
     def read_trace(self, depth):
         if self.state.profile_rpython:

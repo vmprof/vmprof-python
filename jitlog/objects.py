@@ -5,7 +5,6 @@ import argparse
 from collections import defaultdict
 from jitlog import constants as const, merge_point
 
-PY3 = sys.version_info[0] >= 3
 
 class FlatOp(object):
     def __init__(self, opnum, opname, args, result,
@@ -53,7 +52,7 @@ class FlatOp(object):
             if timeval < timepos:
                 continue # do not apply the patch
             op_off = self.core_dump[0]
-            patch_start = (addr - base_addr) - op_off 
+            patch_start = (addr - base_addr) - op_off
             patch_end = patch_start + len(content)
             content_end = len(content)-1
             if patch_end >= len(coredump):
@@ -430,8 +429,7 @@ def decode_source(source_bytes):
 def read_python_source(file):
     with open(file, 'rb') as fd:
         data = fd.read()
-        if PY3:
-            data = decode_source(data)
+        data = decode_source(data)
         return data
 
 class TraceForest(object):
@@ -571,8 +569,7 @@ class TraceForest(object):
         for filename, lines in self.source_lines.items():
             marks.append(const.MARK_SOURCE_CODE)
             data = filename
-            if PY3:
-                data = data.encode('utf-8')
+            data = data.encode('utf-8')
             marks.append(struct.pack('<I', len(data)))
             marks.append(data)
 

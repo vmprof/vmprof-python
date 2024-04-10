@@ -12,7 +12,6 @@ from vmprof.stats import Stats
 from vmprof.profiler import Profiler, read_profile
 
 
-PY3  = sys.version_info[0] >= 3
 IS_PYPY = '__pypy__' in sys.builtin_module_names
 
 # it's not a good idea to use a "round" default sampling period, else we risk
