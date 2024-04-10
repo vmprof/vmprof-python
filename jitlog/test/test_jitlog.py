@@ -1,4 +1,4 @@
-import struct, py, sys
+import struct, sys
 import pytest
 from vmprof import reader
 from jitlog import constants as const
