@@ -37,7 +37,7 @@ def disable():
                         _vmprof.write_all_code_objects(l.dedup)
         finally:
             _vmprof.disable()
-    except IOError as e:
+    except OSError as e:
         raise Exception("Error while writing profile: " + str(e))
 
 def _is_native_enabled(native):

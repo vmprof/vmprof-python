@@ -1,7 +1,7 @@
 from jitlog import constants as const
 from vmshare.binary import read_string, read_le_u64
 
-class MergePointDecoder(object):
+class MergePointDecoder:
     def __init__(self, sem_type):
         self.sem_type = sem_type
         self.last_prefix = None

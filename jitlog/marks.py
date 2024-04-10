@@ -1,4 +1,3 @@
-from __future__ import print_function
 from jitlog import constants as const
 from jitlog import merge_point
 from jitlog.objects import FlatOp, MergePoint

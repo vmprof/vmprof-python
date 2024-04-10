@@ -1,6 +1,6 @@
 from colorama import init, deinit, Fore, Back, Style
 
-class PrettyPrinter(object):
+class PrettyPrinter:
     def __enter__(self):
         pass
 

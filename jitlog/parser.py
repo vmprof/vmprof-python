@@ -10,7 +10,7 @@ from collections import defaultdict
 JITLOG_MIN_VERSION = 1
 JITLOG_VERSION = 1
 
-class ParseContext(object):
+class ParseContext:
     def __init__(self, forest):
         self.descrs = defaultdict(list)
         self.forest = forest

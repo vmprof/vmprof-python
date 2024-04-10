@@ -28,7 +28,7 @@ class BufferTooSmallError(Exception):
     def get_buf(self):
         return b"".join(self.args[0])
 
-class FileObjWrapper(object):
+class FileObjWrapper:
     def __init__(self, fileobj, buffer_so_far=None):
         self._fileobj = fileobj
         self._buf = []
@@ -459,7 +459,7 @@ def test_vmprof_show():
     pp.show(tmpfile.name)
 
 @pytest.mark.skipif("sys.platform == 'win32' or sys.platform == 'darwin'")
-class TestNative(object):
+class TestNative:
     def setup_class(cls):
         ffi = FFI()
         ffi.cdef("""

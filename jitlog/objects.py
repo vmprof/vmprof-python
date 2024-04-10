@@ -6,7 +6,7 @@ from collections import defaultdict
 from jitlog import constants as const, merge_point
 
 
-class FlatOp(object):
+class FlatOp:
     def __init__(self, opnum, opname, args, result,
                  descr=None, descr_number=None, failargs=None):
         self.opnum = opnum
@@ -114,7 +114,7 @@ class MergePoint(FlatOp):
     def __repr__(self):
         return 'debug_merge_point(xxx)'
 
-class Stage(object):
+class Stage:
     def __init__(self, mark, timeval):
         self.mark = mark
         self.ops = []
@@ -162,7 +162,7 @@ from collections import namedtuple
 class TraceLink(namedtuple('TraceLink', 'origin target')):
     pass
 
-class Trace(object):
+class Trace:
     def __init__(self, forest, trace_type, tick, unique_id, jd_name=None):
         self.forest = forest
         self.jd_name = jd_name
@@ -386,7 +386,7 @@ def iter_ranges(numbers):
             last = i
     yield range(first, last+1)
 
-class PointInTrace(object):
+class PointInTrace:
     def __init__(self, trace, op):
         self.trace = trace
         self.op = op
@@ -432,7 +432,7 @@ def read_python_source(file):
         data = decode_source(data)
         return data
 
-class TraceForest(object):
+class TraceForest:
     def __init__(self, version, is_32bit=False, machine=None):
         self.word_size = 4 if is_32bit else 8
         self.version = version

@@ -6,9 +6,9 @@ import platform
 
 IS_PYPY = '__pypy__' in sys.builtin_module_names
 
-class vmprof_build(build_py, object):
+class vmprof_build(build_py):
     def run(self):
-        super(vmprof_build, self).run()
+        super().run()
 
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -66,13 +66,13 @@ else:
            'src/libbacktrace/sort.c',
         ]
         # configure libbacktrace!!
-        class vmprof_build(build_py, object):
+        class vmprof_build(build_py):
             def run(self):
                 orig_dir = os.getcwd()
                 os.chdir(os.path.join(BASEDIR, "src", "libbacktrace"))
                 subprocess.check_call(["./configure"])
                 os.chdir(orig_dir)
-                super(vmprof_build, self).run()
+                super().run()
 
     else:
         raise NotImplementedError("platform '%s' is not supported!" % sys.platform)

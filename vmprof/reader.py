@@ -1,4 +1,3 @@
-from __future__ import print_function
 import os
 import struct
 import sys
@@ -64,7 +63,7 @@ def gunzip(fileobj):
         fileobj = io.BufferedReader(gzip.GzipFile(fileobj=fileobj))
     return fileobj
 
-class ReaderStatus(object):
+class ReaderStatus:
     def __init__(self, interp_name, period, version, previous_virtual_ips=None,
                  profile_memory=False, profile_lines=False):
         if previous_virtual_ips is not None:
@@ -85,7 +84,7 @@ def assert_error(condition, error="malformed file"):
     if not condition:
         raise FileReadError(error)
 
-class LogReader(object):
+class LogReader:
     # NOTE be sure to carry along changes in src/symboltable.c for
     # native symbol resolution if something changes in this function
     def __init__(self, fileobj, state):
@@ -344,7 +343,7 @@ class LogReaderDumpNative(LogReader):
             if addr not in self.dedup:
                 self.dedup.add(addr)
 
-class ReaderState(object):
+class ReaderState:
     pass
 
 class LogReaderState(ReaderState):
@@ -372,7 +371,7 @@ def _read_prof(fileobj, virtual_ips_only=False):
         return state.virtual_ips
     return state
 
-class FdWrapper(object):
+class FdWrapper:
     """ This wrapper behaves like a file object. Could not find
         an stdlib API function that creates such an object without
         closing it.

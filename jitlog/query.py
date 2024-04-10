@@ -2,7 +2,7 @@ import functools
 
 
 
-class Filter(object):
+class Filter:
     def __and__(self, o):
         assert isinstance(o, Filter)
         return AndFilter(self, o)
@@ -82,7 +82,7 @@ QUERY_API = {
 }
 
 
-class Query(object):
+class Query:
     def __init__(self, text):
         self.query_str = text
         self.forest = None

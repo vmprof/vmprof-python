@@ -35,7 +35,7 @@ def compress_file(filename):
                 zipfd.write(chunk)
     return name
 
-class Service(object):
+class Service:
     FILE_CPU_PROFILE = 'cpu'
     FILE_MEM_PROFILE = 'mem'
     FILE_JIT_PROFILE = 'jit'

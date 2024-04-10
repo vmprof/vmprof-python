@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 
 import inspect
 import linecache
@@ -22,7 +21,7 @@ class color(str):
     def __new__(cls, content, color, bold=False):
         return "%s%s%s%s" % (color, cls.BOLD if bold else "", content, cls.END)
 
-class AbstractPrinter(object):
+class AbstractPrinter:
     def show(self, profile):
         """
         Read and display a vmprof profile file.

@@ -2,13 +2,13 @@ import sys
 import random
 
 
-class Node(object):
+class Node:
     def __init__(self, right, left):
         self.left = left
         self.right = right
 
 
-class Digit(object):
+class Digit:
     def __init__(self, v):
         self.v = v
 

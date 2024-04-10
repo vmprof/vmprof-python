@@ -5,7 +5,7 @@ from vmprof.reader import (FileReadError, MARKER_HEADER)
 from vmprof.test.test_run import (read_one_marker, read_header,
         BufferTooSmallError, FileObjWrapper)
 
-class FileObj(object):
+class FileObj:
     def __init__(self, lst=None):
         self.s = b''
         if lst is None:

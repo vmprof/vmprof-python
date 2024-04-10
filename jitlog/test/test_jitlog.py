@@ -203,7 +203,7 @@ def test_point_in_trace():
     assert trace.counter == 10
     assert trace.point_counters[1] == 20
 
-class FakeOp(object):
+class FakeOp:
     def __init__(self, i):
         self.index = i
 

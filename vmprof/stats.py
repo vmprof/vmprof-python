@@ -3,7 +3,7 @@ from vmprof.reader import AssemblerCode, JittedCode, NativeCode
 class EmptyProfileFile(Exception):
     pass
 
-class Stats(object):
+class Stats:
     def __init__(self, profiles, adr_dict=None, jit_frames=None, interp=None,
                  meta=None, start_time=None, end_time=None, state=None):
         self.profiles = profiles
@@ -172,7 +172,7 @@ class Stats(object):
         return first_top
 
 
-class Node(object):
+class Node:
     """ children is a dict of addr -> Node
     """
     _self_count = None

@@ -2,7 +2,7 @@ from jitlog.objects import (TraceForest, FlatOp, MergePoint)
 from jitlog import constants as c
 from jitlog import query
 
-class TestQueries(object):
+class TestQueries:
     def q(self, forest, text):
         return query.new_unsafe_query(text)(forest)
 

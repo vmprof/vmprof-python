@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import argparse
 import sys
 import configparser
@@ -108,7 +106,7 @@ def parse_args(argv):
     return args
 
 
-class IniParser(object):
+class IniParser:
 
     def __init__(self, f):
         self.ini_parser = configparser.ConfigParser()

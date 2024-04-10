@@ -8,7 +8,7 @@ from vmprof.reader import _read_prof
 class VMProfError(Exception):
     pass
 
-class ProfilerContext(object):
+class ProfilerContext:
     done = False
 
     def __init__(self, name, period, memory, native, real_time):
@@ -50,7 +50,7 @@ def read_profile(prof_file):
     return s
 
 
-class Profiler(object):
+class Profiler:
     ctx = None
 
     def __init__(self):
