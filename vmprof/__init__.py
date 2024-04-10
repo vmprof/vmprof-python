@@ -1,9 +1,6 @@
 import os
 import sys
-try:
-    from shutil import which
-except ImportError:
-    from backports.shutil_which import which
+from shutil import which
 
 import _vmprof
 

@@ -102,11 +102,6 @@ else:
                            extra_compile_args=extra_compile_args,
                            libraries=libraries)]
 
-if sys.version_info[:2] >= (3, 3):
-    extra_install_requires = []
-else:
-    extra_install_requires = ["backports.shutil_which"]
-
 setup(
     name='vmprof',
     author='vmprof team',
@@ -121,7 +116,7 @@ setup(
         'requests',
         'pytz',
         'colorama',
-    ] + extra_install_requires,
+    ],
     python_requires='>=3.6, <3.12',
     tests_require=['pytest','cffi','hypothesis'],
     entry_points = {
