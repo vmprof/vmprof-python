@@ -1,7 +1,9 @@
 #include "vmprof_unix.h"
 
-#if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
-#include "populate_frames.h"
+#ifndef RPYTHON_VMPROF
+  #if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
+  #include "populate_frames.h"
+  #endif
 #endif
 
 #ifdef VMPROF_UNIX
@@ -479,7 +481,7 @@ int vmprof_register_virtual_function(char *code_name, intptr_t code_uid,
     return 0;
 }
 
-#if PY_VERSION_HEX < 0x030900B1 /* < 3.9 */
+#if PY_VERSION_HEX < 0x030900B1  && ! defined(RPYTHON_VMPROF) /* < 3.9 */
 static inline PyFrameObject* PyThreadState_GetFrame(PyThreadState *tstate)
 {
     Py_XINCREF(tstate->frame);
@@ -511,8 +513,8 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
     frame = PyThreadState_GetFrame(current);
 #endif
    
+#endif /* RPYTHON_VMPROF */
 
-#endif
     if (frame == NULL) {
 #if DEBUG
         fprintf(stderr, "WARNING: get_stack_trace, frame is NULL\n");
@@ -522,7 +524,7 @@ int get_stack_trace(PY_THREAD_STATE_T * current, void** result, int max_depth, i
 
     int res = vmp_walk_and_record_stack(frame, result, max_depth, 1, pc);
 
-#if PY_VERSION_HEX < 0x030B0000 /* < 3.11 */
+#if PY_VERSION_HEX < 0x030B0000 && ! defined(RPYTHON_VMPROF) /* < 3.11 */
     Py_XDECREF(frame);
 #endif
 
