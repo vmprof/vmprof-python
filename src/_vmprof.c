@@ -12,9 +12,11 @@
 #include "vmprof_common.h"
 
 
-#if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
-#include "internal/pycore_frame.h"
-#include "populate_frames.h"
+#ifndef RPYTHON_VMPROF
+  #if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
+  #include "internal/pycore_frame.h"
+  #include "populate_frames.h"
+  #endif
 #endif
 
 static destructor Original_code_dealloc = 0;
