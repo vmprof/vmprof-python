@@ -34,7 +34,7 @@ jobs:
         sudo apt install -y libunwind-dev
         pkg-config libunwind --cflags --libs-only-l
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v5.2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python }}
     - name: Install
