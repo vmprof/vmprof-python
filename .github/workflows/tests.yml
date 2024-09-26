@@ -18,7 +18,7 @@ jobs:
       matrix:
         # Test all supported versions on Ubuntu:
         os: [ubuntu-latest]
-        python: ["3.9", "3.10", "pypy-3.9"]
+        python: ["3.9", "3.10", "3.11", "pypy-3.10"]
         experimental: [false]
           # include:
           #   - os: macos-latest
@@ -28,13 +28,13 @@ jobs:
           #     python: "3.10"
           #     experimental: false
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install libunwind
       run: |
         sudo apt install -y libunwind-dev
         pkg-config libunwind --cflags --libs-only-l
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python }}
     - name: Install

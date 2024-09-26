@@ -14,11 +14,6 @@
 #include "vmprof.h"
 #include "compat.h"
 
-#if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
-#include "internal/pycore_frame.h"
-#include "populate_frames.h"
-#endif
-
 #ifdef VMP_SUPPORTS_NATIVE_PROFILING
 
 #if defined(VMPROF_LINUX) || defined(VMPROF_BSD)

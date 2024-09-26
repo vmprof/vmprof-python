@@ -1,8 +1,10 @@
 #include "vmprof_win.h"
 
-#if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
-#include "internal/pycore_frame.h"
-#include "populate_frames.h"
+#ifndef RPYTHON_VMPROF
+  #if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
+  #include "internal/pycore_frame.h"
+  #include "populate_frames.h"
+  #endif
 #endif
 
 volatile int thread_started = 0;
@@ -58,7 +60,7 @@ int vmp_write_all(const char *buf, size_t bufsize)
     return 0;
 }
 
-#if PY_VERSION_HEX < 0x030900B1 /* < 3.9 */
+#if PY_VERSION_HEX < 0x030900B1 && ! defined(RPYTHON_VMPROF) /* < 3.9 */
 static inline PyFrameObject* PyThreadState_GetFrame(PyThreadState *tstate)
 {
     Py_XINCREF(tstate->frame);

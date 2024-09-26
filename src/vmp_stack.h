@@ -2,12 +2,14 @@
 
 #include "vmprof.h"
 
-#if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
-#include "internal/pycore_frame.h"
-#include "populate_frames.h"
+#ifndef RPYTHON_VMPROF
+  #if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
+  #include "internal/pycore_frame.h"
+  #include "populate_frames.h"
+  #endif
 #endif
 
-#if PY_VERSION_HEX >= 0x030B0000 /* >= 3.11 */
+#if PY_VERSION_HEX >= 0x030B0000  && !defined(RPYTHON_VMPROF) /* >= 3.11 */
     int vmp_walk_and_record_stack(_PyInterpreterFrame * frame, void **data,
                                     int max_depth, int signal, intptr_t pc);
 #else
