@@ -22,10 +22,10 @@ jobs:
 
     steps:
       # Note: the action happens inside a docker image
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.2
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.11.4
+        uses: pypa/cibuildwheel@v2.21.1
         env:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_MANYLINUX_I686_IMAGE: manylinux2014
@@ -48,10 +48,10 @@ jobs:
 
     steps:
       # Note: not inside a docker
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - uses: actions/checkout@v4.2
+      - uses: actions/setup-python@v4
         with:
-          python-version: 'pypy-3.9'
+          python-version: 'pypy-3.10'
 
       - name: Install system libraries
         run: sudo apt install -y libunwind-dev libelf-dev libdwarf-dev rename
