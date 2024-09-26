@@ -28,7 +28,7 @@ jobs:
           #     python: "3.10"
           #     experimental: false
     steps:
-    - uses: actions/checkout@v4.2
+    - uses: actions/checkout@v4
     - name: Install libunwind
       run: |
         sudo apt install -y libunwind-dev
