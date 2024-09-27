@@ -86,7 +86,7 @@ jobs:
           # vmprof-0.4.15-pp3-none-any.whl
           rename 's/py3/pp3/' vmprof-*.whl
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: vmprof*.whl
 
