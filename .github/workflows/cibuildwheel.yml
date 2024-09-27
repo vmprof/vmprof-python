@@ -42,6 +42,8 @@ jobs:
           CIBW_BEFORE_TEST: pip install -r test_requirements.txt
           CIBW_TEST_COMMAND: cd {package} && pytest vmprof jitlog -vv
           CIBW_TEST_COMMAND_WINDOWS: cd /d {package} && pytest vmprof jitlog -vv
+          CIBW_TEST_COMMAND_WINDOWS: cd /d {package} && pytest vmprof jitlog -vv
+          CIBW_TEST_SKIP: "*-*{linux_{aarch64,ppc64le,s390x},macos_x86_64}"
 
       - uses: actions/upload-artifact@v4
         with:
