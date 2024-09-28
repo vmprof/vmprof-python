@@ -24,19 +24,29 @@ jobs:
       # Note: the action happens inside a docker image
       - uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21.1
         env:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_MANYLINUX_I686_IMAGE: manylinux2014
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+          CIBW_ARCHS_LINUX: auto aarch64
           CIBW_SKIP: "pp* *-win32 *-manylinux_i686 *musllinux*"
           CIBW_BEFORE_BUILD_LINUX: yum install -y libunwind-devel elfutils-libelf-devel libdwarf-devel
           CIBW_BEFORE_TEST: pip install -r test_requirements.txt
           CIBW_TEST_COMMAND: cd {package} && pytest vmprof jitlog -vv
           CIBW_TEST_COMMAND_WINDOWS: cd /d {package} && pytest vmprof jitlog -vv
+          CIBW_TEST_SKIP: "*-*linux_{aarch64,ppc64le,s390x}"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: ${{ matrix.os }}
           path: ./wheelhouse/*.whl
 
 
@@ -77,7 +87,7 @@ jobs:
           # vmprof-0.4.15-pp3-none-any.whl
           rename 's/py3/pp3/' vmprof-*.whl
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: vmprof*.whl
 
