@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-13, macos-latest]
+        os: [ubuntu-22.04, windows-2022, macos-latest]
 
     steps:
       # Note: the action happens inside a docker image
@@ -42,7 +42,7 @@ jobs:
           CIBW_BEFORE_TEST: pip install -r test_requirements.txt
           CIBW_TEST_COMMAND: cd {package} && pytest vmprof jitlog -vv
           CIBW_TEST_COMMAND_WINDOWS: cd /d {package} && pytest vmprof jitlog -vv
-          CIBW_TEST_SKIP: "*-*{linux_{aarch64,ppc64le,s390x},macos_x86_64}"
+          CIBW_TEST_SKIP: "*-*linux_{aarch64,ppc64le,s390x}"
 
       - uses: actions/upload-artifact@v4
         with:
