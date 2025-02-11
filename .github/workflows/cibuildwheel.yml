@@ -37,7 +37,7 @@ jobs:
           CIBW_MANYLINUX_I686_IMAGE: manylinux2014
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
           CIBW_ARCHS_LINUX: auto aarch64
-          CIBW_SKIP: "pp* *-win32 *-manylinux_i686 *musllinux*"
+          CIBW_SKIP: "cp36-* pp* *-win32 *-manylinux_i686 *musllinux*"
           CIBW_BEFORE_BUILD_LINUX: yum install -y libunwind-devel elfutils-libelf-devel libdwarf-devel
           CIBW_BEFORE_TEST: pip install -r test_requirements.txt
           CIBW_TEST_COMMAND: cd {package} && pytest vmprof jitlog -vv
