@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-latest]
+        os: [ubuntu-24.04, windows-2022, macos-latest]
 
     steps:
       # Note: the action happens inside a docker image
@@ -52,7 +52,7 @@ jobs:
 
   build_pypy_wheels:
     name: Build pypy wheels
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
 
