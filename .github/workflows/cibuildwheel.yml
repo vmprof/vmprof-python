@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-latest]
+        os: [ubuntu-24.04, windows-2022, macos-latest]
 
     steps:
       # Note: the action happens inside a docker image
@@ -31,13 +31,13 @@ jobs:
           platforms: all
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.1
+        uses: pypa/cibuildwheel@v2.22.0
         env:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_MANYLINUX_I686_IMAGE: manylinux2014
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
           CIBW_ARCHS_LINUX: auto aarch64
-          CIBW_SKIP: "pp* *-win32 *-manylinux_i686 *musllinux*"
+          CIBW_SKIP: "cp36-* pp* *-win32 *-manylinux_i686 *musllinux*"
           CIBW_BEFORE_BUILD_LINUX: yum install -y libunwind-devel elfutils-libelf-devel libdwarf-devel
           CIBW_BEFORE_TEST: pip install -r test_requirements.txt
           CIBW_TEST_COMMAND: cd {package} && pytest vmprof jitlog -vv
@@ -52,7 +52,7 @@ jobs:
 
   build_pypy_wheels:
     name: Build pypy wheels
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
 
