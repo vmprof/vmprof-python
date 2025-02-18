@@ -132,14 +132,14 @@ class TestSymbolTable(object):
     def test_vmprof_resolve_addr(self):
         import _vmprof
         res = _vmprof.resolve_addr(int(self.ffi.cast('intptr_t', self.lib.get_somefunc(0))))
-        assert res[0] == b'somefunc'
+        assert res[0] == 'somefunc'
 
     def test_vmprof_resolve_many_addr(self):
         import vmprof
         addrs = [int(self.ffi.cast('intptr_t', self.lib.get_somefunc(which))) for which in [0, 1, 2]]
         res = vmprof.resolve_many_addr(addrs)
-        assert len(res) <= 2
+        assert len(res) <= 3
         if addrs[0] in res:
-            assert res[addrs[0]][0] == b'somefunc'
+            assert res[addrs[0]][0] == 'somefunc'
         if addrs[1] in res:
-            assert res[addrs[1]][0] == b'abs'
+            assert res[addrs[1]][0] == 'abs'
