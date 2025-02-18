@@ -4,6 +4,8 @@ import pytest
 from cffi import FFI
 from array import array
 
+import _vmprof
+
 if sys.platform != 'win32':
 
     ffi = FFI()
@@ -11,6 +13,9 @@ if sys.platform != 'win32':
     //void dump_all_known_symbols(int fd);
     int test_extract(char ** name, int * lineno, char ** src);
     int test_extract_sofile(char ** name, int * lineno, char ** src);
+
+    int somefunc();
+    void* get_somefunc(int);
     """)
     with open("src/symboltable.c", "rb") as fd:
         source = fd.read().decode()
@@ -36,7 +41,16 @@ if sys.platform != 'win32':
         return vmp_resolve_addr(&abs, gname, 64,
                                 lineno, gsrc, 128);
     }
+
+    int somefunc() {return 1;}
+    void* get_somefunc(int which) {
+        if (which == 0) return &somefunc;
+        if (which == 1) return &abs;
+        return NULL;
+    }
     """
+    # replace the name, otherwise we'll get the one built into pypy
+    source = source.replace('vmp_resolve_addr', 'vmp_resolve_addr_2')
     libs = [] #['unwind', 'unwind-x86_64']
     includes = ['src']
     if sys.platform.startswith('linux'):
@@ -80,7 +94,7 @@ class TestSymbolTable(object):
         _lineno = ffi.new("int*")
         lib.test_extract(name, _lineno, src)
 
-        assert ffi.string(name[0]) == b"vmp_resolve_addr"
+        assert ffi.string(name[0]) == b"vmp_resolve_addr_2"
         srcfile = ffi.string(src[0])
         assert b"_test_symboltable" in srcfile
         if not srcfile.endswith(b"vmprof/test/_test_symboltable.c"):
@@ -90,7 +104,7 @@ class TestSymbolTable(object):
             with open("vmprof/test/_test_symboltable.c", "rb") as fd:
                 lineno = 1
                 for line in fd.readlines():
-                    if "int vmp_resolve_addr(void * addr," in line.decode():
+                    if "int vmp_resolve_addr_2(void * addr," in line.decode():
                         if _lineno[0] == lineno:
                             break
                     lineno += 1
@@ -116,3 +130,18 @@ class TestSymbolTable(object):
         elif sys.platform == "darwin":
             # osx
             assert b"libsystem_c.dylib" in ffi.string(src[0])
+
+    @pytest.mark.skipif("not hasattr(_vmprof, 'resolve_addr')")
+    def test_vmprof_resolve_addr(self):
+        res = _vmprof.resolve_addr(int(self.ffi.cast('intptr_t', self.lib.get_somefunc(0))))
+        assert res[0] == 'somefunc'
+
+    def test_vmprof_resolve_many_addr(self):
+        import vmprof
+        addrs = [int(self.ffi.cast('intptr_t', self.lib.get_somefunc(which))) for which in [0, 1, 2]]
+        res = vmprof.resolve_many_addr(addrs)
+        assert len(res) <= 3
+        if addrs[0] in res:
+            assert res[addrs[0]][0] == 'somefunc'
+        if addrs[1] in res:
+            assert res[addrs[1]][0] == 'abs'

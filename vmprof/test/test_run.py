@@ -58,7 +58,7 @@ if sys.version_info.major == 3:
     PY3K = True
 else:
     PY3K = False
-if hasattr(os, 'uname') and os.uname().machine == 'ppc64le':
+if hasattr(os, 'uname') and os.uname()[4] == 'ppc64le':
     PPC64LE = True
 else:
     PPC64LE = False
