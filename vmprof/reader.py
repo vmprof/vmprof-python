@@ -318,7 +318,8 @@ class LogReaderDumpNative(LogReader):
         LogReader.finished_reading_profile(self)
         if len(self.dedup) == 0:
             return
-        all_addresses = vmprof.resolve_many_addr(self.dedup)
+        all_addresses = vmprof.resolve_many_addr(
+                [addr for addr in self.dedup if isinstance(addr, NativeCode)])
 
         self.fileobj.seek(0, os.SEEK_END)
         # must match '<lang>:<name>:<line>:<file>'
@@ -348,8 +349,6 @@ class LogReaderDumpNative(LogReader):
 
     def add_trace(self, trace, trace_count, thread_id, mem_in_kb):
         for addr in trace:
-            if not isinstance(addr, NativeCode):
-                continue
             if addr not in self.dedup:
                 self.dedup.add(addr)
 
