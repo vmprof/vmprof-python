@@ -4,6 +4,8 @@ import pytest
 from cffi import FFI
 from array import array
 
+import _vmprof
+
 if sys.platform != 'win32':
 
     ffi = FFI()
@@ -129,8 +131,8 @@ class TestSymbolTable(object):
             # osx
             assert b"libsystem_c.dylib" in ffi.string(src[0])
 
+    @pytest.mark.skipif("not hasattr(_vmprof, 'resolve_addr')")
     def test_vmprof_resolve_addr(self):
-        import _vmprof
         res = _vmprof.resolve_addr(int(self.ffi.cast('intptr_t', self.lib.get_somefunc(0))))
         assert res[0] == 'somefunc'
 
