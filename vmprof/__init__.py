@@ -64,8 +64,6 @@ if IS_PYPY:
             raise ValueError("period must be a float, not %s" % type(period))
         if warn and pypy_version_info < (4, 1, 0):
             raise Exception("PyPy <4.1 have various kinds of bugs, pass warn=False if you know what you're doing")
-        if warn and memory:
-            print("Memory profiling is currently unsupported for PyPy. Running without memory statistics.")
         if warn and lines:
             print('Line profiling is currently unsupported for PyPy. Running without lines statistics.\n')
         native = _is_native_enabled(native)
