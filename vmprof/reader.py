@@ -310,24 +310,25 @@ class LogReaderDumpNative(LogReader):
         self.dedup = set()
 
     def finished_reading_profile(self):
-        import _vmprof
+        import _vmprof, vmprof
         if not hasattr(_vmprof, 'resolve_addr'):
             # windows does not implement that!
             return
 
-        resolve_addr = _vmprof.resolve_addr
-        from _vmprof import resolve_addr
         LogReader.finished_reading_profile(self)
         if len(self.dedup) == 0:
             return
+        all_addresses = vmprof.resolve_many_addr(
+                [addr for addr in self.dedup if isinstance(addr, NativeCode)])
+
         self.fileobj.seek(0, os.SEEK_END)
         # must match '<lang>:<name>:<line>:<file>'
         # 'n' has been chosen as lang here, because the symbol
         # can be generated from several languages (e.g. C, C++, ...)
 
         for addr in self.dedup:
-            bytelist = [b"\x08"]
-            result = resolve_addr(addr)
+            bytelist = [MARKER_NATIVE_SYMBOLS]
+            result = all_addresses.get(addr)
             if result is None:
                 name, lineno, srcfile = None, 0, None
             else:

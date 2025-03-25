@@ -135,3 +135,19 @@ def get_profile_path():
     if hasattr(_vmprof, 'get_profile_path'):
         return _vmprof.get_profile_path()
     raise NotImplementedError("get_profile_path not implemented on this platform")
+
+def resolve_many_addr(addrs):
+    """ Try to symbolicate the function addresses in addrs to triples of
+    (function_name, line_number or 0, sourcefile or shared library)
+    returns a dictionary mapping the addresses where that worked to said triples.
+    """
+    if hasattr(_vmprof, 'resolve_many_addr'):
+        return _vmprof.resolve_many_addr(addrs)
+    if hasattr(_vmprof, 'resolve_addr'):
+        res = {}
+        for addr in addrs:
+            info = _vmprof.resolve_addr(addr)
+            if info is not None:
+                res[addr] = info
+        return res
+    return {} # valid result to always know nothing
