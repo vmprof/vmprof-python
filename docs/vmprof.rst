@@ -191,7 +191,7 @@ As most statistical profilers, the core idea is to have a signal handler which
 periodically inspects and dumps the stack of the running program: the most
 frequently executed parts of the code will be dumped more often, and the
 post-processing and visualization tools have the chance to show the end user
-usueful info about the behavior of the profiled program. This is the very same
+useful info about the behavior of the profiled program. This is the very same
 approach used e.g. by `gperftools`_.
 
 However, when profiling an interpreter such as CPython, inspecting the C stack
