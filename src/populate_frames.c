@@ -7,6 +7,11 @@
 
 // 0x030B0000 is 3.11.
 #define PY_311 0x030B0000
+// 0x030D0000 is 3.13.
+#define PY_313 0x030D0000
+// 0x030E0000 is 3.14.
+#define PY_314 0x030E0000
+
 #if PY_VERSION_HEX >= PY_311
 
 /**
@@ -22,7 +27,12 @@ https://docs.python.org/3/whatsnew/3.11.html#pyframeobject-3-11-hiding.
  */
 
 #define Py_BUILD_CORE
+#if PY_VERSION_HEX >= PY_314
+// Python 3.14 moved frame internals to pycore_interpframe.h
+#include "internal/pycore_interpframe.h"
+#else
 #include "internal/pycore_frame.h"
+#endif
 #undef Py_BUILD_CORE
 
 // Modified from
@@ -30,7 +40,13 @@ https://docs.python.org/3/whatsnew/3.11.html#pyframeobject-3-11-hiding.
 _PyInterpreterFrame *unsafe_PyThreadState_GetInterpreterFrame(
     PyThreadState *tstate) {
   assert(tstate != NULL);
+#if PY_VERSION_HEX >= PY_313
+  // In Python 3.13+, cframe was removed and current_frame is directly on tstate
+  _PyInterpreterFrame *f = tstate->current_frame;
+#else
+  // Python 3.11 and 3.12 use cframe->current_frame
   _PyInterpreterFrame *f = tstate->cframe->current_frame;
+#endif
   while (f && _PyFrame_IsIncomplete(f)) {
     f = f->previous;
   }
@@ -47,7 +63,13 @@ PyCodeObject *unsafe_PyInterpreterFrame_GetCode(
     _PyInterpreterFrame *frame) {
   assert(frame != NULL);
   assert(!_PyFrame_IsIncomplete(frame));
+#if PY_VERSION_HEX >= PY_313
+  // In Python 3.13+, use the _PyFrame_GetCode inline function
+  // f_code was renamed to f_executable
+  PyCodeObject *code = _PyFrame_GetCode(frame);
+#else
   PyCodeObject *code = frame->f_code;
+#endif
   assert(code != NULL);
   return code;
 }
@@ -71,6 +93,10 @@ _PyInterpreterFrame *unsafe_PyInterpreterFrame_GetBack(
 // this function is not available in libpython
 int _PyInterpreterFrame_GetLine(_PyInterpreterFrame *frame) {
   int addr = _PyInterpreterFrame_LASTI(frame) * sizeof(_Py_CODEUNIT);
+#if PY_VERSION_HEX >= PY_313
+  return PyCode_Addr2Line(_PyFrame_GetCode(frame), addr);
+#else
   return PyCode_Addr2Line(frame->f_code, addr);
+#endif
 }
 #endif  // PY_VERSION_HEX >= PY_311

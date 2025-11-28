@@ -199,8 +199,13 @@ def test_nested_call():
     assert len(t.children) == 1
     assert 'function_foo' in t[''].name
     if PY3K:
-        assert len(t[''].children) == 1
-        assert '<listcomp>' in t[''][''].name
+        # In Python 3.12+, list comprehensions are inlined and don't create
+        # a separate stack frame (PEP 709), so <listcomp> won't appear
+        if sys.version_info >= (3, 12):
+            assert len(t[''].children) == 0
+        else:
+            assert len(t[''].children) == 1
+            assert '<listcomp>' in t[''][''].name
     else:
         assert len(t[''].children) == 0
 

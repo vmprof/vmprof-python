@@ -4,7 +4,13 @@
 
 #ifndef RPYTHON_VMPROF
   #if PY_VERSION_HEX >= 0x030b00f0 /* >= 3.11 */
+  #define Py_BUILD_CORE
+  #if PY_VERSION_HEX >= 0x030E0000 /* >= 3.14 */
+  #include "internal/pycore_interpframe.h"
+  #else
   #include "internal/pycore_frame.h"
+  #endif
+  #undef Py_BUILD_CORE
   #include "populate_frames.h"
   #endif
 #endif

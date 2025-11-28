@@ -1,16 +1,38 @@
 from setuptools import setup, find_packages, Extension
-from distutils.command.build_py import build_py
+from setuptools.command.build_py import build_py
+from setuptools.command.build_ext import build_ext
 import os, sys
 import subprocess
-import platform
 
 IS_PYPY = '__pypy__' in sys.builtin_module_names
+
+BASEDIR = os.path.dirname(os.path.abspath(__file__))
 
 class vmprof_build(build_py, object):
     def run(self):
         super(vmprof_build, self).run()
 
-BASEDIR = os.path.dirname(os.path.abspath(__file__))
+class vmprof_build_ext(build_ext, object):
+    """build_ext that runs libbacktrace configure before building.
+    This is needed because libbacktrace does not have a pre-built library for all platforms.
+    """
+    def run(self):
+        # configure libbacktrace on Unix systems (not Windows/macOS)
+        if sys.platform.startswith('linux') or sys.platform.startswith('freebsd'):
+            libbacktrace_dir = os.path.join(BASEDIR, "src", "libbacktrace")
+            config_h = os.path.join(libbacktrace_dir, "config.h")
+            # only run configure if config.h doesn't exist
+            if not os.path.exists(config_h):
+                orig_dir = os.getcwd()
+                os.chdir(libbacktrace_dir)
+                try:
+                    # generate configure script if it doesn't exist
+                    if not os.path.exists("configure"):
+                        subprocess.check_call(["autoreconf", "-i"])
+                    subprocess.check_call(["./configure"])
+                finally:
+                    os.chdir(orig_dir)
+        super(vmprof_build_ext, self).run()
 
 def _supported_unix():
     if sys.platform.startswith('linux'):
@@ -65,20 +87,13 @@ else:
            'src/libbacktrace/posix.c',
            'src/libbacktrace/sort.c',
         ]
-        # configure libbacktrace!!
-        class vmprof_build(build_py, object):
-            def run(self):
-                orig_dir = os.getcwd()
-                os.chdir(os.path.join(BASEDIR, "src", "libbacktrace"))
-                subprocess.check_call(["./configure"])
-                os.chdir(orig_dir)
-                super(vmprof_build, self).run()
 
     else:
         raise NotImplementedError("platform '%s' is not supported!" % sys.platform)
-    extra_compile_args.append('-I src/')
-    extra_compile_args.append('-I src/libbacktrace')
-    if sys.version_info[:2] == (3,11):
+    # use absolute paths for include directories so compilation works from any directory
+    extra_compile_args.append('-I' + os.path.join(BASEDIR, 'src'))
+    extra_compile_args.append('-I' + os.path.join(BASEDIR, 'src', 'libbacktrace'))
+    if sys.version_info[:2] >= (3,11):
         extra_source_files += ['src/populate_frames.c']
     ext_modules = [Extension('_vmprof',
                            sources=[
@@ -116,14 +131,14 @@ setup(
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
     url='https://github.com/vmprof/vmprof-python',
-    cmdclass={'build_py': vmprof_build},
+    cmdclass={'build_py': vmprof_build, 'build_ext': vmprof_build_ext},
     install_requires=[
         'requests',
         'six',
         'pytz',
         'colorama',
     ] + extra_install_requires,
-    python_requires='<3.12',
+    python_requires='<3.15',
     tests_require=['pytest','cffi','hypothesis'],
     entry_points = {
         'console_scripts': [
