@@ -108,18 +108,39 @@ int vmprof_snapshot_thread(DWORD thread_id, PY_WIN_THREAD_STATE *tstate, prof_st
     return depth;
 #else
 
-#if PY_VERSION_HEX >= 0x030B0000 /* < 3.11 */
-    _PyInterpreterFrame * frame = unsafe_PyThreadState_GetInterpreterFrame(tstate);
+#if PY_VERSION_HEX >= 0x030B0000 /* >= 3.11 */
+    _PyInterpreterFrame * frame = NULL;
 #else
-    PY_STACK_FRAME_T * frame = PyThreadState_GetFrame(tstate);
+    PY_STACK_FRAME_T * frame = NULL;
 #endif
 
-    depth = vmp_walk_and_record_stack(frame, stack->stack,
-                                      MAX_STACK_DEPTH, 0, 0);
+    /* The target thread was suspended at an arbitrary instruction, possibly
+       in the middle of pushing or popping an interpreter frame, so the frame
+       chain we are about to read may be inconsistent. Under MSVC, catch the
+       resulting access violation and drop the sample instead of crashing. */
+#ifdef _MSC_VER
+    __try {
+#endif
+#if PY_VERSION_HEX >= 0x030B0000 /* >= 3.11 */
+        frame = unsafe_PyThreadState_GetInterpreterFrame(tstate);
+#else
+        frame = PyThreadState_GetFrame(tstate);
+#endif
+        depth = vmp_walk_and_record_stack(frame, stack->stack,
+                                          MAX_STACK_DEPTH, 0, 0);
+#ifdef _MSC_VER
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        depth = -1;
+    }
+#endif
 
 #if PY_VERSION_HEX < 0x030B0000 /* < 3.11 */
     Py_XDECREF(frame);
 #endif
+    if (depth < 0) {
+        ResumeThread(hThread);
+        return -1;
+    }
     stack->depth = depth;
     stack->stack[depth++] = (void*)((ULONG_PTR)thread_id);
     stack->count = 1;
