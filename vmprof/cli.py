@@ -118,7 +118,7 @@ class IniParser(object):
 
     def __init__(self, f):
         self.ini_parser = configparser.ConfigParser()
-        self.ini_parser.readfp(f)
+        self.ini_parser.read_file(f)
 
     def get_option(self, name, type, default=None):
         if type == float:

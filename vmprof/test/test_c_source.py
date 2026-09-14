@@ -31,8 +31,8 @@ class TestStack(object):
                     libs.append('unwind-x86_64')
             # trick: compile with _CFFI_USE_EMBEDDING=1 which will not define Py_LIMITED_API
             sources = []
-            if sys.version_info[:2] == (3,11):
-                sources += ['src/populate_frames.c']# needed for cp311 but must not be included in py < 3.11
+            if sys.version_info[:2] >= (3, 11):
+                sources += ['src/populate_frames.c']# needed for py 3.11+ but must not be included in py < 3.11
             stack_ffi.set_source("vmprof.test._test_stack", source, include_dirs=['src'],
                                  define_macros=[('_CFFI_USE_EMBEDDING',1), ('PY_TEST',1),
                                                 ('VMP_SUPPORTS_NATIVE_PROFILING',1)],
