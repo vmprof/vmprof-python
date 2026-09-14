@@ -62,7 +62,7 @@ target/
 *.swp
 *.swo
 
-_test_*.o
+*.o
 _test_*.c
 
 # ./configure output
