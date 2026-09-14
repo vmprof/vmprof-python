@@ -42,8 +42,8 @@ def main():
         output_mode = OUTPUT_CLI
 
     if output_mode == OUTPUT_FILE:
-        prof_file = args.output
-        prof_name = prof_file.name
+        prof_file = open(args.output, 'w+b')
+        prof_name = args.output
     else:
         prof_file = tempfile.NamedTemporaryFile(delete=False)
         prof_name = prof_file.name

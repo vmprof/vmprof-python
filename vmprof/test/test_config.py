@@ -59,7 +59,7 @@ no-native = True
         'example.py'
     ])
 
-    assert test_file == args.config.name
+    assert test_file == args.config
     assert args.no_native == True
 
 
