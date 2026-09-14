@@ -29,7 +29,7 @@ def build_argparser():
 
     parser.add_argument(
         '--config',
-        type=argparse.FileType('r'),
+        metavar='file.ini',
     )
 
     parser.add_argument(
@@ -80,7 +80,6 @@ def build_argparser():
     output_mode_args.add_argument(
         '--output', '-o',
         metavar='file.prof',
-        type=argparse.FileType('w+b'),
         help='Save profiling data to file'
     )
 
@@ -101,7 +100,8 @@ def parse_args(argv):
             ('no-native', bool),
         ]
 
-        ini_parser = IniParser(args.config)
+        with open(args.config) as f:
+            ini_parser = IniParser(f)
 
         for name, type in ini_options:
             argname = name.replace("-", "_")

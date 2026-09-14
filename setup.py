@@ -126,7 +126,7 @@ setup(
     name='vmprof',
     author='vmprof team',
     author_email='fijal@baroquesoftware.com',
-    version="0.4.18.1",
+    version="0.4.19",
     packages=find_packages(),
     description="Python's vmprof client",
     long_description='See https://vmprof.readthedocs.org/',
@@ -138,7 +138,7 @@ setup(
         'pytz',
         'colorama',
     ] + extra_install_requires,
-    python_requires='<3.15',
+    python_requires='<3.16',
     tests_require=['pytest','cffi','hypothesis'],
     entry_points = {
         'console_scripts': [
