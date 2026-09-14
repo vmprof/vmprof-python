@@ -1,0 +1,37 @@
+[build-system]
+build-backend = "mesonpy"
+requires = ["meson-python>=0.17"]
+
+[project]
+name = "vmprof"
+dynamic = ["version"]
+description = "Python's vmprof client"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "vmprof team", email = "fijal@baroquesoftware.com"},
+]
+requires-python = ">=3.9,<3.16"
+dependencies = [
+    "requests",
+    "six",
+    "pytz",
+    "colorama",
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+[project.urls]
+Homepage = "https://github.com/vmprof/vmprof-python"
+Documentation = "https://vmprof.readthedocs.org/"
+
+[project.scripts]
+vmprofshow = "vmprof.show:main"
+
+[tool.meson-python.args]
+setup = ["--vsenv"]

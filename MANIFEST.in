@@ -1,5 +1,0 @@
-recursive-include src *.h *.c
-include src/libbacktrace/*
-include LICENSE
-recursive-exclude vmprof/test *
-recursive-exclude jitlog/test *

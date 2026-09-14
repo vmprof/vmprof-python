@@ -65,7 +65,8 @@ An optional stage. It is only necessary if you want to co develop `vmprof-python
 
     # install vmprof for development (only needed if you want to co develop vmprof-python)
     $ cd vmprof-python
-    $ python setup.py develop
+    $ pip install meson-python meson ninja
+    $ pip install --no-build-isolation --editable .
 
 
 Now you are able to change both the python package and the server and see the results.

@@ -3,7 +3,7 @@ requests
 urllib3==1.26.6 ; python_version < '3.9'
 backports.shutil_which
 cffi
-setuptools
+setuptools>=77
 pytest
 hypothesis
 colorama
