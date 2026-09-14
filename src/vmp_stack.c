@@ -74,6 +74,107 @@ PY_EVAL_RETURN_T * vmprof_eval(PY_STACK_FRAME_T *f, int throwflag) { return NULL
 static intptr_t *vmp_ranges = NULL;
 static ssize_t vmp_range_count = 0;
 static int vmp_native_traces_enabled = 0;
+
+/*
+ * Native code regions that belong to the interpreter's eval loop.
+ *
+ * The signal handler walks native frames until it reaches the eval loop and
+ * then switches to the Python frames. It recognises the eval loop by comparing
+ * the start address of a frame's unwind region with the address of
+ * _PyEval_EvalFrameDefault. With profile guided optimization the compiler may
+ * split that function into hot and cold parts with separate unwind regions,
+ * so the region holding the interpreter loop does not necessarily start at
+ * the exported symbol. Such builds leave the symbol on a tiny entry stub while
+ * the body lives in a region with no symbol of its own.
+ *
+ * vmp_learn_eval_regions() runs once at enable time, outside the signal
+ * handler, while the eval loop is on our own C stack. It records the start
+ * addresses of the regions that belong to the eval loop so that the signal
+ * handler can recognise them with a plain pointer comparison.
+ */
+#define VMP_MAX_EVAL_REGIONS 8
+static void * vmp_eval_regions[VMP_MAX_EVAL_REGIONS];
+static int vmp_eval_region_count = 0;
+
+static int vmp_is_eval_region(void * start_ip)
+{
+    int i;
+    if (IS_VMPROF_EVAL(start_ip)) {
+        return 1;
+    }
+    for (i = 0; i < vmp_eval_region_count; i++) {
+        if (vmp_eval_regions[i] == start_ip) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+#ifndef RPYTHON_VMPROF
+/* No function that sits between a C extension call and the eval loop is
+   anywhere near this big; the eval loop itself is 50 KB and more. */
+#define VMP_EVAL_REGION_MIN_SIZE (16 * 1024)
+#define VMP_EVAL_SCAN_MAX_FRAMES 128
+#define VMP_EVAL_SYMBOL "_PyEval_EvalFrameDefault"
+
+static void vmp_add_eval_region(void * start_ip)
+{
+    if (vmp_is_eval_region(start_ip)) {
+        return;
+    }
+    if (vmp_eval_region_count >= VMP_MAX_EVAL_REGIONS) {
+        return;
+    }
+    vmp_eval_regions[vmp_eval_region_count++] = start_ip;
+#if DEBUG
+    fprintf(stderr, "vmprof: learned eval loop region at %p\n", start_ip);
+#endif
+}
+
+static void vmp_learn_eval_regions(void)
+{
+    unw_cursor_t cursor;
+    unw_context_t uc;
+    unw_proc_info_t pip;
+    unw_word_t ip, offset;
+    char name[sizeof(VMP_EVAL_SYMBOL) + 32];
+    int n;
+
+    if (unw_getcontext(&uc) < 0) {
+        return;
+    }
+    if (unw_init_local(&cursor, &uc) < 0) {
+        return;
+    }
+
+    for (n = 0; n < VMP_EVAL_SCAN_MAX_FRAMES; n++) {
+        if (unw_get_proc_info(&cursor, &pip) == 0 && pip.start_ip != 0) {
+            void * start = (void*)pip.start_ip;
+            if (IS_VMPROF_EVAL(start)) {
+                /* the region already starts at the exported symbol */
+            } else if (pip.end_ip - pip.start_ip >= VMP_EVAL_REGION_MIN_SIZE) {
+                vmp_add_eval_region(start);
+            } else {
+                /* A cold partition carries a local symbol such as
+                   _PyEval_EvalFrameDefault.cold when the binary is not
+                   stripped. Only trust the name when that symbol starts
+                   exactly at this region, since libunwind otherwise reports
+                   the nearest preceding symbol. */
+                name[0] = '\0';
+                (void)unw_get_proc_name(&cursor, name, sizeof(name), &offset);
+                if (strncmp(name, VMP_EVAL_SYMBOL, sizeof(VMP_EVAL_SYMBOL) - 1) == 0 &&
+                    unw_get_reg(&cursor, UNW_REG_IP, &ip) == 0 &&
+                    ip - offset == pip.start_ip) {
+                    vmp_add_eval_region(start);
+                }
+            }
+        }
+        if (unw_step(&cursor) <= 0) {
+            break;
+        }
+    }
+}
+#endif
 #endif
 static int _vmp_profiles_lines = 0;
 
@@ -338,7 +439,7 @@ int vmp_walk_and_record_stack(_PyInterpreterFrame *frame, void ** result,
         }
 #endif
 
-        if (IS_VMPROF_EVAL((void*)pip.start_ip)) {
+        if (vmp_is_eval_region((void*)pip.start_ip)) {
             // yes we found one stack entry of the python frames!
             return vmp_walk_and_record_python_stack_only(frame, result, max_depth, depth, pc);
 #ifdef PYPY_JIT_CODEMAP
@@ -492,7 +593,7 @@ int vmp_walk_and_record_stack(PY_STACK_FRAME_T *frame, void ** result,
         }
 #endif
 
-        if (IS_VMPROF_EVAL((void*)pip.start_ip)) {
+        if (vmp_is_eval_region((void*)pip.start_ip)) {
             // yes we found one stack entry of the python frames!
             return vmp_walk_and_record_python_stack_only(frame, result, max_depth, depth, pc);
 #ifdef PYPY_JIT_CODEMAP
@@ -797,6 +898,9 @@ loaded_libunwind:
     }
 #endif
 
+#ifndef RPYTHON_VMPROF
+    vmp_learn_eval_regions();
+#endif
     vmp_native_traces_enabled = 1;
     return 1;
 
