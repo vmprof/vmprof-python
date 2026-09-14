@@ -32,3 +32,6 @@ Documentation = "https://vmprof.readthedocs.org/"
 
 [project.scripts]
 vmprofshow = "vmprof.show:main"
+
+[tool.meson-python.args]
+setup = ["--vsenv"]
