@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import argparse
 import sys
-from six.moves import configparser
+import configparser
 
 
 def build_argparser():

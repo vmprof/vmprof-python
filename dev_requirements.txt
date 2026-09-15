@@ -1,4 +1,0 @@
-six
-requests
-backports.shutil_which
-colorama
