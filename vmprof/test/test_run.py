@@ -8,7 +8,6 @@ import time
 import gzip
 import time
 import vmprof
-import six
 from cffi import FFI
 from datetime import datetime
 import requests
@@ -52,11 +51,6 @@ class FileObjWrapper(object):
         return s
 
 
-if sys.version_info.major == 3:
-    xrange = range
-    PY3K = True
-else:
-    PY3K = False
 if hasattr(os, 'uname') and os.uname()[4] == 'ppc64le':
     PPC64LE = True
 else:
@@ -69,7 +63,7 @@ else:
 
 def function_foo():
     for k in range(1000):
-        l = [a for a in xrange(COUNT)]
+        l = [a for a in range(COUNT)]
     return l
 
 def function_bar():
@@ -197,16 +191,11 @@ def test_nested_call():
         t = t['']
     assert len(t.children) == 1
     assert 'function_foo' in t[''].name
-    if PY3K:
-        # In Python 3.12+, list comprehensions are inlined and don't create
-        # a separate stack frame (PEP 709), so <listcomp> won't appear
-        if sys.version_info >= (3, 12):
-            assert len(t[''].children) == 0
-        else:
-            assert len(t[''].children) == 1
-            assert '<listcomp>' in t[''][''].name
-    else:
+    if sys.version_info >= (3, 12):
         assert len(t[''].children) == 0
+    else:
+        assert len(t[''].children) == 1
+        assert '<listcomp>' in t[''][''].name
 
 def test_multithreaded():
     if '__pypy__' in sys.builtin_module_names:
@@ -218,7 +207,7 @@ def test_multithreaded():
 
     def f():
         for k in range(1000):
-            l = [a for a in xrange(COUNT)]
+            l = [a for a in range(COUNT)]
         finished.append("foo")
 
     threads = [threading.Thread(target=f), threading.Thread(target=f)]
@@ -255,7 +244,7 @@ def test_memory_measurment():
     def function_foo():
         all = []
         for k in range(1000):
-            all.append([a for a in xrange(COUNT)])
+            all.append([a for a in range(COUNT)])
         return all
 
     def function_bar():
@@ -419,8 +408,7 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
     elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
         unique_id = read_addr(fileobj)
         name = read_string(fileobj)
-        if PY3K:
-            name = name.decode()
+        name = name.decode()
         status.virtual_ips[unique_id] = name
     elif marker == MARKER_META:
         read_string(fileobj)
@@ -457,7 +445,7 @@ def test_line_profiling():
     def walk(tree):
         assert len(tree.lines) >= len(tree.children)
 
-        for v in six.itervalues(tree.children):
+        for v in tree.children.values():
                 walk(v)
 
     stats = read_profile(tmpfile.name)

@@ -38,9 +38,9 @@ jobs:
           CIBW_ARCHS_LINUX: auto aarch64
           # cp3*t-*: free-threaded CPython is built by default since
           # cibuildwheel 4, but vmprof does not support it
-          CIBW_SKIP: "pp* cp3*t-* *-win32 *-manylinux_i686 *musllinux*"
+          CIBW_SKIP: "cp3*t-* *-win32 *-manylinux_i686 *musllinux*"
           CIBW_BEFORE_BUILD_LINUX: dnf install -y libunwind-devel
-          CIBW_BEFORE_TEST: pip install -r test_requirements.txt
+          CIBW_TEST_GROUPS: test
           CIBW_TEST_COMMAND: cd {package} && pytest vmprof jitlog -vv
           CIBW_TEST_COMMAND_WINDOWS: cd /d {package} && pytest vmprof jitlog -vv
           CIBW_TEST_SKIP: "*-*linux_{aarch64,ppc64le,s390x}"
@@ -78,7 +78,8 @@ jobs:
       - name: Test wheel
         run: |
           FAILED=false
-          pypy -m pip install -r test_requirements.txt build
+          pypy -m pip install --upgrade pip
+          pypy -m pip install --group test build
           pypy -m pytest vmprof -v || FAILED=true
           pypy -m pytest jitlog -v || FAILED=true
           if [ "$FAILED" == true ]; then exit 1; fi

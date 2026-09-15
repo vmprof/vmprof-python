@@ -1,8 +1,8 @@
 import json
+import os
 import zlib
 
 import pytest
-import six
 
 import vmprof
 from vmprof.stats import Node, Stats, JittedCode, AssemblerCode
@@ -34,7 +34,7 @@ def test_tree_jit():
 def test_read_simple():
     pytest.skip("think later")
     lib_cache = get_or_write_libcache('simple_nested.pypy.prof')
-    path = py.path.local(__file__).join('..', 'simple_nested.pypy.prof')
+    path = os.path.join(os.path.dirname(__file__), 'simple_nested.pypy.prof')
     stats = vmprof.read_profile(path, virtual_only=True,
                                 include_extra_info=True, lib_cache=lib_cache)
     tree = stats.get_tree()
