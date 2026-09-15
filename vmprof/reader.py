@@ -244,7 +244,7 @@ class LogReader(object):
 
     def read_timezone(self):
         timezone = self.read(8).strip(b'\x00')
-        # we should use pytz and parse iso8601 if we really support time zones
+        # we should use zoneinfo and parse iso8601 if we really support time zones
         return None
 
     def read_all(self):

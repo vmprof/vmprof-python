@@ -1,7 +1,7 @@
 import sys
 import struct
 import array
-import pytz
+import zoneinfo
 
 WORD_SIZE = struct.calcsize('L')
 if sys.maxsize == 2**63-1:
@@ -82,7 +82,10 @@ def read_timezone(fileobj):
     timezone = fileobj.read(8).strip(b'\x00')
     timezone = timezone.decode('ascii')
     if timezone:
-        return pytz.timezone(timezone)
+        try:
+            return zoneinfo.ZoneInfo(timezone)
+        except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+            return None
     return None
 
 def encode_le_u16(value):

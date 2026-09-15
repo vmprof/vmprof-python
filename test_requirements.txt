@@ -7,6 +7,5 @@ setuptools>=77
 pytest
 hypothesis
 colorama
-pytz
 attrs
 py
