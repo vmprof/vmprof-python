@@ -81,12 +81,13 @@ jobs:
           pypy -m pip install -r test_requirements.txt build
           pypy -m pytest vmprof -v || FAILED=true
           pypy -m pytest jitlog -v || FAILED=true
-          if [ "FAILED" == true ]; then exit 1; fi
-          # The wheel name is something like
-          # vmprof-0.4.15-py3-none-any.whl
-          # when it should be
-          # vmprof-0.4.15-pp3-none-any.whl
-          rename 's/py3/pp3/' vmprof-*.whl
+          if [ "$FAILED" == true ]; then exit 1; fi
+          # The wheel is pure python and comes out as
+          # vmprof-*-py3-none-any.whl
+          # which pip would also pick on CPython. Tag it for this PyPy
+          # version instead
+          TAG=$(pypy -c "import sys; print('pp%d%d' % sys.version_info[:2])")
+          rename "s/py3-none-any/$TAG-none-any/" vmprof-*.whl
 
       - name: Build sdist
         run: |
