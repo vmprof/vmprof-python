@@ -7,7 +7,6 @@ import tempfile
 import time
 import gzip
 import time
-import pytz
 import vmprof
 import six
 from cffi import FFI
