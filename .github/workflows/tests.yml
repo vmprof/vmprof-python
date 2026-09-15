@@ -20,16 +20,18 @@ jobs:
         os: [ubuntu-latest]
         python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15.0-rc.2", "pypy-3.11"]
         experimental: [false]
-          # include:
-          #   - os: macos-latest
-          #     python: "3.10"
-          #     experimental: false
-          #   - os: windows-latest
-          #     python: "3.10"
-          #     experimental: false
+        include:
+          # Windows on the earliest and latest supported versions:
+          - os: windows-latest
+            python: "3.9"
+            experimental: false
+          - os: windows-latest
+            python: "3.15.0-rc.2"
+            experimental: false
     steps:
     - uses: actions/checkout@v7
     - name: Install libunwind
+      if: runner.os == 'Linux'
       run: |
         sudo apt install -y libunwind-dev
         pkg-config libunwind --cflags --libs-only-l

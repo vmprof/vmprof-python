@@ -114,15 +114,16 @@ class LogReader(object):
             little = False
             self.setup_once(little_endian=little, word_size=4, addr_size=4)
         else:
-            firstbytes = self.read(8)
-            if firstbytes[0] == three:
+            secondbytes = self.read(8)
+            if secondbytes[0] == three:
                 little = True
                 self.setup_once(little_endian=little, word_size=8, addr_size=8)
-            elif firstbytes[7] == three:
+            elif secondbytes[7] == three:
                 little = False
                 self.setup_once(little_endian=little, word_size=8, addr_size=8)
             else:
-                raise NotImplementedError("could not determine word and addr size")
+                raise NotImplementedError("could not determine word and addr size, "
+                                          "file starts with %r" % (firstbytes + secondbytes,))
 
         # determine if it is windows 64 bit
         # even though it migt be a 64bit log, teh addr_size is now 4
