@@ -105,8 +105,4 @@ int vmprof_get_itimer_type(void);
 #ifdef VMPROF_UNIX
 int broadcast_signal_for_threads(void);
 int is_main_thread(void);
-#ifndef RPYTHON_VMPROF
-void prune_dead_threads(void);
-void record_native_thread_id(void);
-#endif
 #endif

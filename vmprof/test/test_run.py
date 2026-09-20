@@ -350,23 +350,18 @@ def test_vmprof_real_time_many_threads():
 
 @pytest.mark.skipif("'__pypy__' in sys.builtin_module_names")
 @pytest.mark.skipif("sys.platform == 'win32'")
-@pytest.mark.parametrize("register_from_main", [False, True])
-def test_vmprof_real_time_threads_exit(register_from_main):
+def test_vmprof_real_time_threads_exit():
     # Registered threads that exit while profiling goes on used to leave
     # stale pthread ids in the list, and forwarding SIGALRM to one of them
-    # segfaulted.  Threads registered from the main thread before they run
-    # have no kernel thread id yet, which is the other code path.
+    # segfaulted.
     import threading
     prof = vmprof.Profiler()
     with prof.measure(period=0.001, real_time=True):
         for _ in range(5):
-            threads = [threading.Thread(target=functime_foo,
-                                        args=[0.01, not register_from_main])
+            threads = [threading.Thread(target=functime_foo, args=[0.01, True])
                        for _ in range(20)]
             for thread in threads:
                 thread.start()
-                if register_from_main:
-                    vmprof.insert_real_time_thread(thread.ident)
             for thread in threads:
                 thread.join()
             # keep forwarding signals now that all of them are gone

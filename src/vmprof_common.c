@@ -298,57 +298,8 @@ ssize_t remove_threads(void)
    the kernel thread id, which never touches user memory and just fails
    with ESRCH for a thread that is gone.  macOS and the BSDs validate the
    thread inside pthread_kill() and return ESRCH themselves.  Either way a
-   failed delivery drops the entry from the list.
-
-   A thread registered from another thread before it ran any Python code
-   may have no kernel id yet.  Such an entry is only signalled while its
-   Python thread state is still linked (CPython unlinks it before the thread
-   exits; there is a tiny window left, closed as soon as the thread records
-   its own id from its first signal handler run, see
-   record_native_thread_id()). */
-
-#ifndef RPYTHON_VMPROF
-static int python_thread_is_alive(pthread_t tid)
-{
-    unsigned long ident = (unsigned long)tid; /* as PyThread_get_thread_ident */
-    PyInterpreterState *istate = PyInterpreterState_Head();
-    PyThreadState *state;
-    while (istate != NULL) {
-        state = PyInterpreterState_ThreadHead(istate);
-        while (state != NULL) {
-            if (state->thread_id == ident)
-                return 1;
-            state = PyThreadState_Next(state);
-        }
-        istate = PyInterpreterState_Next(istate);
-    }
-    return 0;
-}
-
-void prune_dead_threads(void)
-{
-    /* Called from the signal handler, under the spinlock and the SIGSEGV
-       guard that also protects the thread state lookup. */
-    size_t i = 0;
-    while (i < thread_count) {
-        if (thread_tids[i] != 0 || python_thread_is_alive(threads[i])) {
-            i++;
-        } else {
-            remove_thread(threads[i], i);
-        }
-    }
-}
-
-void record_native_thread_id(void)
-{
-    /* Called from the signal handler of a registered thread, under the
-       spinlock, so it is serialized with the broadcast in the main thread. */
-    ssize_t i = search_thread(pthread_self(), 0);
-    if (i >= 0 && thread_tids[i] == 0)
-        thread_tids[i] = vmp_native_thread_id();
-}
-#endif
-
+   failed delivery drops the entry from the list.  A thread registered
+   without a known kernel id falls back to pthread_kill(). */
 static int signal_thread(size_t i)
 {
 #ifdef VMPROF_LINUX
