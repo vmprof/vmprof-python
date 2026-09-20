@@ -32,6 +32,8 @@ static long profile_interval_usec = 0;
 static int signal_type = SIGPROF;
 static int itimer_type = ITIMER_PROF;
 static pthread_t *threads = NULL;
+/* kernel thread ids of 'threads', 0 when unknown; only used on linux */
+static long *thread_tids = NULL;
 static size_t threads_size = 0;
 static size_t thread_count = 0;
 static size_t threads_size_step = 8;
@@ -225,7 +227,16 @@ ssize_t search_thread(pthread_t tid, ssize_t i)
     return -1;
 }
 
-ssize_t insert_thread(pthread_t tid, ssize_t i)
+long vmp_native_thread_id(void)
+{
+#ifdef VMPROF_LINUX
+    return (long)syscall(SYS_gettid);
+#else
+    return 0;
+#endif
+}
+
+ssize_t insert_thread(pthread_t tid, long native_id, ssize_t i)
 {
     assert(signal_type == SIGALRM);
     i = search_thread(tid, i);
@@ -234,11 +245,14 @@ ssize_t insert_thread(pthread_t tid, ssize_t i)
     if (thread_count == threads_size) {
         threads_size += threads_size_step;
         threads = realloc(threads, sizeof(pthread_t) * threads_size);
-        assert(threads != NULL);
+        thread_tids = realloc(thread_tids, sizeof(long) * threads_size);
+        assert(threads != NULL && thread_tids != NULL);
         memset(threads + thread_count, 0, sizeof(pthread_t) * threads_size_step);
+        memset(thread_tids + thread_count, 0, sizeof(long) * threads_size_step);
     }
-    threads[thread_count++] = tid;
-    return thread_count;
+    threads[thread_count] = tid;
+    thread_tids[thread_count] = native_id;
+    return ++thread_count;
 }
 
 ssize_t remove_thread(pthread_t tid, ssize_t i)
@@ -251,8 +265,11 @@ ssize_t remove_thread(pthread_t tid, ssize_t i)
     i = search_thread(tid, i);
     if (i < 0)
         return -1;
-    threads[i] = threads[--thread_count];
+    --thread_count;
+    threads[i] = threads[thread_count];
+    thread_tids[i] = thread_tids[thread_count];
     threads[thread_count] = 0;
+    thread_tids[thread_count] = 0;
     return thread_count;
 }
 
@@ -263,10 +280,32 @@ ssize_t remove_threads(void)
         free(threads);
         threads = NULL;
     }
+    if (thread_tids != NULL) {
+        free(thread_tids);
+        thread_tids = NULL;
+    }
     thread_count = 0;
     threads_size = 0;
     return 0;
 }
+
+/* Forwarding SIGALRM to the registered threads.
+
+   Nothing removes a thread from 'threads' when it exits, and pthread_kill()
+   on an exited thread is undefined behaviour: on glibc the descriptor lives
+   on the thread's stack, which is freed as soon as a detached thread exits,
+   so it segfaults.  On linux the signal is therefore sent with tgkill() to
+   the kernel thread id, which never touches user memory and just fails
+   with ESRCH for a thread that is gone.  macOS and the BSDs validate the
+   thread inside pthread_kill() and return ESRCH themselves.  Either way a
+   failed delivery drops the entry from the list.
+
+   A thread registered from another thread before it ran any Python code
+   may have no kernel id yet.  Such an entry is only signalled while its
+   Python thread state is still linked (CPython unlinks it before the thread
+   exits; there is a tiny window left, closed as soon as the thread records
+   its own id from its first signal handler run, see
+   record_native_thread_id()). */
 
 #ifndef RPYTHON_VMPROF
 static int python_thread_is_alive(pthread_t tid)
@@ -288,38 +327,53 @@ static int python_thread_is_alive(pthread_t tid)
 
 void prune_dead_threads(void)
 {
-    /* pthread_kill() on a thread that has exited and been joined is
-       undefined behaviour, and segfaults on glibc because the thread
-       descriptor lives on the thread's freed stack.  Nothing removes an
-       exited thread from 'threads' by itself, so before broadcasting drop
-       every registered thread whose Python thread state is gone: CPython
-       deletes it before the thread exits.  Called from the signal handler,
-       under the spinlock and the SIGSEGV guard that also protects the
-       thread state lookup. */
+    /* Called from the signal handler, under the spinlock and the SIGSEGV
+       guard that also protects the thread state lookup. */
     size_t i = 0;
     while (i < thread_count) {
-        if (python_thread_is_alive(threads[i])) {
+        if (thread_tids[i] != 0 || python_thread_is_alive(threads[i])) {
             i++;
         } else {
             remove_thread(threads[i], i);
         }
     }
 }
+
+void record_native_thread_id(void)
+{
+    /* Called from the signal handler of a registered thread, under the
+       spinlock, so it is serialized with the broadcast in the main thread. */
+    ssize_t i = search_thread(pthread_self(), 0);
+    if (i >= 0 && thread_tids[i] == 0)
+        thread_tids[i] = vmp_native_thread_id();
+}
 #endif
+
+static int signal_thread(size_t i)
+{
+#ifdef VMPROF_LINUX
+    if (thread_tids[i] != 0) {
+        int saved_errno = errno;
+        long res = syscall(SYS_tgkill, getpid(), (pid_t)thread_tids[i], SIGALRM);
+        int err = (res == 0) ? 0 : errno;
+        errno = saved_errno;
+        return err;
+    }
+#endif
+    return pthread_kill(threads[i], SIGALRM);
+}
 
 int broadcast_signal_for_threads(void)
 {
     int done = 1;
     size_t i = 0;
     pthread_t self = pthread_self();
-    pthread_t tid;
     while (i < thread_count) {
-        tid = threads[i];
-        if (pthread_equal(tid, self)) {
+        if (pthread_equal(threads[i], self)) {
             done = 0;
-        } else if (pthread_kill(tid, SIGALRM)) {
+        } else if (signal_thread(i)) {
             /* the last entry is moved into slot i, look at it next */
-            remove_thread(tid, i);
+            remove_thread(threads[i], i);
             continue;
         }
         i++;

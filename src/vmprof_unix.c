@@ -236,10 +236,15 @@ void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     signal(SIGSEGV, prevhandler);
 
 #ifdef VMPROF_UNIX
-    if (broadcast && broadcast_signal_for_threads()) {
-        // the main thread itself is not registered: forwarded only
-        __sync_lock_release(&spinlock);
-        return;
+    if (broadcast) {
+        if (broadcast_signal_for_threads()) {
+            // the main thread itself is not registered: forwarded only
+            __sync_lock_release(&spinlock);
+            return;
+        }
+    } else if (vmprof_get_signal_type() == SIGALRM) {
+        // a forwarded signal: make sure our kernel thread id is on record
+        record_native_thread_id();
     }
 #endif
     __sync_lock_release(&spinlock);
@@ -377,7 +382,7 @@ int vmprof_enable(int memory, int native, int real_time)
     if (memory && setup_rss() == -1)
         goto error;
 #if VMPROF_UNIX
-    if (real_time && insert_thread(pthread_self(), -1) == -1)
+    if (real_time && insert_thread(pthread_self(), vmp_native_thread_id(), -1) == -1)
         goto error;
 #endif
     if (install_pthread_atfork_hooks() == -1)

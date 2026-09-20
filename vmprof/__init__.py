@@ -108,7 +108,20 @@ def insert_real_time_thread(thread_id=0):
         Returns the number of registered threads, or -1 if we can't insert thread.
         Inserts the current thread if thread_id is not provided.
     """
-    return _vmprof.insert_real_time_thread(thread_id)
+    if IS_PYPY:
+        return _vmprof.insert_real_time_thread(thread_id)
+    # On linux the signal is sent to the kernel thread id, which stays safe
+    # to use after the thread has exited (its pthread id does not).  It is
+    # None until the thread has started running; the C side then records
+    # it from the thread's first sample.
+    native_id = 0
+    if thread_id:
+        import threading
+        for thread in threading.enumerate():
+            if thread.ident == thread_id:
+                native_id = thread.native_id or 0
+                break
+    return _vmprof.insert_real_time_thread(thread_id, native_id)
 
 def remove_real_time_thread(thread_id=0):
     """ Removes a thread from the list of threads to be sampled in real time mode.
