@@ -229,7 +229,7 @@ ssize_t insert_thread(pthread_t tid, ssize_t i)
 {
     assert(signal_type == SIGALRM);
     i = search_thread(tid, i);
-    if (i > 0)
+    if (i >= 0)
         return -1;
     if (thread_count == threads_size) {
         threads_size += threads_size_step;
@@ -268,6 +268,45 @@ ssize_t remove_threads(void)
     return 0;
 }
 
+#ifndef RPYTHON_VMPROF
+static int python_thread_is_alive(pthread_t tid)
+{
+    unsigned long ident = (unsigned long)tid; /* as PyThread_get_thread_ident */
+    PyInterpreterState *istate = PyInterpreterState_Head();
+    PyThreadState *state;
+    while (istate != NULL) {
+        state = PyInterpreterState_ThreadHead(istate);
+        while (state != NULL) {
+            if (state->thread_id == ident)
+                return 1;
+            state = PyThreadState_Next(state);
+        }
+        istate = PyInterpreterState_Next(istate);
+    }
+    return 0;
+}
+
+void prune_dead_threads(void)
+{
+    /* pthread_kill() on a thread that has exited and been joined is
+       undefined behaviour, and segfaults on glibc because the thread
+       descriptor lives on the thread's freed stack.  Nothing removes an
+       exited thread from 'threads' by itself, so before broadcasting drop
+       every registered thread whose Python thread state is gone: CPython
+       deletes it before the thread exits.  Called from the signal handler,
+       under the spinlock and the SIGSEGV guard that also protects the
+       thread state lookup. */
+    size_t i = 0;
+    while (i < thread_count) {
+        if (python_thread_is_alive(threads[i])) {
+            i++;
+        } else {
+            remove_thread(threads[i], i);
+        }
+    }
+}
+#endif
+
 int broadcast_signal_for_threads(void)
 {
     int done = 1;
@@ -279,7 +318,9 @@ int broadcast_signal_for_threads(void)
         if (pthread_equal(tid, self)) {
             done = 0;
         } else if (pthread_kill(tid, SIGALRM)) {
+            /* the last entry is moved into slot i, look at it next */
             remove_thread(tid, i);
+            continue;
         }
         i++;
     }

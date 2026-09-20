@@ -207,23 +207,25 @@ void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
     while (__sync_lock_test_and_set(&spinlock, 1)) {
     }
 
-#ifdef VMPROF_UNIX
     // SIGNAL ABUSE AHEAD
     // On linux, the prof timer will deliver the signal to the thread which triggered the timer,
     // because these timers are based on process and system time, and as such, are thread-aware.
     // For the real timer, the signal gets delivered to the main thread, seemingly always.
     // Consequently if we want to sample multiple threads, we need to forward this signal.
-    if (vmprof_get_signal_type() == SIGALRM) {
-        if (is_main_thread() && broadcast_signal_for_threads()) {
-            __sync_lock_release(&spinlock);
-            return;
-        }
-    }
+    int broadcast = 0;
+#ifdef VMPROF_UNIX
+    broadcast = (vmprof_get_signal_type() == SIGALRM) && is_main_thread();
 #endif
 
     prevhandler = signal(SIGSEGV, &segfault_handler);
     int fault_code = setjmp(restore_point);
     if (fault_code == 0) {
+#ifdef VMPROF_UNIX
+        if (broadcast) {
+            // walks the thread states, hence inside the guard
+            prune_dead_threads();
+        }
+#endif
         pthread_self();
         tstate = _get_pystate_for_this_thread();
     } else {
@@ -232,6 +234,14 @@ void sigprof_handler(int sig_nr, siginfo_t* info, void *ucontext)
         return;
     }
     signal(SIGSEGV, prevhandler);
+
+#ifdef VMPROF_UNIX
+    if (broadcast && broadcast_signal_for_threads()) {
+        // the main thread itself is not registered: forwarded only
+        __sync_lock_release(&spinlock);
+        return;
+    }
+#endif
     __sync_lock_release(&spinlock);
 #endif
 
