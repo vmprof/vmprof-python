@@ -3,20 +3,37 @@ from vmprof.reader import AssemblerCode, JittedCode, NativeCode
 class EmptyProfileFile(Exception):
     pass
 
+def _count_str(count):
+    if count == int(count):
+        return '%d' % count
+    return '%.1f' % count
+
 class Stats(object):
+    """ profiles is a list of (trace, weight, thread_id[, mem_in_kb]).
+
+    The weight is the number of timer periods the sample stands for.  It
+    is 1 for files without sample timestamps, and >= 1.0 (a float) when
+    the reader could tell that timer signals were lost between samples.
+    Every count in the tree, in top_profile() and in function_profile()
+    is a sum of weights.
+    """
     def __init__(self, profiles, adr_dict=None, jit_frames=None, interp=None,
                  meta=None, start_time=None, end_time=None, state=None):
         self.profiles = profiles
         self.adr_dict = adr_dict
         self.functions = {}
+        self.n_samples = len(profiles)
+        self.expected_samples = sum(p[1] for p in profiles)
         # kludgy, state is optional. stats should only take state as input
         if state:
             self.profile_lines = state.profile_lines
             self.profile_memory = state.profile_memory
+            self.lost_time = state.lost_time
         else:
             # unknown, for tests only
             self.profile_lines = False
             self.profile_memory = False
+            self.lost_time = 0.0
         self.generate_top()
         if jit_frames is None:
             jit_frames = set()
@@ -33,6 +50,17 @@ class Stats(object):
             return 0 # old versions that do not emit start or end time
         ts = self.end_time - self.start_time
         return ts.total_seconds() * 1000000
+
+    def get_lost_fraction(self):
+        """ The fraction of timer periods for which no sample was taken,
+        as judged from the sample timestamps: 0.0 means every timer signal
+        produced a sample, 0.25 means one in four was lost.  Always 0.0 for
+        files without timestamps.  Time cut off by the reader's
+        max_sample_gap is not included here, see self.lost_time.
+        """
+        if not self.expected_samples:
+            return 0.0
+        return 1.0 - float(self.n_samples) / self.expected_samples
 
     def get_name(self, addr):
         if addr not in self.adr_dict:
@@ -66,13 +94,14 @@ class Stats(object):
     def generate_top(self):
         for profile in self.profiles:
             current_iter = {}
+            weight = profile[1]
             for i, addr in enumerate(profile[0]):
                 if self.profile_lines and i % 2 == 1:
                     # this entry in the profile is a negative number indicating a line
                     assert addr <= 0
                     continue
                 if addr not in current_iter:  # count only topmost
-                    self.functions[addr] = self.functions.get(addr, 0) + 1
+                    self.functions[addr] = self.functions.get(addr, 0) + weight
                     current_iter[addr] = None
 
     def top_profile(self):
@@ -93,16 +122,17 @@ class Stats(object):
         for profile in self.profiles:
             current_iter = {}  # don't count twice
             counting = False
+            weight = profile[1]
             for addr in profile[0]:
                 if counting:
                     if addr in current_iter:
                         continue
                     current_iter[addr] = None
-                    result[addr] = result.get(addr, 0) + 1
+                    result[addr] = result.get(addr, 0) + weight
                 else:
                     if addr == top_function:
                         counting = True
-                        total += 1
+                        total += weight
         result = sorted(result.items(), key=lambda a: a[1])
         return result, total
 
@@ -114,7 +144,7 @@ class Stats(object):
             raise EmptyProfileFile()
         top_addr = prof[0][0]
         top = Node(top_addr, self._get_name(top_addr))
-        top.count = len(self.profiles)
+        top.count = self.expected_samples
         return top
 
     def get_tree(self):
@@ -125,6 +155,7 @@ class Stats(object):
         for profile in self.profiles:
             last_addr = top.addr
             cur = top
+            weight = profile[1]
             for i in range(0, len(profile[0])):
                 if isinstance(profile[0][i], AssemblerCode):
                     continue # just ignore it for now
@@ -132,17 +163,17 @@ class Stats(object):
 
                 if addr <= 0:
                     # negative address means line number
-                    cur.lines[-addr] = cur.lines.get(-addr, 0) + 1
+                    cur.lines[-addr] = cur.lines.get(-addr, 0) + weight
                 else:
                     if addr == last_addr:
                         continue  # ignore duplicates
                     last_addr = addr
                     name = self._get_name(addr)
-                    cur = cur.add_child(addr, name)
+                    cur = cur.add_child(addr, name, weight)
             if isinstance(addr, JittedCode):
-                cur.meta['jit'] = cur.meta.get('jit', 0) + 1
+                cur.meta['jit'] = cur.meta.get('jit', 0) + weight
             if isinstance(addr, NativeCode):
-                cur.meta['native'] = cur.meta.get('native', 0) + 1
+                cur.meta['native'] = cur.meta.get('native', 0) + weight
         # get the first "interesting" node, that is after vmprof and pypy
         # mess
 
@@ -246,12 +277,12 @@ class Node(object):
 
     self_count = property(get_self_count)
 
-    def add_child(self, addr, name):
+    def add_child(self, addr, name, count=1):
         try:
             next = self.children[addr]
-            next.count += 1
+            next.count += count
         except KeyError:
-            next = Node(addr, name)
+            next = Node(addr, name, count)
             self.children[addr] = next
         return next
 
@@ -265,6 +296,7 @@ class Node(object):
 
     def __repr__(self):
         items = sorted(self.children.items())
-        child_str = ", ".join([("(%d, %s)" % (v.count, v.name))
+        child_str = ", ".join([("(%s, %s)" % (_count_str(v.count), v.name))
                                for k, v in items])
-        return '<Node: %s (%d) [%s]>' % (self.name, self.count, child_str)
+        return '<Node: %s (%s) [%s]>' % (self.name, _count_str(self.count),
+                                         child_str)

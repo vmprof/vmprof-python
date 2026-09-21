@@ -15,7 +15,7 @@ from vmshare.service import Service, ServiceException
 from vmprof.show import PrettyPrinter
 from vmprof.profiler import read_profile
 from vmprof.reader import (gunzip, MARKER_STACKTRACE, MARKER_VIRTUAL_IP,
-        MARKER_TRAILER, FileReadError, VERSION_THREAD_ID,
+        MARKER_TRAILER, FileReadError, VERSION_THREAD_ID, VERSION_SAMPLE_TIME,
         MARKER_TIME_N_ZONE, assert_error,
         MARKER_META, MARKER_NATIVE_SYMBOLS)
 from vmshare.binary import read_string, read_word, read_addr
@@ -426,6 +426,8 @@ def read_one_marker(fileobj, status, buffer_so_far=None):
             mem_in_kb = read_addr(fileobj)
         else:
             mem_in_kb = 0
+        if status.version >= VERSION_SAMPLE_TIME:
+            fileobj.read(8) # the sample timestamp, ignored here
         trace.reverse()
         status.profiles.append((trace, 1, thread_id, mem_in_kb))
     elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:

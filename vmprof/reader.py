@@ -26,11 +26,21 @@ VERSION_MEMORY = 3
 VERSION_MODE_AWARE = 4
 VERSION_DURATION = 5
 VERSION_TIMESTAMP = 6
+# every stack sample ends with a 64-bit nanosecond timestamp
+VERSION_SAMPLE_TIME = 7
 
 PROFILE_MEMORY = 1
 PROFILE_LINES = 2
 PROFILE_NATIVE = 4
 PROFILE_RPYTHON = 8
+PROFILE_REAL_TIME = 16
+
+# A sample is weighted by the time elapsed since the previous one, so that
+# timer signals the process never received (it was off the cpu, or the
+# signal was still pending) are still accounted for.  The gap is capped at
+# this many seconds: a process that was stopped in a debugger or suspended
+# with the laptop lid should not attribute minutes to a single frame.
+DEFAULT_MAX_SAMPLE_GAP = 1.0
 
 VMPROF_CODE_TAG = 1
 VMPROF_BLACKHOLE_TAG = 2
@@ -96,6 +106,8 @@ class LogReader(object):
         self.state = state
         self.word_size = None
         self.addr_size = None
+        # timestamp of the previous sample, see sample_weight()
+        self.last_sample_time = {}
         self.setup()
 
     def setup(self):
@@ -163,10 +175,12 @@ class LogReader(object):
             s.profile_memory = (mode & PROFILE_MEMORY) != 0
             s.profile_lines = (mode & PROFILE_LINES) != 0
             s.profile_rpython = (mode & PROFILE_RPYTHON) != 0
+            s.profile_real_time = (mode & PROFILE_REAL_TIME) != 0
         else:
             s.profile_memory = s.version == VERSION_MEMORY
             s.profile_lines = False
             s.profile_rpython = False
+            s.profile_real_time = False
 
         lgt = ord(fileobj.read(1))
         s.interp_name = fileobj.read(lgt)
@@ -230,7 +244,43 @@ class LogReader(object):
         return addrs
 
     def read_s64(self):
-        return struct.unpack('q', self.fileobj.read(8))[0]
+        return struct.unpack('<q', self.fileobj.read(8))[0]
+
+    def sample_weight(self, thread_id, sample_time):
+        """ How many timer periods this sample stands for.
+
+        Files older than VERSION_SAMPLE_TIME carry no timestamps and every
+        sample counts as one period.  Otherwise the sample is worth the
+        time since the previous sample divided by the period, at least 1,
+        and the gap is capped at state.max_sample_gap seconds; time beyond
+        the cap is summed up in state.lost_time.
+
+        In real time mode every registered thread receives its own signal
+        per period, so the previous sample is tracked per thread.  In cpu
+        time mode there is one process wide timer whose signal goes to the
+        running thread, and the timestamp is process cpu time, so the
+        previous sample is tracked process wide.
+        """
+        s = self.state
+        s.n_samples += 1
+        if sample_time is None or s.period <= 0:
+            s.expected_samples += 1
+            return 1
+        key = thread_id if s.profile_real_time else None
+        prev = self.last_sample_time.get(key)
+        if prev is None or sample_time > prev:
+            self.last_sample_time[key] = sample_time
+        if prev is None:
+            weight = 1.0
+        else:
+            gap = sample_time - prev
+            max_gap = s.max_sample_gap * 10**9
+            if gap > max_gap:
+                s.lost_time += (gap - max_gap) / 10.0**9
+                gap = max_gap
+            weight = max(gap / (s.period * 1000.0), 1.0)
+        s.expected_samples += weight
+        return weight
 
     def read_time_and_zone(self):
         return datetime.datetime.fromtimestamp(
@@ -274,12 +324,16 @@ class LogReader(object):
                 trace = self.read_trace(depth)
                 thread_id = 0
                 mem_in_kb = 0
+                sample_time = None
                 if s.version >= VERSION_THREAD_ID:
                     thread_id = self.read_addr()
                 if s.profile_memory:
                     mem_in_kb = self.read_addr()
+                if s.version >= VERSION_SAMPLE_TIME:
+                    sample_time = self.read_s64()
                 trace.reverse()
-                self.add_trace(trace, 1, thread_id, mem_in_kb)
+                weight = self.sample_weight(thread_id, sample_time)
+                self.add_trace(trace, weight, thread_id, mem_in_kb)
             elif marker == MARKER_VIRTUAL_IP or marker == MARKER_NATIVE_SYMBOLS:
                 unique_id = self.read_addr()
                 name = self.read_string()
@@ -356,7 +410,7 @@ class ReaderState(object):
     pass
 
 class LogReaderState(ReaderState):
-    def __init__(self):
+    def __init__(self, max_sample_gap=DEFAULT_MAX_SAMPLE_GAP):
         self.virtual_ips = []
         self.profiles = []
         self.interp_name = None
@@ -365,14 +419,21 @@ class LogReaderState(ReaderState):
         self.version = 0
         self.profile_memory = False
         self.profile_lines = False
+        self.profile_real_time = False
         self.meta = {}
         self.little_endian = True
-        self.period = 0
+        self.period = 0 # microseconds
+        # see LogReader.sample_weight
+        self.max_sample_gap = max_sample_gap
+        self.n_samples = 0         # stack samples in the file
+        self.expected_samples = 0  # timer periods those samples stand for
+        self.lost_time = 0.0       # seconds cut off by max_sample_gap
 
-def _read_prof(fileobj, virtual_ips_only=False):
+def _read_prof(fileobj, virtual_ips_only=False,
+               max_sample_gap=DEFAULT_MAX_SAMPLE_GAP):
     fileobj = gunzip(fileobj)
 
-    state = LogReaderState()
+    state = LogReaderState(max_sample_gap)
     reader = LogReader(fileobj, state)
     reader.read_all()
 

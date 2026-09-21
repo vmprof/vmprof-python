@@ -137,7 +137,7 @@ int opened_profile(const char *interp_name, int memory, int proflines, int nativ
     }
     header.interp_name[0] = MARKER_HEADER;
     header.interp_name[1] = '\x00';
-    header.interp_name[2] = VERSION_TIMESTAMP;
+    header.interp_name[2] = VERSION_SAMPLE_TIME;
     header.interp_name[3] = memory*PROFILE_MEMORY + proflines*PROFILE_LINES + \
                             native*PROFILE_NATIVE + real_time*PROFILE_REAL_TIME;
 #ifdef RPYTHON_VMPROF
