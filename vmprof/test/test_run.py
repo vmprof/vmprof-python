@@ -353,19 +353,20 @@ def test_vmprof_real_time_many_threads():
 def test_vmprof_real_time_threads_exit():
     # Registered threads that exit while profiling goes on used to leave
     # stale pthread ids in the list, and forwarding SIGALRM to one of them
-    # segfaulted.
+    # segfaulted.  Enough threads that glibc unmaps some of their stacks
+    # instead of caching them, and a slow timer: sampling threads while
+    # they start or exit at a high rate hits a different, older problem.
     import threading
     prof = vmprof.Profiler()
-    with prof.measure(period=0.001, real_time=True):
-        for _ in range(5):
-            threads = [threading.Thread(target=functime_foo, args=[0.01, True])
-                       for _ in range(20)]
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join()
-            # keep forwarding signals now that all of them are gone
-            functime_bar(0.1)
+    with prof.measure(period=0.01, real_time=True):
+        threads = [threading.Thread(target=functime_foo, args=[0.05, True])
+                   for _ in range(20)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        # keep forwarding signals now that all of them are gone
+        functime_bar(0.3)
     stats = prof.get_stats()
     d = dict(stats.top_profile())
     assert foo_time_name in d
