@@ -32,9 +32,13 @@
 #ifdef VMPROF_UNIX
 
 ssize_t search_thread(pthread_t tid, ssize_t i);
-ssize_t insert_thread(pthread_t tid, ssize_t i);
+/* native_id: the kernel thread id (gettid) of 'tid' on linux, 0 if unknown
+   or on other platforms */
+ssize_t insert_thread(pthread_t tid, long native_id, ssize_t i);
 ssize_t remove_thread(pthread_t tid, ssize_t i);
 ssize_t remove_threads(void);
+/* the kernel thread id of the calling thread on linux, 0 elsewhere */
+long vmp_native_thread_id(void);
 
 #endif
 

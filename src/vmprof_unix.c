@@ -367,7 +367,7 @@ int vmprof_enable(int memory, int native, int real_time)
     if (memory && setup_rss() == -1)
         goto error;
 #if VMPROF_UNIX
-    if (real_time && insert_thread(pthread_self(), -1) == -1)
+    if (real_time && insert_thread(pthread_self(), vmp_native_thread_id(), -1) == -1)
         goto error;
 #endif
     if (install_pthread_atfork_hooks() == -1)

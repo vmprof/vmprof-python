@@ -323,7 +323,6 @@ def test_insert_other_real_time_thread(insert_foo, remove_bar):
 
 @pytest.mark.skipif("'__pypy__' in sys.builtin_module_names")
 @pytest.mark.skipif("sys.platform == 'win32'")
-@pytest.mark.skip("seems to crash")
 def test_vmprof_real_time_many_threads():
     import threading
     prof = vmprof.Profiler()
@@ -345,6 +344,30 @@ def test_vmprof_real_time_many_threads():
     stats = prof.get_stats()
     tprof = stats.top_profile()
     d = dict(tprof)
+    assert foo_time_name in d
+    assert bar_time_name in d
+
+
+@pytest.mark.skipif("'__pypy__' in sys.builtin_module_names")
+@pytest.mark.skipif("sys.platform == 'win32'")
+def test_vmprof_real_time_threads_exit():
+    # Registered threads that exit while profiling goes on used to leave
+    # stale pthread ids in the list, and forwarding SIGALRM to one of them
+    # segfaulted.
+    import threading
+    prof = vmprof.Profiler()
+    with prof.measure(period=0.001, real_time=True):
+        for _ in range(5):
+            threads = [threading.Thread(target=functime_foo, args=[0.01, True])
+                       for _ in range(20)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            # keep forwarding signals now that all of them are gone
+            functime_bar(0.1)
+    stats = prof.get_stats()
+    d = dict(stats.top_profile())
     assert foo_time_name in d
     assert bar_time_name in d
 
