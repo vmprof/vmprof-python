@@ -4,7 +4,9 @@ import struct, pytest
 from vmprof import reader
 from vmprof.reader import (FileReadError, MARKER_HEADER, MARKER_STACKTRACE,
         MARKER_TRAILER, MARKER_VIRTUAL_IP, VERSION_SAMPLE_TIME,
-        VERSION_TIMESTAMP, PROFILE_REAL_TIME)
+        VERSION_TIMESTAMP, VERSION_THREAD_ID, VERSION_MEMORY,
+        VERSION_MODE_AWARE, VERSION_DURATION, PROFILE_MEMORY,
+        PROFILE_REAL_TIME)
 from vmprof.profiler import read_profile
 from vmprof.test.test_run import (read_one_marker, read_header,
         BufferTooSmallError, FileObjWrapper)
@@ -63,18 +65,26 @@ def build_profile(samples, period_usec=1000, version=VERSION_SAMPLE_TIME,
     """
     word = lambda v: struct.pack('<q', v)
     out = [word(0), word(3), word(0), word(period_usec), word(0)]
-    out.append(MARKER_HEADER + struct.pack('!h', version) +
-               struct.pack('B', mode) + struct.pack('B', 4) + b'test')
+    out.append(MARKER_HEADER + struct.pack('!h', version))
+    if version >= VERSION_MODE_AWARE:
+        out.append(struct.pack('B', mode))
+    out.append(struct.pack('B', 4) + b'test')
     for addr, name in [(1, b'foo'), (2, b'bar'), (3, b'baz')]:
         out.append(MARKER_VIRTUAL_IP + word(addr) + word(len(name)) + name)
     for trace, thread_id, timestamp in samples:
         out.append(MARKER_STACKTRACE + word(1) + word(len(trace)))
         for addr in reversed(trace):
             out.append(word(addr))
-        out.append(word(thread_id))
+        if version >= VERSION_THREAD_ID:
+            out.append(word(thread_id))
+        if version == VERSION_MEMORY or (version >= VERSION_MODE_AWARE and
+                                         mode & PROFILE_MEMORY):
+            out.append(word(0)) # rss in kb
         if version >= VERSION_SAMPLE_TIME:
             out.append(struct.pack('<q', timestamp))
-    out.append(MARKER_TRAILER + word(0) + word(0) + b'\x00' * 8)
+    out.append(MARKER_TRAILER)
+    if version >= VERSION_DURATION:
+        out.append(word(0) + word(0) + b'\x00' * 8)
     return io.BytesIO(b''.join(out))
 
 def weights(stats):
@@ -151,6 +161,15 @@ def test_sample_weights_two_threads():
     stats = read_profile(build_profile(samples, mode=PROFILE_REAL_TIME))
     assert weights(stats) == [1.0, 1.0, 2.0, 2.0]
     assert stats.get_lost_fraction() == pytest.approx(1.0 - 4.0 / 6.0)
+
+def test_newer_format_version_is_refused():
+    # the header names the format version, so a file written by a newer
+    # vmprof fails up front instead of being misparsed
+    with pytest.raises(FileReadError, match="version 8 is newer"):
+        read_profile(build_profile([([1], 7, 0)], version=VERSION_SAMPLE_TIME + 1))
+    # the current version and every older one are fine
+    for version in range(VERSION_SAMPLE_TIME + 1):
+        read_profile(build_profile([([1], 7, 0)], version=version))
 
 def test_sample_weights_out_of_order():
     # buffers of different threads can be written out of order; a sample

@@ -169,6 +169,10 @@ class LogReader(object):
         s = self.state
         fileobj = self.fileobj
         s.version, = struct.unpack("!h", fileobj.read(2))
+        if s.version > VERSION_SAMPLE_TIME:
+            raise FileReadError("profile format version %d is newer than "
+                                "this reader supports (%d), please upgrade "
+                                "vmprof" % (s.version, VERSION_SAMPLE_TIME))
 
         if s.version >= VERSION_MODE_AWARE:
             mode = ord(fileobj.read(1))
