@@ -45,6 +45,12 @@ long vmp_native_thread_id(void);
 #define MAX_STACK_DEPTH   \
     ((SINGLE_BUF_SIZE - sizeof(struct prof_stacktrace_s)) / sizeof(void *))
 
+/* Slots at the end of a stack sample that are not stack entries: the thread
+   id, the (optional) rss and the 64-bit sample timestamp.  Walk at most
+   MAX_STACK_DEPTH - STACK_TRAILER_SLOTS frames so that they always fit. */
+#define STACK_TRAILER_SLOTS \
+    (2 + (sizeof(int64_t) + sizeof(void *) - 1) / sizeof(void *))
+
 /*
  * NOTE SHOULD NOT BE DONE THIS WAY. Here is an example why:
  * assume the following struct content:
@@ -77,6 +83,9 @@ typedef struct prof_stacktrace_s {
     char marker;
     long count, depth;
     void *stack[];
+    /* the file record continues after stack[depth] with the thread id,
+       the rss if memory profiling is on, and an int64_t timestamp
+       (VERSION_SAMPLE_TIME, see vmp_sample_time_ns) */
 } prof_stacktrace_s;
 
 #define SIZEOF_PROF_STACKTRACE sizeof(long)+sizeof(long)+sizeof(char)

@@ -2,7 +2,7 @@ import vmprof
 import tempfile
 
 from vmprof.stats import Stats
-from vmprof.reader import _read_prof
+from vmprof.reader import _read_prof, DEFAULT_MAX_SAMPLE_GAP
 
 
 class VMProfError(Exception):
@@ -32,12 +32,18 @@ class ProfilerContext(object):
         self.done = True
 
 
-def read_profile(prof_file):
+def read_profile(prof_file, max_sample_gap=DEFAULT_MAX_SAMPLE_GAP):
+    """ Read a profile file into a Stats object.
+
+    max_sample_gap caps, in seconds, how much time a single sample may
+    stand for when the timestamps show that timer signals were lost;
+    see vmprof.reader.LogReader.sample_weight.
+    """
     file_to_close = None
     if not hasattr(prof_file, 'read'):
         prof_file = file_to_close = open(str(prof_file), 'rb')
 
-    state = _read_prof(prof_file)
+    state = _read_prof(prof_file, max_sample_gap=max_sample_gap)
 
     if file_to_close:
         file_to_close.close()
