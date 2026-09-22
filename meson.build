@@ -1,5 +1,5 @@
 project('vmprof', 'c',
-  version: '0.5.1',
+  version: '0.6.0',
   license: 'MIT',
   meson_version: '>=1.1.0',
 )
