@@ -12,7 +12,7 @@ license-files = ["LICENSE"]
 authors = [
     {name = "vmprof team", email = "fijal@baroquesoftware.com"},
 ]
-requires-python = ">=3.9,<3.16"
+requires-python = ">=3.10,<3.16"
 dependencies = [
     "requests",
     "colorama",
