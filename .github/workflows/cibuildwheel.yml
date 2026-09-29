@@ -56,13 +56,15 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
+      matrix:
+          python_version: ['pypy-3.11', 'pypy-3.12']
 
     steps:
       # Note: not inside a docker
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: ['pypy-3.11', 'pypy-3.12']
+          python-version: ${{ matrix.python_version }}
 
       - name: Install system libraries
         run: sudo apt install -y libunwind-dev libelf-dev libdwarf-dev rename
