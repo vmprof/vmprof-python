@@ -191,7 +191,9 @@ def test_nested_call():
         t = t['']
     assert len(t.children) == 1
     assert 'function_foo' in t[''].name
-    if sys.version_info >= (3, 12):
+    # PEP 709 (inlined comprehensions) is CPython 3.12+, PyPy still creates
+    # a separate <listcomp> code object and frame.
+    if sys.version_info >= (3, 12) and '__pypy__' not in sys.builtin_module_names:
         assert len(t[''].children) == 0
     else:
         assert len(t[''].children) == 1
