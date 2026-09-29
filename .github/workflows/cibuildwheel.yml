@@ -52,7 +52,7 @@ jobs:
 
 
   build_pypy_wheels:
-    name: Build pypy wheels
+    name: Build pypy wheels and sdist
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -62,7 +62,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: 'pypy-3.11'
+          python-version: ['pypy-3.11', 'pypy-3.12']
 
       - name: Install system libraries
         run: sudo apt install -y libunwind-dev libelf-dev libdwarf-dev rename
