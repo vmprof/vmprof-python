@@ -10,25 +10,18 @@ very helpful to profile higher-level languages which run on top of a virtual
 machine, while vmprof is designed specifically for them. vmprof is also thread
 safe and will correctly display the information regardless of usage of threads.
 
-There are three primary modes. The recommended one is to use our server
-infrastructure for a web-based visualization of the result::
-
-    python -m vmprof --web <program.py> <program parameters>
-
-If you prefer a barebone terminal-based visualization, which will display only
-some basic statistics::
+Profiling a program writes a profile file, which you then open in a viewer.
+To get a quick overview in the terminal::
 
     python -m vmprof <program.py> <program parameters>
 
-To display a terminal-based tree of calls::
+To keep the profile around, which is what you want for every viewer other
+than the one above::
 
-    python -m vmprof -o output.log <program.py> <program parameters>
+    python -m vmprof -o profile.prof <program.py> <program parameters>
 
-    vmprofshow output.log
-
-To upload an already saved profile log to the vmprof web server::
-
-    python -m vmprof.upload output.log
+That file can be read by the bundled ``vmprofshow`` command, by the Firefox
+Profiler and by kcachegrind. :doc:`viewers` covers all three.
 
 For more advanced use cases, vmprof can be invoked and controlled from within
 the program using the given API.
@@ -41,8 +34,8 @@ the program using the given API.
 Requirements
 ------------
 
-VMProf runs on x86_64 and x86. It supports Linux, Mac OS X and Windows running
-CPython 2.7, 3.4, 3.5 and PyPy 4.1+.
+vmprof 0.6 supports CPython 3.10 through 3.14 and PyPy, on Linux, Mac OS X and
+Windows. Native profiling is available on Linux and Mac OS X.
 
 Installation
 ------------
@@ -51,30 +44,18 @@ Installation of ``vmprof`` is performed with a simple command::
 
     pip install vmprof
 
-PyPi ships wheels with libunwind shared objects (this means you need a recent version of pip).
+PyPI ships wheels for Linux, Mac OS X and Windows, with the libunwind shared
+objects bundled in. If you build from source you need the CPython development
+headers, and on Linux the libunwind headers as well. On Debian or Ubuntu those
+are the ``python3-dev`` and ``libunwind-dev`` packages. On Windows you need the
+Microsoft Visual C++ compiler for your Python version.
 
-If you build VMProf from source you need to compile C code:
-
-    sudo apt-get install python-dev
-
-.. _`CPython`: http://python.org
-.. _`PyPy`: http://pypy.org
-
-We strongly suggest using the ``--web`` option that will display you a much
-nicer web interface hosted on ``vmprof.com``.
-
-If you prefer to host your own vmprof visualization server, you need the
-`vmprof-server`_ package.
+Command line options
+--------------------
 
 After ``-m vmprof`` you can specify some options:
 
-* ``--web`` - Use the web-based visualization. By default, the result can be
-  viewed on our `server`_.
-
-* ``--web-url`` - the URL to upload the profiling info as JSON. The default is
-  ``vmprof.com``
-
-* ``--web-auth`` - auth token for user name support in the server.
+* ``-o file`` - save the profile to a file, to open in a viewer later.
 
 * ``-p period`` - seconds between profile runs, sets the profiling frequency.
   The value must be between 1e-6 and 1.0, and should not result in a round
@@ -88,7 +69,9 @@ After ``-m vmprof`` you can specify some options:
 
 * ``--lines`` - enable line profiling mode. This mode adds some overhead to profiling, but in addition to function calls it marks the execution of the specific lines inside functions.
 
-* ``-o file`` - save logs for later
+* ``--mem`` - also record the total RSS of the process alongside the stacks.
+
+* ``--jitlog`` - on PyPy, also write the JIT compiler log. See :doc:`jitlog`.
 
 * ``--help`` - display help
   
@@ -97,12 +80,8 @@ After ``-m vmprof`` you can specify some options:
 Example `config.ini` file::
 
   [global]
-  web-url = vmprof.com
-  web-auth = ffb7d4bee2d6436bbe97e4d191bf7d23f85dfeb2
   period = 0.0099
-
-.. _`vmprof-server`: https://github.com/vmprof/vmprof-server
-.. _`server`: http://vmprof.com
+  lines = True
 
 
 API
@@ -180,7 +159,7 @@ None of the existing solutions satisfied our requirements, hence we decided to
 create our own profiler. In particular, cProfile is slow on PyPy, does not
 understand the JITted code very well and is shown in the JIT traces.
 
-.. _`CProfile`: https://docs.python.org/2/library/profile.html
+.. _`CProfile`: https://docs.python.org/3/library/profile.html
 .. _`lsprofcalltree.py`: https://pypi.python.org/pypi/lsprofcalltree
 .. _`plop`: https://github.com/bdarnell/plop
 
@@ -196,9 +175,9 @@ approach used e.g. by `gperftools`_.
 
 However, when profiling an interpreter such as CPython, inspecting the C stack
 is not enough, because most of the time will always be spent inside the opcode
-dispatching loop of the virtual machine (e.g., ``PyEval_EvalFrameEx`` in case
-of CPython).  To be able to display useful information, we need to know which
-Python-level function correspond to each C-level ``PyEval_EvalFrameEx``.
+dispatching loop of the virtual machine (e.g., ``_PyEval_EvalFrameDefault`` in
+case of CPython).  To be able to display useful information, we need to know
+which Python-level function correspond to each C-level frame evaluation.
 
 This is done by reading the stack of Python frames instead of C stack.
 
@@ -209,15 +188,3 @@ extract the relevant info from those as well.
 Once we have gathered all the low-level info, we can post-process and
 visualize them in various ways: for example, we can decide to filter out the
 places where we are inside the ``select()`` syscall, etc.
-
-The machinery to gather the information has been the focus of the initial
-phase of vmprof development and now it is working well: we are currently
-focusing on the frontend to make sure we can process and display the info in
-useful ways.
-
-Links
-=====
-
-* `vmprof-flamegraph <https://pypi.python.org/pypi/vmprof-flamegraph>`_
-  Convert vmprof data into text format for
-  `flamegraph <http://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html>`_

@@ -27,16 +27,11 @@ Now run the following command to generate the log::
     # run your program and output the log
     pypy -m vmprof -o log.jit example.py
 
-This generates the file that normally is sent to `vmprof.com`_ whenever
-`--web` is provided.
-
 The query interface is a the flag '-q' which incooperates a small
 query language. Here is an example::
 
     pypy -m jitlog log.jit -q 'bridges & op("int_add_ovf")'
     ... # will print the filtered traces
-
-.. _`vmprof.com`: http://vmprof.com
 
 Query API
 ---------

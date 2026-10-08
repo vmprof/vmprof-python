@@ -24,6 +24,8 @@ class color(str):
             cls, "%s%s%s%s" % (color, cls.BOLD if bold else "", content, cls.END))
 
 class AbstractPrinter(object):
+    _stats = None
+
     def show(self, profile):
         """
         Read and display a vmprof profile file.
@@ -42,6 +44,7 @@ class AbstractPrinter(object):
             sys.stderr.write(msg)
 
         try:
+            self._stats = stats
             tree = stats.get_tree()
             self._show(tree)
         except EmptyProfileFile as e:
@@ -260,6 +263,109 @@ class FlatPrinter(AbstractPrinter):
                             funline=ndescr.funline))
 
 
+def _callgrind_position(descr):
+    """ The (file, function, line) triple callgrind should use for a node.
+
+    Python and native frames carry a file and a line, JIT frames only carry
+    the address of the generated code, and anything else is unknown.
+    """
+    if descr.filename is not None and descr.funline is not None:
+        filename = descr.filename if descr.filename != '-' else '???'
+        try:
+            lineno = int(descr.funline)
+        except ValueError:
+            lineno = 0
+        return filename, descr.funname, lineno
+    if descr.block_type is not None:
+        return '[%s]' % descr.block_type, descr.funname, 0
+    return '???', descr.funname, 0
+
+
+class CallgrindPrinter(AbstractPrinter):
+    """
+    Write a profile as a callgrind file, for kcachegrind and qcachegrind.
+
+    The exported event is ``Periods``: a sample is weighted by the time
+    since the previous one, in units of the sampling period, so costs are
+    proportional to time rather than to how many signals got delivered.
+    See ``LogReader.sample_weight``. Multiply by the period to get time,
+    ~0.99ms per unit by default.
+
+    Being a sampling profiler vmprof never sees individual calls, so every
+    call edge is written as ``calls=1``: treat kcachegrind's call counts as
+    "this edge was observed", not as a number of calls. Self cost is
+    attributed to the line a function is defined on, because the call tree
+    does not record which line each call was made from. Use
+    ``vmprofshow <profile> lines`` for per-line numbers.
+    """
+
+    def __init__(self, output=None):
+        self.output = output
+
+    def _show(self, tree):
+        self_cost, edges = self._collect(tree)
+        if self.output is None:
+            self._write(sys.stdout, self_cost, edges)
+        else:
+            with open(self.output, 'w') as fd:
+                self._write(fd, self_cost, edges)
+
+    def _collect(self, tree):
+        """ Fold the call tree into per-function self cost and call edges.
+
+        A function shows up once per path through the tree, so costs are
+        summed per function and kcachegrind is left to work out recursion.
+        """
+        self_cost = {}
+        edges = {}
+
+        pending = [tree]
+        while pending:
+            node = pending.pop()
+            descr = parse_block_name(node.name)
+            self_cost[descr] = self_cost.get(descr, 0) + node.self_count
+            for child in node.children.values():
+                key = (descr, parse_block_name(child.name))
+                edges[key] = edges.get(key, 0) + child.count
+                pending.append(child)
+
+        return self_cost, edges
+
+    def _write(self, fd, self_cost, edges):
+        callees = {}
+        for (caller, callee), cost in edges.items():
+            callees.setdefault(caller, []).append((callee, cost))
+
+        positions = dict((descr, _callgrind_position(descr))
+                         for descr in self_cost)
+        total = sum(int(round(cost)) for cost in self_cost.values())
+
+        fd.write("# callgrind format\n")
+        fd.write("version: 1\n")
+        fd.write("creator: vmprof\n")
+        argv = self._stats.getargv() if self._stats is not None else ''
+        if argv:
+            fd.write("cmd: %s\n" % argv.replace('\n', ' '))
+        fd.write("positions: line\n")
+        fd.write("events: Periods\n")
+        fd.write("summary: %d\n" % total)
+
+        for descr in sorted(self_cost, key=lambda d: positions[d]):
+            filename, funname, lineno = positions[descr]
+            fd.write("\n")
+            fd.write("fl=%s\n" % filename)
+            fd.write("fn=%s\n" % funname)
+            fd.write("%d %d\n" % (lineno, int(round(self_cost[descr]))))
+            # every node was walked, so a callee always has a position
+            for callee, cost in sorted(callees.get(descr, []),
+                                       key=lambda item: positions[item[0]]):
+                cfile, cfunname, clineno = positions[callee]
+                fd.write("cfl=%s\n" % cfile)
+                fd.write("cfn=%s\n" % cfunname)
+                fd.write("calls=1 %d\n" % clineno)
+                fd.write("%d %d\n" % (lineno, int(round(cost))))
+
+
 class LinesPrinter(AbstractPrinter):
     def __init__(self, filter=None):
         self.filter = filter
@@ -397,6 +503,16 @@ def main():
     parser_flat.add_argument('--percent-cutoff', type=float, default=0)
     parser_flat.set_defaults(mode='flat')
 
+    parser_callgrind = subp.add_parser(
+        "callgrind",
+        help="Write a callgrind file for kcachegrind/qcachegrind.")
+    parser_callgrind.add_argument(
+        '--output', '-o',
+        metavar='file.callgrind',
+        default=None,
+        help='Write to this file instead of stdout.')
+    parser_callgrind.set_defaults(mode='callgrind')
+
     args = parser.parse_args()
 
     mode = getattr(args, 'mode', None)
@@ -412,6 +528,8 @@ def main():
                 include_callees=args.include_callees,
                 no_native=args.no_native,
                 percent_cutoff=args.percent_cutoff)
+    elif mode == 'callgrind':
+        pp = CallgrindPrinter(output=args.output)
     elif mode == 'tree':
         if args.html:
             cls = HTMLPrettyPrinter
