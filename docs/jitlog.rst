@@ -9,23 +9,35 @@ It was built primarily for the following use cases:
 * Track down speed issues
 * Help bug reporting
 
-This version is now integrated within the webservice `vmprof.com`_ and can be used free of charge.
-
 Usage
 =====
 
-The following commands show example usages::
+Recording a JIT log alongside a CPU profile writes it next to the profile,
+with a ``.jit`` suffix::
 
-    # upload both vmprof & jitlog profiles
-    pypy -m vmprof --web --jitlog <program.py> <arguments>
+    pypy -m vmprof --jitlog -o profile.prof <program.py> <arguments>
+    # writes profile.prof and profile.prof.jit
 
-    # upload only a jitlog profile
-    pypy -m jitlog --web <program.py> <arguments>
+To record only the JIT log, without profiling::
 
-    # upload a jitlog when your program segfaults/crashes
-    $ pypy -m jitlog -o /tmp/file.log <program.py> <arguments>
-    <Segfault>
-    $ pypy -m jitlog --upload /tmp/file.log
+    pypy -m jitlog -o profile.jit <program.py> <arguments>
 
-.. _`vmprof.com`: http://vmprof.com
+This also works when your program crashes, since the log is written as it
+goes: run it, let it segfault, and the log is still there to inspect.
+
+Viewing a JIT log
+=================
+
+The `vmprof-firefox-converter`_ can fold a JIT log, and PyPy's own log, into
+the same Firefox Profiler view as the CPU profile::
+
+    PYPYLOG=profile.pypylog pypy -m vmprof --jitlog -o profile.prof <program.py>
+    python -m vmprofconvert -convert profile.prof -jitlog profile.prof.jit -pypylog profile.pypylog
+
+To read traces in the terminal, use the query interface described in
+:doc:`query`::
+
+    pypy -m jitlog profile.jit -q 'bridges & op("int_add_ovf")'
+
+.. _`vmprof-firefox-converter`: https://github.com/Cskorpion/vmprof-firefox-converter
 .. _`PyPy`: http://pypy.org

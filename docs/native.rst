@@ -16,8 +16,8 @@ Technical Design
 Native sampling utilizes ``libunwind`` in the signal handler to unwind the stack.
 
 Each stack frame is inspected until the frame evaluation function is encountered. Then the stack walking
-switches back to the traditional Python frame walking. Callbacks (Python frame -> ... C frame ... -> Python frame ->
- C frame)
+switches back to the traditional Python frame walking. Callbacks (Python frame ->
+... C frame ... -> Python frame -> C frame)
 will not display intermediate native functions. It would give the impression that the first C frame was never called,
 but it will show the second C frame.
 

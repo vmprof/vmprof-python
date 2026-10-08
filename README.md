@@ -1,10 +1,12 @@
 # VMProf Python package
 
-[![Build Status on TravisCI](https://travis-ci.org/vmprof/vmprof-python.svg?branch=master)](https://travis-ci.org/vmprof/vmprof-python)
-[![Build Status on TeamCity](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:VMprofPython_TestsPy27Win)/statusIcon.svg)](https://teamcity.jetbrains.com/project.html?projectId=VMprofPython)
+[![Tests](https://github.com/vmprof/vmprof-python/actions/workflows/tests.yml/badge.svg)](https://github.com/vmprof/vmprof-python/actions/workflows/tests.yml)
+[![Wheels](https://github.com/vmprof/vmprof-python/actions/workflows/cibuildwheel.yml/badge.svg)](https://github.com/vmprof/vmprof-python/actions/workflows/cibuildwheel.yml)
 [![Read The Docs](https://readthedocs.org/projects/vmprof/badge/?version=latest)](https://vmprof.readthedocs.org/en/latest/)
-[![Build Status on AppVeyor](https://ci.appveyor.com/api/projects/status/github/vmprof/vmprof-python?branch=master&svg=true)](https://ci.appveyor.com/project/planrich/vmprof-python)
 
+**VMProf** is a lightweight statistical profiler for CPython and PyPy. It samples
+the call stack of a running program and writes a profile file you can open in
+several viewers.
 
 Head over to https://vmprof.readthedocs.org for more info!
 
@@ -12,26 +14,84 @@ Head over to https://vmprof.readthedocs.org for more info!
 
 ```console
 pip install vmprof
-python -m vmprof <your program> <your program args>
 ```
 
-Our build system ships wheels to PyPI (Linux, Mac OS X). If you build from source you need
-to install CPython development headers and libunwind headers (on Linux only).
-On Windows this means you need Microsoft Visual C++ Compiler for your Python version.
+VMProf 0.6 supports CPython 3.10 through 3.14 and PyPy, on Linux, Mac OS X and
+Windows. Native profiling is available on Linux and Mac OS X.
+
+Wheels are published to PyPI for all three platforms with libunwind bundled in.
+If you build from source you need the CPython development headers, and on Linux
+the libunwind headers as well — on Debian or Ubuntu, `python3-dev` and
+`libunwind-dev`. On Windows you need the Microsoft Visual C++ Compiler for your
+Python version.
+
+## Quick start
+
+Record a profile:
+
+```console
+$ python -m vmprof -o profile.prof <your program> <your program args>
+```
+
+Then open `profile.prof` in whichever viewer fits the question you're asking:
+
+| Viewer | Good for | How |
+| --- | --- | --- |
+| `vmprofshow` | a quick look, no extra installs | `vmprofshow profile.prof tree` |
+| [Firefox Profiler](https://profiler.firefox.com) | flame graph, timeline | `python -m vmprofconvert -convert profile.prof` |
+| [kcachegrind](https://kcachegrind.github.io/) | callers/callees, call graph | `vmprofshow profile.prof callgrind -o profile.callgrind` |
+
+Running `python -m vmprof` without `-o` prints basic statistics and keeps no
+file.
+
+### Firefox Profiler
+
+The [vmprof-firefox-converter](https://github.com/Cskorpion/vmprof-firefox-converter)
+converts a profile into a format the Firefox Profiler UI reads, giving you a
+flame graph, a stack chart over time and an inverted call tree in the browser.
+It understands PyPy's JIT frames too — see
+[the announcement post](https://pypy.org/posts/2024/05/vmprof-firefox-converter.html)
+for a tour.
+
+```console
+$ python -m pip install vmprof-firefox-converter
+$ python -m vmprofconvert -convert profile.prof
+```
+
+### kcachegrind
+
+`vmprofshow` can write the profile in callgrind format, which kcachegrind (or
+`qcachegrind` on Mac OS X and Windows) reads:
+
+```console
+$ vmprofshow profile.prof callgrind -o profile.callgrind
+$ kcachegrind profile.callgrind
+```
+
+The exported event is `Periods`: each sample is weighted by the time since the
+previous one, in units of the sampling period, so costs are proportional to time
+spent. At the default ~1kHz one unit is about 0.99ms.
+
+Since vmprof samples the stack rather than instrumenting calls, it has no call
+counts — every call edge is written as `calls=1`, so ignore kcachegrind's call
+count column. Self cost is attributed to the line a function is defined on; use
+`vmprofshow profile.prof lines` when you need line-level numbers.
 
 ## Development
 
 Setting up development can be done using the following commands:
 
-    $ virtualenv -p /usr/bin/python3 vmprof3
+    $ python3 -m venv vmprof3
     $ source vmprof3/bin/activate
     $ pip install meson-python meson ninja
     $ pip install --no-build-isolation --editable .
 
 You need to install python development packages. In case of e.g. Debian or Ubuntu the package you need is `python3-dev` and `libunwind-dev`.
-Now it is time to write a test and implement your feature. If you want
-your changes to affect vmprof.com, head over to
-https://github.com/vmprof/vmprof-server and follow the setup instructions.
+
+Run the tests with:
+
+    $ pip install pytest cffi setuptools
+    $ python -m pytest vmprof/
 
 Consult our section for development at https://vmprof.readthedocs.org for more
 information.
@@ -128,7 +188,7 @@ helpful when functions exist that get called from multiple places, where each
 invocation does not consume much time, but all invocations taken together do
 amount to a substantial cost.
 ```console
-$ vmprofshow vmprof_cpuburn.dat flat                                                                                                                                                                                                                                                                                                                                                                                   andreask_work@dunkel 15:24
+$ vmprofshow vmprof_cpuburn.dat flat
     28.895% - _PyFunction_Vectorcall:/home/conda/feedstock_root/build_artifacts/python-split_1608956461873/work/Objects/call.c:389
     18.076% - _iterate:cpuburn.py:20
     17.298% - _next_rand:cpuburn.py:15
@@ -148,7 +208,7 @@ $ vmprofshow vmprof_cpuburn.dat flat                                            
 ```
 Sometimes it may be desirable to exclude "native" functions:
 ```console
-$ vmprofshow vmprof_cpuburn.dat flat --no-native                                                                                                                                                                                                                                                                                                                                                                       andreask_work@dunkel 15:27
+$ vmprofshow vmprof_cpuburn.dat flat --no-native
     53.191% - _next_rand:cpuburn.py:15
     46.809% - _iterate:cpuburn.py:20
      0.000% - test:cpuburn.py:36
@@ -159,8 +219,8 @@ functions called. (In `--no-native` mode, native-code callees remain included
 in the total.)
 
 Sometimes it may also be desirable to get timings *inclusive* of called functions:
-```
-$ vmprofshow vmprof_cpuburn.dat flat --include-callees                                                                                                                                                                                                                                                                                                                                                                 andreask_work@dunkel 15:31
+```console
+$ vmprofshow vmprof_cpuburn.dat flat --include-callees
    100.000% - <native symbol 0x7f0dce8cca80>:-:0
    100.000% - test:cpuburn.py:36
    100.000% - burn:cpuburn.py:27
@@ -179,3 +239,7 @@ $ vmprofshow vmprof_cpuburn.dat flat --include-callees                          
      0.356% - <native symbol 0x563a5f4ed8f1>:/home/conda/feedstock_root/build_artifacts/python-split_1608956461873/work/Objects/longobject.c:3432
 ```
 This view is quite similar to the "tree" view, minus the nesting.
+
+### Callgrind output
+
+See [kcachegrind](#kcachegrind) above.
